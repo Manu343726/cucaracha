@@ -121,6 +121,13 @@ func (d *InstructionsDescriptor) InstructionBits() int {
 }
 
 func makeInstructionsDescriptor(instructions []*InstructionDescriptor) InstructionsDescriptor {
+	// fill operand indices
+	for _, instr := range instructions {
+		for i := range instr.Operands {
+			instr.Operands[i].Index = i
+		}
+	}
+
 	d := InstructionsDescriptor{
 		instructions: utils.GenMap(instructions, func(i *InstructionDescriptor) OpCode { return i.OpCode.OpCode }),
 	}
@@ -171,3 +178,94 @@ var Descriptor_Instructions InstructionsDescriptor = makeInstructionsDescriptor(
 		},
 	},
 })
+
+type Instruction struct {
+	Descriptor    *InstructionDescriptor
+	OperandValues []uint64
+}
+
+// Generates am ASCII frame representation of the instruction, showing all opcode and operand bits
+func (instr *Instruction) PrettyPrint(leftpad int) string {
+	fields := []utils.AsciiFrameField{
+		{
+			Name:  utils.FormatUintBinary(instr.Descriptor.OpCode.BinaryRepresentation, Descriptor_Opcodes.OpCodeBits()),
+			Begin: 0,
+			Width: Descriptor_Opcodes.OpCodeBits(),
+		},
+	}
+	fields = append(fields, utils.Map(instr.Descriptor.Operands, func(op *OperandDescriptor) utils.AsciiFrameField {
+		return utils.AsciiFrameField{
+			Name:  fmt.Sprintf("[%v] %v (%v)", op, utils.FormatUintBinary(instr.OperandValues[op.Index], op.EncodingBits), utils.FormatUintHex(instr.OperandValues[op.Index], op.EncodingBits/4)),
+			Begin: op.EncodingPosition,
+			Width: op.EncodingBits,
+		}
+	})...)
+
+	return utils.AsciiFrame(fields, Descriptor_Instructions.InstructionBits(), "bits", utils.AsciiFrameUnitLayout_RightToLeft, leftpad)
+}
+
+func (instr *Instruction) String() string {
+	var builder strings.Builder
+
+	builder.WriteString(fmt.Sprintf("%v ", instr.Descriptor.OpCode.Mnemonic))
+
+	for i, operand := range instr.Descriptor.Operands {
+		builder.WriteString(utils.FormatUintHex(instr.OperandValues[i], operand.EncodingBits/4))
+
+		if i < len(instr.OperandValues)-1 {
+			builder.WriteString(", ")
+		}
+	}
+
+	return builder.String()
+}
+
+// Returns the binary representation of the instruction, with the opcode and all operands encoded
+func (instr *Instruction) Encode() uint32 {
+	if len(instr.OperandValues) != len(instr.Descriptor.Operands) {
+		panic(fmt.Errorf("mistmatched operand values, the instruction must have %v operands, we have %v values", len(instr.Descriptor.Operands), len(instr.OperandValues)))
+	}
+
+	var binaryRepresentation uint32 = 0
+	view := utils.CreateBitView(&binaryRepresentation)
+
+	view.Write(uint32(instr.Descriptor.OpCode.BinaryRepresentation), 0, Descriptor_Opcodes.OpCodeBits())
+
+	for i, operand := range instr.Descriptor.Operands {
+		view.Write(uint32(instr.OperandValues[i]), operand.EncodingPosition, operand.EncodingBits)
+	}
+
+	return binaryRepresentation
+}
+
+// Decode an instruction
+func (d *InstructionsDescriptor) Decode(binaryRepresentation uint32) (*Instruction, error) {
+	view := utils.CreateBitView(&binaryRepresentation)
+	opCode, err := Descriptor_Opcodes.DecodeOpCode(uint64(view.Read(0, Descriptor_Opcodes.OpCodeBits())))
+
+	if err != nil {
+		return nil, err
+	}
+
+	descriptor, err := d.Instruction(opCode)
+
+	if err != nil {
+		return nil, err
+	}
+
+	operandValues := make([]uint64, len(descriptor.Operands))
+
+	for i, operand := range descriptor.Operands {
+		operandValues[i] = uint64(view.Read(operand.EncodingPosition, operand.EncodingBits))
+	}
+
+	return &Instruction{
+		Descriptor:    descriptor,
+		OperandValues: operandValues,
+	}, nil
+}
+
+// Decode an instruction
+func DecodeInstruction(binaryRepresentation uint32) (*Instruction, error) {
+	return Descriptor_Instructions.Decode(binaryRepresentation)
+}

@@ -51,11 +51,13 @@ type OperandDescriptor struct {
 	EncodingBits int
 	// Operand description (for documentation and debugging)
 	Description string
+	// Position within the set of operands of the instruction, indexed from 0 to total operands - 1
+	Index int
 }
 
 // Returns an human readable string describing the operand (See [InstructionDescriptor.PrettyPrint])
 func (o *OperandDescriptor) String() string {
-	return fmt.Sprintf("%v <%v:%v>", o.Role, o.Kind, o.ValueType)
+	return fmt.Sprintf("<%v:%v:%v>", o.Role, o.Kind, o.ValueType)
 }
 
 // Returns the operand value ready to be encoded into the instruction with all unused most significant bits cleared.
