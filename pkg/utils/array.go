@@ -31,6 +31,17 @@ func GenMap[T any, Key comparable](input []T, keyFunc func(T) Key) map[Key]T {
 	return output
 }
 
+// Generates a map from a sequence of keys and a function that generates an item from a key
+func GenMapFromKeys[T any, Key comparable](keys []Key, itemFunc func(Key) T) map[Key]T {
+	output := make(map[Key]T, len(keys))
+
+	for _, key := range keys {
+		output[key] = itemFunc(key)
+	}
+
+	return output
+}
+
 // Reduces a sequence to a value given an accumulation function
 func Reduce[T any, U any](input []T, foldFunc func(T, U) U) U {
 	var result U
@@ -104,4 +115,17 @@ func Max[T constraints.Ordered](input []T) T {
 	}
 
 	return max
+}
+
+// Returns the subset sequence of all items of a sequence passing a given boolean condition
+func Filter[T any](input []T, cond func(T) bool) []T {
+	result := make([]T, 0, len(input))
+
+	for i := range input {
+		if cond(input[i]) {
+			result = append(result, input[i])
+		}
+	}
+
+	return result
 }

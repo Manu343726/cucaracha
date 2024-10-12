@@ -3,14 +3,21 @@ package mc
 import (
 	"fmt"
 	"strings"
+
+	"github.com/Manu343726/cucaracha/pkg/hw/cpu/mc/instructions"
+	"github.com/Manu343726/cucaracha/pkg/hw/cpu/mc/registers"
 )
 
 // Contains implementation information about the machine code
 type MachineCodeDescriptor struct {
 	// Information about instruction opcodes
-	OpCodes *OpCodesDescriptor
+	OpCodes *instructions.OpCodesDescriptor
 	// Information about machine instructions
-	Instructions *InstructionsDescriptor
+	Instructions *instructions.InstructionsDescriptor
+	// Information about machine registers classes
+	RegisterClasses *registers.RegisterClassesDescriptor
+	// Information of machine register meta classes
+	RegisterMetaClasses []*registers.RegisterMetaClass
 }
 
 // Dumps all the MC description as one big multiline string
@@ -47,10 +54,17 @@ func (d *MachineCodeDescriptor) Documentation(leftpad int) string {
 	return builder.String()
 }
 
+// Like Documentation(), but with zero leftpad
+func (d *MachineCodeDescriptor) DocString() string {
+	return d.Documentation(0)
+}
+
 func makeMachineFunctionDescriptor() MachineCodeDescriptor {
 	return MachineCodeDescriptor{
-		OpCodes:      &Descriptor_Opcodes,
-		Instructions: &Descriptor_Instructions,
+		OpCodes:             &instructions.Opcodes,
+		Instructions:        &instructions.Instructions,
+		RegisterClasses:     &registers.RegisterClasses,
+		RegisterMetaClasses: registers.RegisterMetaClasses,
 	}
 }
 

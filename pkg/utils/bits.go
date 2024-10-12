@@ -83,3 +83,8 @@ func CreateBitView[T constraints.Unsigned](value *T) BitView[T] {
 		Bits: value,
 	}
 }
+
+func BitCast[To constraints.Integer, From constraints.Integer](from From) To {
+	// It seems that go does the right thing already when converting between signed an unsigned ints already (it does not do sign cnversion r overflow checks, it just reinterprets the bits)
+	return To(from)
+}

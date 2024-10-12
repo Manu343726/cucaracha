@@ -1,4 +1,4 @@
-package mc
+package instructions
 
 import (
 	"errors"
@@ -8,46 +8,6 @@ import (
 
 	"github.com/Manu343726/cucaracha/pkg/utils"
 )
-
-// Represents an instruction opcode
-type OpCode uint
-
-const (
-	// No-Operation
-	OpCode_NOP OpCode = iota
-	// Write immediate value into register
-	OpCode_IMM
-	// Copy value of one register into another
-	OpCode_MOV
-	// Load value from memory into register
-	OpCode_LD
-	// Save value of register into memory
-	OpCode_ST
-	// Add values of two registers, save result into third
-	OpCode_ADD
-	// Substract values of two registers, save result into third
-	OpCode_SUB
-	// Multiply values of two registers, save result into third
-	OpCode_MUL
-	// Divide values of two registers, save result into third
-	OpCode_DIV
-	// Compute register value modulo other register value, save result into third
-	OpCode_MOD
-
-	// Total opcodes implemented
-	TOTAL_OPCODES
-)
-
-// Contains implementation information of an opcode
-type OpCodeDescriptor struct {
-	OpCode               OpCode
-	BinaryRepresentation uint64
-	Mnemonic             string
-}
-
-func (d *OpCodeDescriptor) String() string {
-	return fmt.Sprintf("%v (code: %v, binary: %v, hex: %v)", d.Mnemonic, d.BinaryRepresentation, utils.FormatUintBinary(d.BinaryRepresentation, Descriptor_Opcodes.OpCodeBits()), utils.FormatUintHex(d.BinaryRepresentation, Descriptor_Opcodes.OpCodeBits()/4))
-}
 
 // Returns information about the implemented opcodes
 type OpCodesDescriptor struct {
@@ -110,7 +70,8 @@ func (d *OpCodesDescriptor) ParseOpCode(mnemonic string) (OpCode, error) {
 	}
 }
 
-func makeOpCodesDescriptor(mnemonics map[OpCode]string) OpCodesDescriptor {
+// Initialized an opcodes descriptor with all the opcodes in the given opcode -> mnemonic map
+func NewOpCodesDescriptor(mnemonics map[OpCode]string) OpCodesDescriptor {
 	for i, opCode := range utils.Iota(int(TOTAL_OPCODES), func(i int) OpCode { return OpCode(i) }) {
 		if _, hasOpCode := mnemonics[opCode]; !hasOpCode {
 			panic(fmt.Sprintf("missing entry for opcode %v in mnemonics table. Make sure you've added all OpCode -> Mnemonic entries in the makeOpCodesDescriptor() call", i))
@@ -123,27 +84,7 @@ func makeOpCodesDescriptor(mnemonics map[OpCode]string) OpCodesDescriptor {
 	}
 
 	if d.TotalOpCodes() != int(TOTAL_OPCODES) {
-		panic("missing entry in opcode mnemonics table??? Make sure you've added all OpCode -> Mnemonic entries in the makeOpCodesDescriptor() call")
+		panic("missing entry in opcode mnemonics table??? Make sure you've added all OpCode -> Mnemonic entries in the NewOpCodesDescriptor() call")
 	}
 	return d
-}
-
-var Descriptor_Opcodes OpCodesDescriptor = makeOpCodesDescriptor(
-	map[OpCode]string{
-		OpCode_NOP: "NOP",
-		OpCode_IMM: "IMM",
-		OpCode_MOV: "MOV",
-		OpCode_LD:  "LD",
-		OpCode_ST:  "ST",
-		OpCode_ADD: "ADD",
-		OpCode_SUB: "SUB",
-		OpCode_MUL: "MUL",
-		OpCode_DIV: "DIV",
-		OpCode_MOD: "MOD",
-	},
-)
-
-// Returns the mnemonic of the instruction opcode
-func (op OpCode) String() string {
-	return Descriptor_Opcodes.Mnemonic(op)
 }

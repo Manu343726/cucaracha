@@ -4,181 +4,109 @@ import (
 	"golang.org/x/exp/constraints"
 )
 
-type MicroCpu[Register RegisterName, Word constraints.Integer, Float constraints.Float] interface {
-	StateRegisters() RegisterBank[Register, Word]
-	InternalWordRegisters() RegisterBank[Register, Word]
-	PublicWordRegisters() RegisterBank[Register, Word]
-	AllWordRegisters() RegisterBank[Register, Word]
+type MicroCpu[Register RegisterName, Integer constraints.Integer, Float constraints.Float] interface {
+	IntegerRegisters() RegisterBank[Register, Integer]
 	FloatRegisters() RegisterBank[Register, Float]
 
-	MovWord() RegisterInterchange[Register]
+	MovInteger() RegisterInterchange[Register]
 	MovFloat() RegisterInterchange[Register]
-	WordToFloat() RegisterConversion[Register]
-	FloatToWord() RegisterConversion[Register]
+	IntegerToFloat() RegisterConversion[Register]
+	FloatToInteger() RegisterConversion[Register]
 
-	WordAlu() IntegerAlu[Register, Word]
+	IntegerAlu() IntegerAlu[Register, Integer]
 	FloatAlu() FloatAlu[Register, Float]
 	Memory() MemoryAccess[Register]
 }
 
-type MicroCpuFactory[Register RegisterName, Word constraints.Integer, Float constraints.Float] func(MicroCpuFactories[Register, Word, Float]) MicroCpu[Register, Word, Float]
+type MicroCpuFactory[Register RegisterName, Integer constraints.Integer, Float constraints.Float] func(MicroCpuFactories[Register, Integer, Float]) MicroCpu[Register, Integer, Float]
 
-type microCpu[Register RegisterName, Word constraints.Integer, Float constraints.Float] struct {
-	stateRegisters        RegisterBank[Register, Word]
-	internalWordRegisters RegisterBank[Register, Word]
-	publicWordRegisters   RegisterBank[Register, Word]
-	allWordRegisters      RegisterBank[Register, Word]
-	floatRegisters        RegisterBank[Register, Float]
+type microCpu[Register RegisterName, Integer constraints.Integer, Float constraints.Float] struct {
+	integerRegisters RegisterBank[Register, Integer]
+	floatRegisters   RegisterBank[Register, Float]
 
-	wordMov     RegisterInterchange[Register]
-	floatMov    RegisterInterchange[Register]
-	wordToFloat RegisterConversion[Register]
-	floatToWord RegisterConversion[Register]
+	integerMov     RegisterInterchange[Register]
+	floatMov       RegisterInterchange[Register]
+	integerToFloat RegisterConversion[Register]
+	floatToInteger RegisterConversion[Register]
 
-	wordAlu  IntegerAlu[Register, Word]
-	floatAlu FloatAlu[Register, Float]
+	integerAlu IntegerAlu[Register, Integer]
+	floatAlu   FloatAlu[Register, Float]
 
-	memoryBus    MemoryBus[Word]
+	memoryBus    MemoryBus[Integer]
 	memoryAccess MemoryAccess[Register]
 }
 
-type RegisterFactory[Register RegisterName] func(index int) Register
-type RegisterParser[Register RegisterName] func(name string) (Register, error)
-
-type StateRegisters[Register RegisterName] struct {
-	ProgramCounter Register
-	StackPointer   Register
-	FramePointer   Register
-	LinkRegister   Register
+type MicroCpuRegisters[Register RegisterName] struct {
+	IntegerRegisters []Register
+	FloatRegisters   []Register
 }
 
-type MicroCpuFactories[Register RegisterName, Word constraints.Integer, Float constraints.Float] struct {
-	StateRegisterNames       StateRegisters[Register]
-	InternalWordRegisterName RegisterFactory[Register]
-	PublicWordRegisterName   RegisterFactory[Register]
-	FloatRegisterName        RegisterFactory[Register]
-	StateRegisters           RegisterBankFactory[Register, Word]
-	InternalWordRegisters    RegisterBankFactory[Register, Word]
-	PublicWordRegisters      RegisterBankFactory[Register, Word]
-	FloatRegisters           RegisterBankFactory[Register, Float]
-	WordMov                  RegisterInterchangeFactory[Register, Word]
-	FloatMov                 RegisterInterchangeFactory[Register, Float]
-	WordToFloat              RegisterConversionFactory[Register, Word, Float]
-	FloatToWord              RegisterConversionFactory[Register, Float, Word]
-	WordAlu                  IntergerAluFactory[Register, Word]
-	FloatAlu                 FloatAluFactory[Register, Float]
-	MemoryBus                MemoryBusFactory[Word]
-	MemoryAccess             MemoryAccessFactory[Register, Word]
+type MicroCpuFactories[Register RegisterName, Integer constraints.Integer, Float constraints.Float] struct {
+	IntegerRegisters RegisterBankFactory[Register, Integer]
+	FloatRegisters   RegisterBankFactory[Register, Float]
+	IntegerMov       RegisterInterchangeFactory[Register, Integer]
+	FloatMov         RegisterInterchangeFactory[Register, Float]
+	IntegerToFloat   RegisterConversionFactory[Register, Integer, Float]
+	FloatToInteger   RegisterConversionFactory[Register, Float, Integer]
+	IntegerAlu       IntergerAluFactory[Register, Integer]
+	FloatAlu         FloatAluFactory[Register, Float]
+	MemoryBus        MemoryBusFactory[Integer]
+	MemoryAccess     MemoryAccessFactory[Register, Integer]
 }
 
-func registerNames[Register RegisterName](factory RegisterFactory[Register], count int) []Register {
-	rs := make([]Register, count)
-
-	for i := range rs {
-		rs[i] = factory(i)
-	}
-
-	return rs
-}
-
-func (f *MicroCpuFactories[Register, Word, Float]) CreateStateRegisters() RegisterBank[Register, Word] {
-	return f.StateRegisters(
-		f.StateRegisterNames.FramePointer,
-		f.StateRegisterNames.LinkRegister,
-		f.StateRegisterNames.ProgramCounter,
-		f.StateRegisterNames.StackPointer)
-}
-
-func (f *MicroCpuFactories[Register, Word, Float]) CreateInternalWordRegisters(count int) RegisterBank[Register, Word] {
-	return f.InternalWordRegisters(registerNames[Register](f.InternalWordRegisterName, count)...)
-}
-
-func (f *MicroCpuFactories[Register, Word, Float]) CreatePublicWordRegisters(count int) RegisterBank[Register, Word] {
-	return f.PublicWordRegisters(registerNames[Register](f.PublicWordRegisterName, count)...)
-}
-
-func (f *MicroCpuFactories[Register, Word, Float]) CreateFloatRegisters(count int) RegisterBank[Register, Float] {
-	return f.FloatRegisters(registerNames[Register](f.FloatRegisterName, count)...)
-}
-
-type MicroCpuSettings struct {
-	TotalInternalWordRegisters int
-	TotalPublicWordRegisters   int
-	TotalFloatRegisters        int
-	TotalMemory                int
-}
-
-func MakeMicroCpu[Register RegisterName, Word constraints.Integer, Float constraints.Float](settings MicroCpuSettings, factories MicroCpuFactories[Register, Word, Float]) MicroCpu[Register, Word, Float] {
-	stateRegisters := factories.StateRegisters()
-	internalWordRegisters := factories.CreateInternalWordRegisters(settings.TotalInternalWordRegisters)
-	publicWordRegisters := factories.CreatePublicWordRegisters(settings.TotalPublicWordRegisters)
-	allWordRegisters := JoinRegisterBanks(stateRegisters, internalWordRegisters, publicWordRegisters)
-	floatRegisters := factories.CreateFloatRegisters(settings.TotalFloatRegisters)
+func MakeMicroCpu[Register RegisterName, Integer constraints.Integer, Float constraints.Float](factories MicroCpuFactories[Register, Integer, Float], registers MicroCpuRegisters[Register]) MicroCpu[Register, Integer, Float] {
+	integerRegisters := factories.IntegerRegisters(registers.IntegerRegisters...)
+	floatRegisters := factories.FloatRegisters(registers.FloatRegisters...)
 	memoryBus := factories.MemoryBus()
 
-	microCpu := &microCpu[Register, Word, Float]{
-		stateRegisters:        stateRegisters,
-		internalWordRegisters: internalWordRegisters,
-		publicWordRegisters:   publicWordRegisters,
-		allWordRegisters:      allWordRegisters,
-		floatRegisters:        floatRegisters,
-		wordMov:               factories.WordMov(allWordRegisters),
-		floatMov:              factories.FloatMov(floatRegisters),
-		wordToFloat:           factories.WordToFloat(allWordRegisters, floatRegisters),
-		floatToWord:           factories.FloatToWord(floatRegisters, allWordRegisters),
-		wordAlu:               factories.WordAlu(allWordRegisters),
-		floatAlu:              factories.FloatAlu(floatRegisters),
-		memoryBus:             memoryBus,
-		memoryAccess:          factories.MemoryAccess(allWordRegisters, memoryBus),
+	microCpu := &microCpu[Register, Integer, Float]{
+		integerRegisters: integerRegisters,
+		floatRegisters:   floatRegisters,
+		integerMov:       factories.IntegerMov(integerRegisters),
+		floatMov:         factories.FloatMov(floatRegisters),
+		integerToFloat:   factories.IntegerToFloat(integerRegisters, floatRegisters),
+		floatToInteger:   factories.FloatToInteger(floatRegisters, integerRegisters),
+		integerAlu:       factories.IntegerAlu(integerRegisters),
+		floatAlu:         factories.FloatAlu(floatRegisters),
+		memoryBus:        memoryBus,
+		memoryAccess:     factories.MemoryAccess(integerRegisters, memoryBus),
 	}
 
 	return microCpu
 }
 
-func (m *microCpu[Register, Word, Float]) StateRegisters() RegisterBank[Register, Word] {
-	return m.stateRegisters
+func (m *microCpu[Register, Integer, Float]) IntegerRegisters() RegisterBank[Register, Integer] {
+	return m.integerRegisters
 }
 
-func (m *microCpu[Register, Word, Float]) InternalWordRegisters() RegisterBank[Register, Word] {
-	return m.internalWordRegisters
-}
-
-func (m *microCpu[Register, Word, Float]) PublicWordRegisters() RegisterBank[Register, Word] {
-	return m.publicWordRegisters
-}
-
-func (m *microCpu[Register, Word, Float]) AllWordRegisters() RegisterBank[Register, Word] {
-	return m.allWordRegisters
-}
-
-func (m *microCpu[Register, Word, Float]) FloatRegisters() RegisterBank[Register, Float] {
+func (m *microCpu[Register, Integer, Float]) FloatRegisters() RegisterBank[Register, Float] {
 	return m.floatRegisters
 }
 
-func (m *microCpu[Register, Word, Float]) MovWord() RegisterInterchange[Register] {
-	return m.wordMov
+func (m *microCpu[Register, Integer, Float]) MovInteger() RegisterInterchange[Register] {
+	return m.integerMov
 }
 
-func (m *microCpu[Register, Word, Float]) MovFloat() RegisterInterchange[Register] {
+func (m *microCpu[Register, Integer, Float]) MovFloat() RegisterInterchange[Register] {
 	return m.floatMov
 }
 
-func (m *microCpu[Register, Word, Float]) WordToFloat() RegisterConversion[Register] {
-	return m.wordToFloat
+func (m *microCpu[Register, Integer, Float]) IntegerToFloat() RegisterConversion[Register] {
+	return m.integerToFloat
 }
 
-func (m *microCpu[Register, Word, Float]) FloatToWord() RegisterConversion[Register] {
-	return m.floatToWord
+func (m *microCpu[Register, Integer, Float]) FloatToInteger() RegisterConversion[Register] {
+	return m.floatToInteger
 }
 
-func (m *microCpu[Register, Word, Float]) WordAlu() IntegerAlu[Register, Word] {
-	return m.wordAlu
+func (m *microCpu[Register, Integer, Float]) IntegerAlu() IntegerAlu[Register, Integer] {
+	return m.integerAlu
 }
 
-func (m *microCpu[Register, Word, Float]) FloatAlu() FloatAlu[Register, Float] {
+func (m *microCpu[Register, Integer, Float]) FloatAlu() FloatAlu[Register, Float] {
 	return m.floatAlu
 }
 
-func (m *microCpu[Register, Word, Float]) Memory() MemoryAccess[Register] {
+func (m *microCpu[Register, Integer, Float]) Memory() MemoryAccess[Register] {
 	return m.memoryAccess
 }
