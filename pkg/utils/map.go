@@ -42,7 +42,7 @@ func InvertedMap[Key comparable, Value comparable](input map[Key]Value) map[Valu
 }
 
 // Returns an array with all the keys of a map
-func Keys[Key comparable, Value comparable](input map[Key]Value) []Key {
+func Keys[Key comparable, Value any](input map[Key]Value) []Key {
 	keys := make([]Key, 0, len(input))
 
 	for key := range input {

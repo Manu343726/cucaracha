@@ -1,0 +1,15 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../llvm-project"
+		},
+		{
+			"name": "vscode-cucaracha-debugger",
+			"path": "../vscode-cucaracha-debugger"
+		}
+	],
+	"settings": {}
+}

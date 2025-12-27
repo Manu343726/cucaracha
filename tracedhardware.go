@@ -414,7 +414,7 @@ func MakeTracedRegisterConversion[Register cpu.RegisterName, Word constraints.In
 	}
 }
 
-func TracedRegisterConversionFactory[Register cpu.RegisterName, Src cpu.Number, Dest cpu.Number](factory cpu.RegisterConversionFactory[Register, Src, Dest], name string, tracer TracerWithContextStack) cpu.RegisterConversionFactory[Register, Src, Dest] {
+func TracedRegisterConversionFactory[Register cpu.RegisterName, Word constraints.Integer, Src cpu.Number, Dest cpu.Number](factory cpu.RegisterConversionFactory[Register, Src, Dest], name string, tracer TracerWithContextStack) cpu.RegisterConversionFactory[Register, Src, Dest] {
 	return func(src cpu.RegisterBank[Register, Src], dest cpu.RegisterBank[Register, Dest]) cpu.RegisterConversion[Register] {
 		return MakeTracedRegisterConversion[Register, Word](factory(src, dest), name, tracer)
 	}
