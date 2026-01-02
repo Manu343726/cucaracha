@@ -9,14 +9,66 @@ import (
 	"github.com/Manu343726/cucaracha/pkg/hw/cpu/interpreter"
 	"github.com/Manu343726/cucaracha/pkg/hw/cpu/llvm"
 	"github.com/Manu343726/cucaracha/pkg/hw/cpu/mc"
+	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 )
 
+// colorizeInstruction applies colors to different parts of an instruction string
+// Uses the shared color and pattern definitions from debug.go
+func colorizeInstruction(instr string) string {
+	// First, extract the opcode
+	opcodeLoc := debugOpcodePattern.FindStringIndex(instr)
+	if opcodeLoc == nil {
+		return instr
+	}
+
+	opcode := instr[opcodeLoc[0]:opcodeLoc[1]]
+	rest := instr[opcodeLoc[1]:]
+
+	// Build result with colored opcode
+	result := instrOpcode.Sprint(opcode)
+
+	// Process the rest character by character, applying colors
+	// We need to be careful not to double-colorize
+	i := 0
+	for i < len(rest) {
+		// Check for register match at current position
+		if regMatch := debugRegPattern.FindStringIndex(rest[i:]); regMatch != nil && regMatch[0] == 0 {
+			regName := rest[i : i+regMatch[1]]
+			result += instrReg.Sprint(regName)
+			i += regMatch[1]
+			continue
+		}
+
+		// Check for immediate match at current position
+		if immMatch := debugImmPattern.FindStringIndex(rest[i:]); immMatch != nil && immMatch[0] == 0 {
+			// Make sure it's not part of a register (e.g., r10)
+			immVal := rest[i : i+immMatch[1]]
+			// Only color if it starts with # or if it's not preceded by 'r'
+			if strings.HasPrefix(immVal, "#") || (i == 0 || rest[i-1] != 'r') {
+				// Check if it's actually a number (not part of register name)
+				if !debugRegPattern.MatchString(rest[i : i+immMatch[1]]) {
+					result += instrImm.Sprint(immVal)
+					i += immMatch[1]
+					continue
+				}
+			}
+		}
+
+		// Default: punctuation or whitespace
+		result += instrPunct.Sprintf("%c", rest[i])
+		i++
+	}
+
+	return result
+}
+
 var (
-	execMemorySize uint32
-	execVerbose    bool
-	execMaxSteps   int
-	execTrace      bool
+	execMemorySize    uint32
+	execVerbose       bool
+	execMaxSteps      int
+	execTrace         bool
+	execCompileFormat string
 )
 
 var execCmd = &cobra.Command{
@@ -24,16 +76,19 @@ var execCmd = &cobra.Command{
 	Short: "Execute a cucaracha program",
 	Long: `Loads and executes a cucaracha program file.
 
-The command accepts either:
-  - Assembly files (.cucaracha) - parsed by the LLVM assembly parser
+The command accepts:
+  - Assembly files (.cucaracha, .s) - parsed by the LLVM assembly parser
   - Binary/object files (.o) - parsed by the ELF binary parser
+  - C/C++ source files (.c, .cpp, etc.) - compiled first, then executed
 
-The program is loaded, resolved (symbols, memory layout, instructions),
-and then executed through the cucaracha interpreter.
+When a source file is provided, it is automatically compiled using clang
+with the Cucaracha target before execution.
 
 Example:
   cucaracha cpu exec program.cucaracha
-  cucaracha cpu exec program.o`,
+  cucaracha cpu exec program.o
+  cucaracha cpu exec program.c
+  cucaracha cpu exec --compile-to assembly program.c`,
 	Args: cobra.ExactArgs(1),
 	Run:  runExec,
 }
@@ -44,10 +99,32 @@ func init() {
 	execCmd.Flags().BoolVarP(&execVerbose, "verbose", "v", false, "Print execution details")
 	execCmd.Flags().IntVarP(&execMaxSteps, "max-steps", "n", 0, "Maximum number of steps to execute (0 = unlimited)")
 	execCmd.Flags().BoolVarP(&execTrace, "trace", "t", false, "Trace each instruction execution")
+	execCmd.Flags().StringVar(&execCompileFormat, "compile-to", "object", "Compilation output format for source files: assembly, object")
 }
 
 func runExec(cmd *cobra.Command, args []string) {
 	inputPath := args[0]
+
+	// Check if it's a source file that needs compilation
+	if llvm.IsSourceFile(inputPath) {
+		var outputFormat llvm.OutputFormat
+		switch strings.ToLower(execCompileFormat) {
+		case "assembly", "asm":
+			outputFormat = llvm.OutputAssembly
+		case "object", "obj", "o":
+			outputFormat = llvm.OutputObject
+		default:
+			outputFormat = llvm.OutputObject
+		}
+
+		compiledPath, cleanup, err := CompileSourceFile(inputPath, outputFormat, execVerbose)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error compiling source file: %v\n", err)
+			os.Exit(1)
+		}
+		defer cleanup()
+		inputPath = compiledPath
+	}
 
 	// Determine file type by extension
 	ext := strings.ToLower(filepath.Ext(inputPath))
@@ -200,6 +277,14 @@ func loadProgramFile(interp *interpreter.Interpreter, pf mc.ProgramFile) error {
 		return fmt.Errorf("program has no instructions")
 	}
 
+	// Color definitions for loading output
+	loadLabel := color.New(color.FgHiBlack)
+	loadIdx := color.New(color.FgWhite)
+	loadAddr := color.New(color.FgCyan)
+	loadEnc := color.New(color.FgMagenta)
+	loadGlobal := color.New(color.FgGreen)
+	loadDebug := color.New(color.FgHiBlack)
+
 	// Load each instruction's binary encoding into memory
 	for i, instr := range instrList {
 		if instr.Address == nil {
@@ -215,7 +300,12 @@ func loadProgramFile(interp *interpreter.Interpreter, pf mc.ProgramFile) error {
 
 		// Debug: show first 15 instructions being loaded
 		if execTrace && i < 15 {
-			fmt.Fprintf(os.Stderr, "Loading [%3d] addr=0x%08X enc=0x%08X %s\n", i, *instr.Address, encoded, instr.Text)
+			fmt.Fprintf(os.Stderr, "%s [%s] %s=%s %s=%s %s\n",
+				loadLabel.Sprint("Loading"),
+				loadIdx.Sprintf("%3d", i),
+				loadLabel.Sprint("addr"), loadAddr.Sprintf("0x%08X", *instr.Address),
+				loadLabel.Sprint("enc"), loadEnc.Sprintf("0x%08X", encoded),
+				colorizeInstruction(instr.Text))
 		}
 
 		// Write to memory
@@ -227,7 +317,10 @@ func loadProgramFile(interp *interpreter.Interpreter, pf mc.ProgramFile) error {
 	// Debug: verify instruction at 0x0004 after loading
 	if execTrace {
 		word, _ := interp.State().ReadMemory32(0x0004)
-		fmt.Fprintf(os.Stderr, "After loading code: memory[0x0004] = 0x%08X\n", word)
+		fmt.Fprintf(os.Stderr, "%s memory[%s] = %s\n",
+			loadDebug.Sprint("After loading code:"),
+			loadAddr.Sprint("0x0004"),
+			loadEnc.Sprintf("0x%08X", word))
 	}
 
 	// Load global data
@@ -236,7 +329,11 @@ func loadProgramFile(interp *interpreter.Interpreter, pf mc.ProgramFile) error {
 			continue // Skip unresolved globals
 		}
 		if execTrace {
-			fmt.Fprintf(os.Stderr, "Loading global %q at 0x%08X, %d bytes\n", global.Name, *global.Address, len(global.InitialData))
+			fmt.Fprintf(os.Stderr, "%s %s at %s, %s bytes\n",
+				loadLabel.Sprint("Loading global"),
+				loadGlobal.Sprintf("%q", global.Name),
+				loadAddr.Sprintf("0x%08X", *global.Address),
+				loadIdx.Sprintf("%d", len(global.InitialData)))
 		}
 		if len(global.InitialData) > 0 {
 			addr := *global.Address
@@ -252,7 +349,10 @@ func loadProgramFile(interp *interpreter.Interpreter, pf mc.ProgramFile) error {
 	// Debug: verify instruction at 0x0004 after globals
 	if execTrace {
 		word, _ := interp.State().ReadMemory32(0x0004)
-		fmt.Fprintf(os.Stderr, "After loading globals: memory[0x0004] = 0x%08X\n", word)
+		fmt.Fprintf(os.Stderr, "%s memory[%s] = %s\n",
+			loadDebug.Sprint("After loading globals:"),
+			loadAddr.Sprint("0x0004"),
+			loadEnc.Sprintf("0x%08X", word))
 	}
 
 	// Set initial PC to the start of code
@@ -274,6 +374,13 @@ func executeWithTraceDebugger(dbg *interpreter.Debugger, maxSteps int, pf mc.Pro
 		}
 	}
 
+	// Color definitions for trace output
+	traceStep := color.New(color.FgHiBlack)
+	tracePC := color.New(color.FgCyan)
+	traceWord := color.New(color.FgMagenta)
+	traceReg := color.New(color.FgGreen)
+	traceValue := color.New(color.FgWhite)
+
 	stepCount := 0
 
 	// Set up tracing callback
@@ -290,10 +397,17 @@ func executeWithTraceDebugger(dbg *interpreter.Debugger, maxSteps int, pf mc.Pro
 			// Read the instruction word and show it
 			word, _ := state.ReadMemory32(pc)
 
-			fmt.Fprintf(os.Stderr, "[%4d] PC=0x%04X word=0x%08X sp=%6d (R[1]=%d) lr=%6d r0=%6d r4=%6d r5=%6d | %s\n",
-				stepCount, pc, word, *state.SP, state.Registers[1], *state.LR,
-				state.Registers[16], state.Registers[20], state.Registers[21],
-				instrText)
+			fmt.Fprintf(os.Stderr, "[%s] %s=%s %s=%s %s=%s (%s=%s) %s=%s %s=%s %s=%s %s=%s | %s\n",
+				traceStep.Sprintf("%4d", stepCount),
+				traceReg.Sprint("PC"), tracePC.Sprintf("0x%04X", pc),
+				traceReg.Sprint("word"), traceWord.Sprintf("0x%08X", word),
+				traceReg.Sprint("sp"), traceValue.Sprintf("%6d", *state.SP),
+				traceReg.Sprint("R[1]"), traceValue.Sprintf("%d", state.Registers[1]),
+				traceReg.Sprint("lr"), traceValue.Sprintf("%6d", *state.LR),
+				traceReg.Sprint("r0"), traceValue.Sprintf("%6d", state.Registers[16]),
+				traceReg.Sprint("r4"), traceValue.Sprintf("%6d", state.Registers[20]),
+				traceReg.Sprint("r5"), traceValue.Sprintf("%6d", state.Registers[21]),
+				colorizeInstruction(instrText))
 			stepCount++
 		}
 		return true // Continue execution

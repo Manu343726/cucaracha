@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -12,12 +13,137 @@ import (
 	"github.com/Manu343726/cucaracha/pkg/hw/cpu/llvm"
 	"github.com/Manu343726/cucaracha/pkg/hw/cpu/mc"
 	"github.com/Manu343726/cucaracha/pkg/hw/cpu/mc/registers"
+	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 )
 
+// Color definitions for debugger output
 var (
-	debugMemorySize uint32
-	debugVerbose    bool
+	// Address colors
+	colorAddr = color.New(color.FgCyan)
+	// Instruction/opcode colors
+	colorInstr = color.New(color.FgYellow)
+	// Register name colors
+	colorReg = color.New(color.FgGreen)
+	// Value colors (numeric values)
+	colorValue = color.New(color.FgWhite, color.Bold)
+	// Hex value colors
+	colorHex = color.New(color.FgMagenta)
+	// Prompt/marker colors
+	colorPrompt = color.New(color.FgBlue, color.Bold)
+	// Error colors
+	colorError = color.New(color.FgRed, color.Bold)
+	// Success/info colors
+	colorSuccess = color.New(color.FgGreen)
+	// Warning colors
+	colorWarning = color.New(color.FgYellow)
+	// Header/title colors
+	colorHeader = color.New(color.FgWhite, color.Bold, color.Underline)
+	// Breakpoint marker
+	colorBreakpoint = color.New(color.FgRed, color.Bold)
+	// Current PC marker
+	colorPC = color.New(color.FgGreen, color.Bold)
+	// Flag colors
+	colorFlagSet   = color.New(color.FgGreen, color.Bold)
+	colorFlagClear = color.New(color.FgHiBlack)
+)
+
+// Instruction part colors
+var (
+	instrOpcode = color.New(color.FgYellow, color.Bold)
+	instrReg    = color.New(color.FgGreen)
+	instrImm    = color.New(color.FgCyan)
+	instrPunct  = color.New(color.FgWhite)
+)
+
+// Regex patterns for parsing instruction parts
+var (
+	debugRegPattern    = regexp.MustCompile(`\b(r[0-9]{1,2}|sp|lr|pc|cpsr)\b`)
+	debugImmPattern    = regexp.MustCompile(`#-?[0-9]+|#-?0x[0-9a-fA-F]+|\b-?[0-9]+\b`)
+	debugOpcodePattern = regexp.MustCompile(`^[A-Z][A-Z0-9]+`)
+)
+
+// colorizeInstruction applies syntax highlighting to an instruction string
+func colorizeInstructionDebug(instr string) string {
+	instr = strings.TrimSpace(instr)
+	if instr == "" {
+		return instr
+	}
+
+	// Find and extract the opcode first
+	opcodeLoc := debugOpcodePattern.FindStringIndex(instr)
+	if opcodeLoc == nil {
+		return instr // No opcode found, return as-is
+	}
+
+	opcode := instr[opcodeLoc[0]:opcodeLoc[1]]
+	rest := instr[opcodeLoc[1]:]
+
+	// Build the result with colored opcode
+	result := instrOpcode.Sprint(opcode)
+
+	// Process the rest character by character, applying colors
+	// First, find all register and immediate matches
+	regMatches := debugRegPattern.FindAllStringIndex(rest, -1)
+	immMatches := debugImmPattern.FindAllStringIndex(rest, -1)
+
+	// Create a map of positions to colors
+	type colorSpan struct {
+		start int
+		end   int
+		color *color.Color
+		text  string
+	}
+	var spans []colorSpan
+
+	for _, m := range regMatches {
+		spans = append(spans, colorSpan{m[0], m[1], instrReg, rest[m[0]:m[1]]})
+	}
+	for _, m := range immMatches {
+		// Check if this immediate overlaps with a register (registers take priority)
+		overlaps := false
+		for _, rm := range regMatches {
+			if m[0] < rm[1] && m[1] > rm[0] {
+				overlaps = true
+				break
+			}
+		}
+		if !overlaps {
+			spans = append(spans, colorSpan{m[0], m[1], instrImm, rest[m[0]:m[1]]})
+		}
+	}
+
+	// Sort spans by start position
+	for i := 0; i < len(spans); i++ {
+		for j := i + 1; j < len(spans); j++ {
+			if spans[j].start < spans[i].start {
+				spans[i], spans[j] = spans[j], spans[i]
+			}
+		}
+	}
+
+	// Build the rest of the string with colors
+	pos := 0
+	for _, span := range spans {
+		if span.start > pos {
+			// Add uncolored text between spans
+			result += instrPunct.Sprint(rest[pos:span.start])
+		}
+		result += span.color.Sprint(span.text)
+		pos = span.end
+	}
+	// Add any remaining text
+	if pos < len(rest) {
+		result += instrPunct.Sprint(rest[pos:])
+	}
+
+	return result
+}
+
+var (
+	debugMemorySize    uint32
+	debugVerbose       bool
+	debugCompileFormat string
 )
 
 var debugCmd = &cobra.Command{
@@ -25,9 +151,13 @@ var debugCmd = &cobra.Command{
 	Short: "Interactive debugger for cucaracha programs",
 	Long: `Starts an interactive debugging session for a cucaracha program.
 
-The command accepts either:
-  - Assembly files (.cucaracha) - parsed by the LLVM assembly parser
+The command accepts:
+  - Assembly files (.cucaracha, .s) - parsed by the LLVM assembly parser
   - Binary/object files (.o) - parsed by the ELF binary parser
+  - C/C++ source files (.c, .cpp, etc.) - compiled first, then debugged
+
+When a source file is provided, it is automatically compiled using clang
+with the Cucaracha target before debugging.
 
 Available debugger commands:
   step, s [n]        - Step n instructions (default: 1)
@@ -47,7 +177,8 @@ Available debugger commands:
   quit, q            - Exit debugger
 
 Example:
-  cucaracha cpu debug program.cucaracha`,
+  cucaracha cpu debug program.cucaracha
+  cucaracha cpu debug program.c`,
 	Args: cobra.ExactArgs(1),
 	Run:  runDebug,
 }
@@ -56,6 +187,7 @@ func init() {
 	CpuCmd.AddCommand(debugCmd)
 	debugCmd.Flags().Uint32VarP(&debugMemorySize, "memory", "m", 0x20000, "Memory size in bytes (default: 128KB)")
 	debugCmd.Flags().BoolVarP(&debugVerbose, "verbose", "v", false, "Print verbose output")
+	debugCmd.Flags().StringVar(&debugCompileFormat, "compile-to", "assembly", "Compilation output format for source files: assembly, object")
 }
 
 // debugSession holds the state of an interactive debugging session
@@ -71,6 +203,33 @@ type debugSession struct {
 
 func runDebug(cmd *cobra.Command, args []string) {
 	inputPath := args[0]
+
+	// Check if it's a source file that needs compilation
+	var cleanup func()
+	if llvm.IsSourceFile(inputPath) {
+		var outputFormat llvm.OutputFormat
+		switch strings.ToLower(debugCompileFormat) {
+		case "assembly", "asm":
+			outputFormat = llvm.OutputAssembly
+		case "object", "obj", "o":
+			outputFormat = llvm.OutputObject
+		default:
+			outputFormat = llvm.OutputAssembly
+		}
+
+		compiledPath, cleanupFn, err := CompileSourceFile(inputPath, outputFormat, debugVerbose)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error compiling source file: %v\n", err)
+			os.Exit(1)
+		}
+		cleanup = cleanupFn
+		inputPath = compiledPath
+		fmt.Printf("Compiled %s -> %s\n", args[0], compiledPath)
+	}
+	if cleanup != nil {
+		defer cleanup()
+	}
+
 	ext := strings.ToLower(filepath.Ext(inputPath))
 
 	var pf mc.ProgramFile
@@ -150,8 +309,9 @@ func runDebug(cmd *cobra.Command, args []string) {
 	}
 
 	fmt.Printf("Loaded %d instructions\n", len(resolved.Instructions()))
-	fmt.Printf("Entry point: 0x%08X\n", interp.State().PC)
-	fmt.Printf("Type 'help' for available commands.\n\n")
+	fmt.Printf("Entry point: %s\n", colorAddr.Sprintf("0x%08X", interp.State().PC))
+	colorSuccess.Println("Type 'help' for available commands.")
+	fmt.Println()
 
 	// Show initial state
 	session.showCurrentInstruction()
@@ -159,7 +319,7 @@ func runDebug(cmd *cobra.Command, args []string) {
 	// Start interactive loop
 	reader := bufio.NewReader(os.Stdin)
 	for session.running {
-		fmt.Print("(cucaracha) ")
+		colorPrompt.Print("(cucaracha) ")
 		line, err := reader.ReadString('\n')
 		if err != nil {
 			break
@@ -216,9 +376,10 @@ func (s *debugSession) executeCommand(line string) {
 		s.cmdHelp()
 	case "quit", "q", "exit":
 		s.running = false
-		fmt.Println("Exiting debugger.")
+		colorSuccess.Println("Exiting debugger.")
 	default:
-		fmt.Printf("Unknown command: %s. Type 'help' for available commands.\n", cmd)
+		colorError.Printf("Unknown command: %s. ", cmd)
+		fmt.Println("Type 'help' for available commands.")
 	}
 }
 
@@ -233,24 +394,24 @@ func (s *debugSession) cmdStep(args []string) {
 	for i := 0; i < n; i++ {
 		result := s.dbg.Step()
 		if result.Error != nil {
-			fmt.Printf("Error: %v\n", result.Error)
+			colorError.Printf("Error: %v\n", result.Error)
 			return
 		}
 		if result.StopReason == interpreter.StopTermination {
-			fmt.Println("Program terminated.")
+			colorSuccess.Println("Program terminated.")
 			s.showReturnValue()
 			return
 		}
 		if result.StopReason == interpreter.StopHalt {
-			fmt.Println("CPU halted.")
+			colorWarning.Println("CPU halted.")
 			return
 		}
 		if result.StopReason == interpreter.StopBreakpoint {
-			fmt.Printf("Breakpoint hit at 0x%08X\n", s.dbg.State().PC)
+			colorBreakpoint.Printf("Breakpoint hit at %s\n", colorAddr.Sprintf("0x%08X", s.dbg.State().PC))
 			break
 		}
 		if result.StopReason == interpreter.StopWatchpoint {
-			fmt.Printf("Watchpoint triggered at 0x%08X\n", s.dbg.State().PC)
+			colorWarning.Printf("Watchpoint triggered at %s\n", colorAddr.Sprintf("0x%08X", s.dbg.State().PC))
 			break
 		}
 	}
@@ -270,20 +431,20 @@ func (s *debugSession) cmdRun() {
 func (s *debugSession) handleExecutionResult(result *interpreter.ExecutionResult) {
 	switch result.StopReason {
 	case interpreter.StopBreakpoint:
-		fmt.Printf("Breakpoint hit at 0x%08X\n", s.dbg.State().PC)
+		colorBreakpoint.Printf("Breakpoint hit at %s\n", colorAddr.Sprintf("0x%08X", s.dbg.State().PC))
 		s.showCurrentInstruction()
 	case interpreter.StopWatchpoint:
-		fmt.Printf("Watchpoint triggered at 0x%08X\n", s.dbg.State().PC)
+		colorWarning.Printf("Watchpoint triggered at %s\n", colorAddr.Sprintf("0x%08X", s.dbg.State().PC))
 		s.showCurrentInstruction()
 	case interpreter.StopTermination:
-		fmt.Printf("Program terminated after %d steps.\n", result.StepsExecuted)
+		colorSuccess.Printf("Program terminated after %s steps.\n", colorValue.Sprintf("%d", result.StepsExecuted))
 		s.showReturnValue()
 	case interpreter.StopHalt:
-		fmt.Println("CPU halted.")
+		colorWarning.Println("CPU halted.")
 	case interpreter.StopError:
-		fmt.Printf("Error: %v\n", result.Error)
+		colorError.Printf("Error: %v\n", result.Error)
 	default:
-		fmt.Printf("Stopped: %s after %d steps\n", result.StopReason, result.StepsExecuted)
+		fmt.Printf("Stopped: %s after %s steps\n", result.StopReason, colorValue.Sprintf("%d", result.StepsExecuted))
 		s.showCurrentInstruction()
 	}
 }
@@ -297,12 +458,12 @@ func (s *debugSession) cmdBreak(args []string) {
 
 	addr, err := parseAddress(args[0])
 	if err != nil {
-		fmt.Printf("Invalid address: %s\n", args[0])
+		colorError.Printf("Invalid address: %s\n", args[0])
 		return
 	}
 
 	bp := s.dbg.AddBreakpoint(addr)
-	fmt.Printf("Breakpoint %d set at 0x%08X\n", bp.ID, addr)
+	colorSuccess.Printf("Breakpoint %s set at %s\n", colorValue.Sprintf("%d", bp.ID), colorAddr.Sprintf("0x%08X", addr))
 }
 
 func (s *debugSession) cmdWatch(args []string) {
@@ -313,12 +474,12 @@ func (s *debugSession) cmdWatch(args []string) {
 
 	addr, err := parseAddress(args[0])
 	if err != nil {
-		fmt.Printf("Invalid address: %s\n", args[0])
+		colorError.Printf("Invalid address: %s\n", args[0])
 		return
 	}
 
 	wp := s.dbg.AddWatchpoint(addr, 4, interpreter.WatchWrite)
-	fmt.Printf("Watchpoint %d set at 0x%08X (4 bytes, write)\n", wp.ID, addr)
+	colorSuccess.Printf("Watchpoint %s set at %s (4 bytes, write)\n", colorValue.Sprintf("%d", wp.ID), colorAddr.Sprintf("0x%08X", addr))
 }
 
 func (s *debugSession) cmdDelete(args []string) {
@@ -329,16 +490,16 @@ func (s *debugSession) cmdDelete(args []string) {
 
 	id, err := strconv.Atoi(args[0])
 	if err != nil {
-		fmt.Printf("Invalid ID: %s\n", args[0])
+		colorError.Printf("Invalid ID: %s\n", args[0])
 		return
 	}
 
 	if s.dbg.RemoveBreakpoint(id) {
-		fmt.Printf("Breakpoint %d deleted.\n", id)
+		colorSuccess.Printf("Breakpoint %d deleted.\n", id)
 	} else if s.dbg.RemoveWatchpoint(id) {
-		fmt.Printf("Watchpoint %d deleted.\n", id)
+		colorSuccess.Printf("Watchpoint %d deleted.\n", id)
 	} else {
-		fmt.Printf("No breakpoint or watchpoint with ID %d.\n", id)
+		colorWarning.Printf("No breakpoint or watchpoint with ID %d.\n", id)
 	}
 }
 
@@ -347,28 +508,36 @@ func (s *debugSession) cmdList() {
 	wps := s.dbg.ListWatchpoints()
 
 	if len(bps) == 0 && len(wps) == 0 {
-		fmt.Println("No breakpoints or watchpoints set.")
+		colorWarning.Println("No breakpoints or watchpoints set.")
 		return
 	}
 
 	if len(bps) > 0 {
-		fmt.Println("Breakpoints:")
+		colorHeader.Println("Breakpoints:")
 		for _, bp := range bps {
-			status := "enabled"
-			if !bp.Enabled {
-				status = "disabled"
+			var status string
+			if bp.Enabled {
+				status = colorSuccess.Sprint("enabled")
+			} else {
+				status = colorFlagClear.Sprint("disabled")
 			}
 			instrText := s.getInstructionText(bp.Address)
-			fmt.Printf("  %d: 0x%08X (%s) %s\n", bp.ID, bp.Address, status, instrText)
+			fmt.Printf("  %s: %s (%s) %s\n",
+				colorValue.Sprintf("%d", bp.ID),
+				colorAddr.Sprintf("0x%08X", bp.Address),
+				status,
+				colorizeInstructionDebug(instrText))
 		}
 	}
 
 	if len(wps) > 0 {
-		fmt.Println("Watchpoints:")
+		colorHeader.Println("Watchpoints:")
 		for _, wp := range wps {
-			status := "enabled"
-			if !wp.Enabled {
-				status = "disabled"
+			var status string
+			if wp.Enabled {
+				status = colorSuccess.Sprint("enabled")
+			} else {
+				status = colorFlagClear.Sprint("disabled")
 			}
 			typeStr := "read/write"
 			switch wp.Type {
@@ -377,7 +546,12 @@ func (s *debugSession) cmdList() {
 			case interpreter.WatchWrite:
 				typeStr = "write"
 			}
-			fmt.Printf("  %d: 0x%08X (%d bytes, %s, %s)\n", wp.ID, wp.Address, wp.Size, typeStr, status)
+			fmt.Printf("  %s: %s (%d bytes, %s, %s)\n",
+				colorValue.Sprintf("%d", wp.ID),
+				colorAddr.Sprintf("0x%08X", wp.Address),
+				wp.Size,
+				typeStr,
+				status)
 		}
 	}
 }
@@ -385,8 +559,8 @@ func (s *debugSession) cmdList() {
 func (s *debugSession) cmdPrint(args []string) {
 	if len(args) == 0 {
 		fmt.Println("Usage: print <register|@address>")
-		fmt.Println("  Registers: r0-r9, sp, lr, pc, cpsr")
-		fmt.Println("  Memory: @0x1234 or @1234")
+		fmt.Printf("  Registers: %s\n", colorReg.Sprint("r0-r9, sp, lr, pc, cpsr"))
+		fmt.Printf("  Memory: %s or %s\n", colorAddr.Sprint("@0x1234"), colorAddr.Sprint("@1234"))
 		return
 	}
 
@@ -396,16 +570,19 @@ func (s *debugSession) cmdPrint(args []string) {
 	if strings.HasPrefix(what, "@") {
 		addr, err := parseAddress(what[1:])
 		if err != nil {
-			fmt.Printf("Invalid address: %s\n", what[1:])
+			colorError.Printf("Invalid address: %s\n", what[1:])
 			return
 		}
 		data, err := s.dbg.ReadMemory(addr, 4)
 		if err != nil || len(data) != 4 {
-			fmt.Printf("Could not read memory at 0x%08X\n", addr)
+			colorError.Printf("Could not read memory at %s\n", colorAddr.Sprintf("0x%08X", addr))
 			return
 		}
 		val := uint32(data[0]) | uint32(data[1])<<8 | uint32(data[2])<<16 | uint32(data[3])<<24
-		fmt.Printf("[@0x%08X] = %d (0x%08X)\n", addr, int32(val), val)
+		fmt.Printf("[%s] = %s (%s)\n",
+			colorAddr.Sprintf("@0x%08X", addr),
+			colorValue.Sprintf("%d", int32(val)),
+			colorHex.Sprintf("0x%08X", val))
 		return
 	}
 
@@ -413,26 +590,26 @@ func (s *debugSession) cmdPrint(args []string) {
 	switch what {
 	case "pc":
 		val := s.dbg.GetPC()
-		fmt.Printf("pc = %d (0x%08X)\n", val, val)
+		fmt.Printf("%s = %s (%s)\n", colorReg.Sprint("pc"), colorValue.Sprintf("%d", val), colorHex.Sprintf("0x%08X", val))
 		return
 	case "sp":
 		val := s.dbg.GetSP()
-		fmt.Printf("sp = %d (0x%08X)\n", val, val)
+		fmt.Printf("%s = %s (%s)\n", colorReg.Sprint("sp"), colorValue.Sprintf("%d", val), colorHex.Sprintf("0x%08X", val))
 		return
 	case "lr":
 		val := s.dbg.GetLR()
-		fmt.Printf("lr = %d (0x%08X)\n", val, val)
+		fmt.Printf("%s = %s (%s)\n", colorReg.Sprint("lr"), colorValue.Sprintf("%d", val), colorHex.Sprintf("0x%08X", val))
 		return
 	}
 
 	// General register access by name
 	regIdx, ok := parseRegisterName(what)
 	if !ok {
-		fmt.Printf("Unknown register: %s\n", what)
+		colorError.Printf("Unknown register: %s\n", what)
 		return
 	}
 	val := s.dbg.GetRegister(regIdx)
-	fmt.Printf("%s = %d (0x%08X)\n", what, int32(val), val)
+	fmt.Printf("%s = %s (%s)\n", colorReg.Sprint(what), colorValue.Sprintf("%d", int32(val)), colorHex.Sprintf("0x%08X", val))
 }
 
 func (s *debugSession) cmdSet(args []string) {
@@ -444,7 +621,7 @@ func (s *debugSession) cmdSet(args []string) {
 	reg := strings.ToLower(args[0])
 	val, err := parseValue(args[1])
 	if err != nil {
-		fmt.Printf("Invalid value: %s\n", args[1])
+		colorError.Printf("Invalid value: %s\n", args[1])
 		return
 	}
 
@@ -452,26 +629,26 @@ func (s *debugSession) cmdSet(args []string) {
 	switch reg {
 	case "pc":
 		s.dbg.SetPC(val)
-		fmt.Printf("pc = %d (0x%08X)\n", val, val)
+		fmt.Printf("%s = %s (%s)\n", colorReg.Sprint("pc"), colorValue.Sprintf("%d", val), colorHex.Sprintf("0x%08X", val))
 		return
 	case "sp":
 		s.dbg.SetSP(val)
-		fmt.Printf("sp = %d (0x%08X)\n", val, val)
+		fmt.Printf("%s = %s (%s)\n", colorReg.Sprint("sp"), colorValue.Sprintf("%d", val), colorHex.Sprintf("0x%08X", val))
 		return
 	case "lr":
 		s.dbg.SetLR(val)
-		fmt.Printf("lr = %d (0x%08X)\n", val, val)
+		fmt.Printf("%s = %s (%s)\n", colorReg.Sprint("lr"), colorValue.Sprintf("%d", val), colorHex.Sprintf("0x%08X", val))
 		return
 	}
 
 	// General register by name
 	regIdx, ok := parseRegisterName(reg)
 	if !ok {
-		fmt.Printf("Unknown register: %s\n", reg)
+		colorError.Printf("Unknown register: %s\n", reg)
 		return
 	}
 	s.dbg.SetRegister(regIdx, val)
-	fmt.Printf("%s = %d (0x%08X)\n", reg, int32(val), val)
+	fmt.Printf("%s = %s (%s)\n", colorReg.Sprint(reg), colorValue.Sprintf("%d", int32(val)), colorHex.Sprintf("0x%08X", val))
 }
 
 func (s *debugSession) cmdDisasm(args []string) {
@@ -493,58 +670,89 @@ func (s *debugSession) cmdDisasm(args []string) {
 	idx, ok := s.addrToIdx[addr]
 	if !ok {
 		// Try to find closest instruction
-		fmt.Printf("No instruction at 0x%08X\n", addr)
+		colorError.Printf("No instruction at %s\n", colorAddr.Sprintf("0x%08X", addr))
 		return
 	}
 
-	fmt.Printf("Disassembly at 0x%08X:\n", addr)
+	fmt.Printf("Disassembly at %s:\n", colorAddr.Sprintf("0x%08X", addr))
 	for i := 0; i < count && idx+i < len(instrs); i++ {
 		instr := instrs[idx+i]
 		if instr.Address == nil {
 			continue
 		}
 		marker := "  "
-		if *instr.Address == s.dbg.State().PC {
-			marker = "=>"
-		}
+		markerColor := color.New()
+		isPC := *instr.Address == s.dbg.State().PC
+		isBP := false
+
 		// Check for breakpoint
 		for _, bp := range s.dbg.ListBreakpoints() {
 			if bp.Address == *instr.Address && bp.Enabled {
-				marker = "* "
-				if *instr.Address == s.dbg.State().PC {
-					marker = "*>"
-				}
+				isBP = true
 				break
 			}
 		}
-		fmt.Printf("%s 0x%08X: %s\n", marker, *instr.Address, instr.Text)
+
+		if isBP && isPC {
+			marker = "*>"
+			markerColor = colorBreakpoint
+		} else if isBP {
+			marker = "* "
+			markerColor = colorBreakpoint
+		} else if isPC {
+			marker = "=>"
+			markerColor = colorPC
+		}
+
+		fmt.Printf("%s %s: %s\n",
+			markerColor.Sprint(marker),
+			colorAddr.Sprintf("0x%08X", *instr.Address),
+			colorizeInstructionDebug(instr.Text))
 	}
 }
 
 func (s *debugSession) cmdInfo() {
 	state := s.dbg.State()
 
-	fmt.Println("=== CPU State ===")
-	fmt.Printf("PC:   0x%08X\n", state.PC)
-	fmt.Printf("SP:   %d (0x%08X)\n", *state.SP, *state.SP)
-	fmt.Printf("LR:   0x%08X\n", *state.LR)
+	colorHeader.Println("=== CPU State ===")
+	fmt.Printf("%s:   %s\n", colorReg.Sprint("PC"), colorAddr.Sprintf("0x%08X", state.PC))
+	fmt.Printf("%s:   %s (%s)\n", colorReg.Sprint("SP"), colorValue.Sprintf("%d", *state.SP), colorHex.Sprintf("0x%08X", *state.SP))
+	fmt.Printf("%s:   %s\n", colorReg.Sprint("LR"), colorAddr.Sprintf("0x%08X", *state.LR))
 
 	// Get CPSR from the cpsr register
 	cpsrIdx := uint32(registers.Register("cpsr").Encode())
 	cpsr := state.Registers[cpsrIdx]
-	fmt.Printf("CPSR: 0x%08X (N=%d Z=%d C=%d V=%d)\n",
-		cpsr,
-		(cpsr>>3)&1, // FLAG_N is bit 3
-		(cpsr>>0)&1, // FLAG_Z is bit 0
-		(cpsr>>1)&1, // FLAG_C is bit 1
-		(cpsr>>2)&1) // FLAG_V is bit 2
+
+	// Format CPSR flags with colors
+	flagN := (cpsr >> 3) & 1
+	flagZ := (cpsr >> 0) & 1
+	flagC := (cpsr >> 1) & 1
+	flagV := (cpsr >> 2) & 1
+
+	formatFlag := func(name string, val uint32) string {
+		if val == 1 {
+			return colorFlagSet.Sprintf("%s=%d", name, val)
+		}
+		return colorFlagClear.Sprintf("%s=%d", name, val)
+	}
+
+	fmt.Printf("%s: %s (%s %s %s %s)\n",
+		colorReg.Sprint("CPSR"),
+		colorHex.Sprintf("0x%08X", cpsr),
+		formatFlag("N", flagN),
+		formatFlag("Z", flagZ),
+		formatFlag("C", flagC),
+		formatFlag("V", flagV))
 	fmt.Println()
 
-	fmt.Println("General Purpose Registers:")
+	colorHeader.Println("General Purpose Registers:")
 	for i := 0; i < 10; i++ {
 		regIdx := 16 + i // r0 starts at index 16
 		val := state.Registers[regIdx]
-		fmt.Printf("  r%d = %10d (0x%08X)\n", i, int32(val), val)
+		fmt.Printf("  %s = %s (%s)\n",
+			colorReg.Sprintf("r%d", i),
+			colorValue.Sprintf("%10d", int32(val)),
+			colorHex.Sprintf("0x%08X", val))
 	}
 }
 
@@ -552,7 +760,7 @@ func (s *debugSession) cmdStack() {
 	state := s.dbg.State()
 	sp := *state.SP
 
-	fmt.Printf("Stack (SP = 0x%08X):\n", sp)
+	fmt.Printf("Stack (%s = %s):\n", colorReg.Sprint("SP"), colorAddr.Sprintf("0x%08X", sp))
 	// Show 10 stack entries
 	for i := 0; i < 10; i++ {
 		addr := sp + uint32(i*4)
@@ -566,9 +774,13 @@ func (s *debugSession) cmdStack() {
 		val := uint32(data[0]) | uint32(data[1])<<8 | uint32(data[2])<<16 | uint32(data[3])<<24
 		marker := ""
 		if i == 0 {
-			marker = " <- SP"
+			marker = colorPC.Sprint(" <- SP")
 		}
-		fmt.Printf("  0x%08X: %10d (0x%08X)%s\n", addr, int32(val), val, marker)
+		fmt.Printf("  %s: %s (%s)%s\n",
+			colorAddr.Sprintf("0x%08X", addr),
+			colorValue.Sprintf("%10d", int32(val)),
+			colorHex.Sprintf("0x%08X", val),
+			marker)
 	}
 }
 
@@ -580,7 +792,7 @@ func (s *debugSession) cmdMemory(args []string) {
 
 	addr, err := parseAddress(args[0])
 	if err != nil {
-		fmt.Printf("Invalid address: %s\n", args[0])
+		colorError.Printf("Invalid address: %s\n", args[0])
 		return
 	}
 
@@ -593,16 +805,16 @@ func (s *debugSession) cmdMemory(args []string) {
 
 	data, err := s.dbg.ReadMemory(addr, count)
 	if err != nil || len(data) == 0 {
-		fmt.Printf("Could not read memory at 0x%08X\n", addr)
+		colorError.Printf("Could not read memory at %s\n", colorAddr.Sprintf("0x%08X", addr))
 		return
 	}
 
-	fmt.Printf("Memory at 0x%08X:\n", addr)
+	fmt.Printf("Memory at %s:\n", colorAddr.Sprintf("0x%08X", addr))
 	for i := 0; i < len(data); i += 16 {
-		fmt.Printf("  0x%08X: ", addr+uint32(i))
+		fmt.Printf("  %s: ", colorAddr.Sprintf("0x%08X", addr+uint32(i)))
 		// Hex bytes
 		for j := 0; j < 16 && i+j < len(data); j++ {
-			fmt.Printf("%02X ", data[i+j])
+			colorHex.Printf("%02X ", data[i+j])
 		}
 		// Padding if needed
 		for j := len(data) - i; j < 16; j++ {
@@ -623,32 +835,39 @@ func (s *debugSession) cmdMemory(args []string) {
 }
 
 func (s *debugSession) cmdHelp() {
-	fmt.Println(`Cucaracha Debugger Commands:
+	colorHeader.Println("Cucaracha Debugger Commands:")
+	fmt.Println()
 
-Execution:
-  step, s [n]        - Step n instructions (default: 1)
-  continue, c        - Continue execution until breakpoint
-  run, r             - Run until termination or breakpoint
+	colorHeader.Println("Execution:")
+	fmt.Printf("  %s, %s [n]        - Step n instructions (default: 1)\n", colorInstr.Sprint("step"), colorInstr.Sprint("s"))
+	fmt.Printf("  %s, %s        - Continue execution until breakpoint\n", colorInstr.Sprint("continue"), colorInstr.Sprint("c"))
+	fmt.Printf("  %s, %s             - Run until termination or breakpoint\n", colorInstr.Sprint("run"), colorInstr.Sprint("r"))
+	fmt.Println()
 
-Breakpoints:
-  break, b <addr>    - Set breakpoint at address (hex: 0x... or decimal)
-  watch, w <addr>    - Set watchpoint on memory address
-  delete, d <id>     - Delete breakpoint/watchpoint by ID
-  list, l            - List all breakpoints and watchpoints
+	colorHeader.Println("Breakpoints:")
+	fmt.Printf("  %s, %s <addr>    - Set breakpoint at address (hex: 0x... or decimal)\n", colorInstr.Sprint("break"), colorInstr.Sprint("b"))
+	fmt.Printf("  %s, %s <addr>    - Set watchpoint on memory address\n", colorInstr.Sprint("watch"), colorInstr.Sprint("w"))
+	fmt.Printf("  %s, %s <id>     - Delete breakpoint/watchpoint by ID\n", colorInstr.Sprint("delete"), colorInstr.Sprint("d"))
+	fmt.Printf("  %s, %s            - List all breakpoints and watchpoints\n", colorInstr.Sprint("list"), colorInstr.Sprint("l"))
+	fmt.Println()
 
-Inspection:
-  print, p <what>    - Print register (r0-r9, sp, lr, pc) or memory (@addr)
-  set <reg> <value>  - Set register value
-  disasm, x [addr] [n] - Disassemble n instructions at addr
-  info, i            - Show CPU state (registers, flags)
-  stack              - Show stack contents
-  memory, m <addr> [n] - Show n bytes of memory at addr
+	colorHeader.Println("Inspection:")
+	fmt.Printf("  %s, %s <what>    - Print register (%s) or memory (%s)\n",
+		colorInstr.Sprint("print"), colorInstr.Sprint("p"),
+		colorReg.Sprint("r0-r9, sp, lr, pc"),
+		colorAddr.Sprint("@addr"))
+	fmt.Printf("  %s <reg> <value>  - Set register value\n", colorInstr.Sprint("set"))
+	fmt.Printf("  %s, %s [addr] [n] - Disassemble n instructions at addr\n", colorInstr.Sprint("disasm"), colorInstr.Sprint("x"))
+	fmt.Printf("  %s, %s            - Show CPU state (registers, flags)\n", colorInstr.Sprint("info"), colorInstr.Sprint("i"))
+	fmt.Printf("  %s              - Show stack contents\n", colorInstr.Sprint("stack"))
+	fmt.Printf("  %s, %s <addr> [n] - Show n bytes of memory at addr\n", colorInstr.Sprint("memory"), colorInstr.Sprint("m"))
+	fmt.Println()
 
-Other:
-  help, h            - Show this help
-  quit, q            - Exit debugger
-
-Press Enter to repeat the last command.`)
+	colorHeader.Println("Other:")
+	fmt.Printf("  %s, %s            - Show this help\n", colorInstr.Sprint("help"), colorInstr.Sprint("h"))
+	fmt.Printf("  %s, %s            - Exit debugger\n", colorInstr.Sprint("quit"), colorInstr.Sprint("q"))
+	fmt.Println()
+	fmt.Println("Press Enter to repeat the last command.")
 }
 
 func (s *debugSession) showCurrentInstruction() {
@@ -658,13 +877,20 @@ func (s *debugSession) showCurrentInstruction() {
 	instrText := s.getInstructionText(pc)
 	word, _ := state.ReadMemory32(pc)
 
-	fmt.Printf("=> 0x%08X [%08X]: %s\n", pc, word, instrText)
+	fmt.Printf("%s %s [%s]: %s\n",
+		colorPC.Sprint("=>"),
+		colorAddr.Sprintf("0x%08X", pc),
+		colorHex.Sprintf("%08X", word),
+		colorizeInstructionDebug(instrText))
 }
 
 func (s *debugSession) showReturnValue() {
 	state := s.dbg.State()
 	r0 := state.Registers[16]
-	fmt.Printf("Return value (r0): %d (0x%08X)\n", int32(r0), r0)
+	fmt.Printf("Return value (%s): %s (%s)\n",
+		colorReg.Sprint("r0"),
+		colorValue.Sprintf("%d", int32(r0)),
+		colorHex.Sprintf("0x%08X", r0))
 }
 
 func (s *debugSession) getInstructionText(addr uint32) string {

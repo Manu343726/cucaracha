@@ -57,12 +57,17 @@ cucaracha/
 ├── cmd/                    # CLI commands
 │   ├── root.go
 │   ├── cpu/               # CPU-related commands
-│   │   └── llvm.go        # LLVM TableGen generation
+│   │   ├── llvm.go        # LLVM TableGen generation
+│   │   ├── exec.go        # Execute programs
+│   │   ├── debug.go       # Interactive debugger CLI
+│   │   └── compile.go     # Clang driver command
 │   └── tools/
 ├── pkg/
 │   ├── hw/cpu/
 │   │   ├── interpreter/   # CPU emulator/interpreter
+│   │   │   └── debugger.go # Debugger API
 │   │   ├── llvm/          # LLVM integration & assembly parser
+│   │   │   ├── clang.go   # Clang toolchain discovery & compilation
 │   │   │   └── templates/ # TableGen templates
 │   │   └── mc/            # Machine code definitions
 │   │       ├── instructions/
@@ -169,10 +174,77 @@ ctest -C Release -R cucaracha --output-on-failure
 
 ### Compiling C to Cucaracha Assembly
 
+The `cucaracha` CLI includes a built-in clang driver that automatically discovers the LLVM toolchain:
+
+```bash
+# Compile C source to assembly (auto-discovers clang)
+./cucaracha cpu clang hello.c
+
+# Specify output format (assembly, object, llvm-ir)
+./cucaracha cpu clang --format llvm-ir hello.c
+
+# Specify optimization level
+./cucaracha cpu clang -O2 hello.c
+
+# Verbose output
+./cucaracha cpu clang -v hello.c
+
+# Specify output path
+./cucaracha cpu clang -o output.cucaracha hello.c
+```
+
+You can also use clang directly:
+
 ```bash
 # Using the built clang
 path/to/llvm-project/build_vs2022/Release/bin/clang.exe \
   --target=cucaracha -O0 -S -o output.cucaracha input.c
+```
+
+The `cpu clang` command supports:
+- **Auto-discovery**: Finds clang in project build directories or system PATH
+- **Multiple output formats**: Assembly (`.cucaracha`), Object (`.o`), LLVM IR (`.ll`)
+- **Optimization levels**: `-O0`, `-O1`, `-O2`, `-O3`, `-Os`, `-Oz`
+- **Include paths**: `-I/path/to/include`
+- **Preprocessor defines**: `-DDEBUG`
+- **Extra flags**: `-X<flag>` to pass flags directly to clang
+- **Verbose mode**: `-v` streams all clang output (warnings, errors) in real-time
+- **Build from source**: `--build-clang` builds clang if not found
+
+#### Clang Auto-Discovery
+
+The toolchain searches for clang in the following order:
+1. Explicit path via `--clang-path` flag
+2. Project build directories:
+   - `llvm-project/build_vs2022/{Release,Debug}/bin/clang.exe` (Windows)
+   - `llvm-project/build/{Release,Debug}/bin/clang` (Linux)
+   - `llvm-project/build_docker_linux_gcc/bin/clang` (Docker)
+3. System PATH (validates `--target=cucaracha` support)
+
+#### Clang Command Examples
+
+```bash
+# Basic compilation
+cucaracha cpu clang hello.c                    # Output: hello.cucaracha
+cucaracha cpu clang -o out.s hello.c           # Custom output path
+
+# Output formats
+cucaracha cpu clang -f assembly hello.c        # Assembly (default)
+cucaracha cpu clang -f object hello.c          # ELF object file
+cucaracha cpu clang -f llvm-ir hello.c         # LLVM IR
+
+# Optimization
+cucaracha cpu clang -O2 hello.c                # Standard optimization
+cucaracha cpu clang -Os hello.c                # Size optimization
+
+# Verbose (shows all clang output including warnings)
+cucaracha cpu clang -v -X -Wall hello.c
+
+# Include paths and defines
+cucaracha cpu clang -I./include -DDEBUG hello.c
+
+# Pass extra flags to clang
+cucaracha cpu clang -X -fno-builtin hello.c
 ```
 
 ### Executing Cucaracha Programs
@@ -186,6 +258,9 @@ path/to/llvm-project/build_vs2022/Release/bin/clang.exe \
 
 # Execute ELF binary
 ./cucaracha cpu exec program.o
+
+# Execute C source file directly (compiles first)
+./cucaracha cpu exec hello.c
 ```
 
 ### Interactive Debugger
@@ -196,6 +271,9 @@ The `debug` command provides a GDB-style interactive debugger:
 # Start debugging a program
 ./cucaracha cpu debug program.cucaracha
 ./cucaracha cpu debug program.o
+
+# Debug a C source file directly (compiles first)
+./cucaracha cpu debug hello.c
 ```
 
 #### Debugger Commands
@@ -262,6 +340,8 @@ The LLVM backend's TableGen files can be regenerated from Go templates:
 | LLVM Backend | ✅ 100% tests passing (48/48) |
 | Assembly Execution | ✅ Working |
 | Binary Execution | ✅ Working |
+| Clang Integration | ✅ Auto-discovery, compilation, verbose output |
+| Interactive Debugger | ✅ GDB-style CLI with breakpoints/watchpoints |
 
 ### Test Programs
 All test programs compile and execute correctly:
