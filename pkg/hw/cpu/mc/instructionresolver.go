@@ -337,30 +337,45 @@ func (r *InstructionResolver) generateTextFromInstruction(instr *instructions.In
 
 	sb.WriteString(instr.Descriptor.OpCode.Mnemonic)
 
+	// Track which symbols have been used
+	usedSymbols := make(map[int]bool)
+
+	// Track if we've written any operands (for comma placement)
+	firstOperand := true
+
 	for i, operand := range instr.OperandValues {
-		if i > 0 {
+		// Skip operands marked as hidden from assembly (e.g., MOVIMM16H's tied src register)
+		if i < len(instr.Descriptor.Operands) && instr.Descriptor.Operands[i].LLVM_HideFromAsm {
+			continue
+		}
+
+		if !firstOperand {
 			sb.WriteString(",")
 		}
 		sb.WriteString(" ")
+		firstOperand = false
 
-		// Check if this operand corresponds to a symbol reference
+		// Only look for symbol references for immediate operands
 		symbolFound := false
-		for _, sym := range symbols {
-			// This is a simplified check - in practice we'd need to match
-			// the operand value to the symbol address
-			if sym.Usage == SymbolUsageLo || sym.Usage == SymbolUsageHi {
-				suffix := ""
-				if sym.Usage == SymbolUsageLo {
-					suffix = "@lo"
-				} else if sym.Usage == SymbolUsageHi {
-					suffix = "@hi"
+		if operand.Kind() == instructions.OperandKind_Immediate {
+			// Check if this operand corresponds to a symbol reference
+			for symIdx, sym := range symbols {
+				if usedSymbols[symIdx] {
+					continue // Skip already used symbols
 				}
-				// For now, just use the first matching symbol
-				// A more robust implementation would match by value
-				sb.WriteString(sym.Name)
-				sb.WriteString(suffix)
-				symbolFound = true
-				break
+				if sym.Usage == SymbolUsageLo || sym.Usage == SymbolUsageHi {
+					suffix := ""
+					if sym.Usage == SymbolUsageLo {
+						suffix = "@lo"
+					} else if sym.Usage == SymbolUsageHi {
+						suffix = "@hi"
+					}
+					sb.WriteString(sym.Name)
+					sb.WriteString(suffix)
+					symbolFound = true
+					usedSymbols[symIdx] = true
+					break
+				}
 			}
 		}
 

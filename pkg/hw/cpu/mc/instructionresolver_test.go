@@ -1,6 +1,7 @@
 package mc
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/Manu343726/cucaracha/pkg/hw/cpu/mc/instructions"
@@ -620,4 +621,125 @@ func TestInstructionResolver_FailsOnWrongOperandCount(t *testing.T) {
 	_, err := resolver.ResolveInstructions(pf)
 	require.Error(t, err)
 	assert.ErrorIs(t, err, ErrInstructionParsing)
+}
+
+func TestInstructionResolver_GenerateTextFromInstruction_SymbolOnlyForImmediate(t *testing.T) {
+	// This test ensures that symbol references are only applied to immediate operands,
+	// not to register operands. This was a bug where MOVIMM16H label@hi, r0 would
+	// be generated as MOVIMM16H label@hi label@hi (symbol applied to both operands).
+
+	resolver := NewInstructionResolver()
+
+	// Create a MOVIMM16H instruction with immediate value and register
+	desc, err := instructions.Instructions.Instruction(instructions.OpCode_MOV_IMM16H)
+	require.NoError(t, err)
+
+	// Create operand values: immediate (0x1234), dst register (r0), and src register (r0, tied to dst)
+	// MOVIMM16H has 3 operands in LLVM: imm, dst, src (where src is tied to dst and hidden from asm)
+	r0 := registers.Register("r0")
+
+	instr := &instructions.Instruction{
+		Descriptor: desc,
+		OperandValues: []instructions.OperandValue{
+			Imm16(0x1234),
+			instructions.RegisterOperandValue(r0), // dst
+			instructions.RegisterOperandValue(r0), // src (tied to dst, LLVM_HideFromAsm=true)
+		},
+	}
+
+	// Symbol reference that should only be applied to the immediate operand
+	symbols := []SymbolReference{
+		{Name: "myLabel", Usage: SymbolUsageHi},
+	}
+
+	// Generate text
+	text := resolver.generateTextFromInstruction(instr, symbols)
+
+	// Should be "MOVIMM16H myLabel@hi, r0" - the third operand (src) should be hidden
+	assert.Equal(t, "MOVIMM16H myLabel@hi, r0", text)
+	assert.NotContains(t, text, "myLabel@hi, myLabel@hi", "symbol should not be applied to register operand")
+	assert.NotContains(t, text, "r0, r0", "hidden src operand should not appear in text")
+}
+
+func TestInstructionResolver_GenerateTextFromInstruction_HidesLLVMInternalOperands(t *testing.T) {
+	// This test specifically verifies that operands marked with LLVM_HideFromAsm=true
+	// are not included in the generated text. This is important for MOVIMM16H which
+	// has a third operand (src tied to dst) that is only used by LLVM for register allocation.
+
+	resolver := NewInstructionResolver()
+
+	desc, err := instructions.Instructions.Instruction(instructions.OpCode_MOV_IMM16H)
+	require.NoError(t, err)
+
+	r5 := registers.Register("r5")
+
+	// All 3 operands including the hidden src
+	instr := &instructions.Instruction{
+		Descriptor: desc,
+		OperandValues: []instructions.OperandValue{
+			Imm16(0xABCD),
+			instructions.RegisterOperandValue(r5), // dst
+			instructions.RegisterOperandValue(r5), // src (hidden)
+		},
+	}
+
+	text := resolver.generateTextFromInstruction(instr, nil)
+
+	// Should only show 2 operands: immediate and dst register
+	assert.Equal(t, "MOVIMM16H #43981, r5", text) // 0xABCD = 43981
+	// Verify only one r5 appears (not r5, r5)
+	assert.Equal(t, 1, strings.Count(text, "r5"), "should only have one r5 in output, hidden src operand should not appear")
+}
+
+func TestInstructionResolver_GenerateTextFromInstruction_MultipleSymbols(t *testing.T) {
+	// Test that multiple symbols are applied to different immediate operands correctly
+	resolver := NewInstructionResolver()
+
+	// Create a MOVIMM16L instruction
+	desc, err := instructions.Instructions.Instruction(instructions.OpCode_MOV_IMM16L)
+	require.NoError(t, err)
+
+	r1 := registers.Register("r1")
+
+	instr := &instructions.Instruction{
+		Descriptor: desc,
+		OperandValues: []instructions.OperandValue{
+			Imm16(0x5678),
+			instructions.RegisterOperandValue(r1),
+		},
+	}
+
+	symbols := []SymbolReference{
+		{Name: "funcAddr", Usage: SymbolUsageLo},
+	}
+
+	text := resolver.generateTextFromInstruction(instr, symbols)
+
+	assert.Equal(t, "MOVIMM16L funcAddr@lo, r1", text)
+}
+
+func TestInstructionResolver_GenerateTextFromInstruction_NoSymbols(t *testing.T) {
+	// Test that instructions without symbols generate correct text
+	resolver := NewInstructionResolver()
+
+	desc, err := instructions.Instructions.Instruction(instructions.OpCode_ADD)
+	require.NoError(t, err)
+
+	r0 := registers.Register("r0")
+	r1 := registers.Register("r1")
+	r2 := registers.Register("r2")
+
+	// ADD r0, r1, r2
+	instr := &instructions.Instruction{
+		Descriptor: desc,
+		OperandValues: []instructions.OperandValue{
+			instructions.RegisterOperandValue(r0),
+			instructions.RegisterOperandValue(r1),
+			instructions.RegisterOperandValue(r2),
+		},
+	}
+
+	text := resolver.generateTextFromInstruction(instr, nil)
+
+	assert.Equal(t, "ADD r0, r1, r2", text)
 }
