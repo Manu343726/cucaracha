@@ -1,6 +1,9 @@
 package instructions
 
-import "strings"
+import (
+	"fmt"
+	"strings"
+)
 
 // Stores a fully decoded instruction
 type Instruction struct {
@@ -26,13 +29,49 @@ func (i *Instruction) String() string {
 
 	builder.WriteString(i.Descriptor.OpCode.Mnemonic)
 
+	first := true
 	for j, operand := range i.OperandValues {
-		builder.WriteString(operand.String())
-
-		if j < len(i.OperandValues)-1 {
-			builder.WriteString(" ")
+		// Skip operands that are hidden from assembly (e.g., tied operands)
+		if i.Descriptor.Operands[j].LLVM_HideFromAsm {
+			continue
 		}
+
+		if first {
+			builder.WriteString(" ")
+			first = false
+		} else {
+			builder.WriteString(", ")
+		}
+		builder.WriteString(operand.String())
 	}
 
 	return builder.String()
+}
+
+func NewInstruction(descriptor *InstructionDescriptor, operands []OperandValue) (*Instruction, error) {
+	// Validate operand count
+	expectedOperands := len(descriptor.Operands)
+	if len(operands) != expectedOperands {
+		return nil, fmt.Errorf("instruction %s expects %d operands, got %d",
+			descriptor.OpCode.Mnemonic, expectedOperands, len(operands))
+	}
+
+	// Validate operand types
+	for i, op := range operands {
+		desc := descriptor.Operands[i]
+		if op.Kind() != desc.Kind {
+			return nil, fmt.Errorf("operand %d of %s: expected %s, got %s",
+				i, descriptor.OpCode.Mnemonic, desc.Kind, op.Kind())
+		}
+
+		if op.ValueType() != desc.ValueType {
+			return nil, fmt.Errorf("operand %d of %s: expected operand of type %s, got %s",
+				i, descriptor.OpCode.Mnemonic, desc.ValueType, op.ValueType())
+		}
+	}
+
+	return &Instruction{
+		Descriptor:    descriptor,
+		OperandValues: operands,
+	}, nil
 }

@@ -38,14 +38,28 @@ func (d *InstructionsDescriptor) InstructionBytes() int {
 	return d.InstructionBits() / 8
 }
 
+func fixInstructionOperands(instr *InstructionDescriptor) {
+	currentEncodingPosition := Opcodes.OpCodeBits()
+
+	for i := range instr.Operands {
+		instr.Operands[i].Index = i
+		if instr.Operands[i].EncodingPosition == 0 {
+			instr.Operands[i].EncodingPosition = currentEncodingPosition
+		} else if instr.Operands[i].EncodingPosition < currentEncodingPosition {
+			panic(fmt.Errorf("operand %v of instruction %s has invalid encoding position %v (overlaps with previous operand or the instruction opcode)", instr.Operands[i], instr.OpCode.String(), instr.Operands[i].EncodingPosition))
+		} else if instr.Operands[i].EncodingBits <= 0 {
+			panic(fmt.Errorf("operand %v of instruction %s has invalid encoding bits %v", instr.Operands[i], instr.OpCode.String(), instr.Operands[i].EncodingBits))
+		}
+
+		currentEncodingPosition += instr.Operands[i].EncodingBits
+	}
+}
+
 // Initializes an instructions descriptor with all the given instructions
 func NewInstructionsDescriptor(instructions []*InstructionDescriptor) InstructionsDescriptor {
 	// fill operand indices and LLVM metadata
 	for _, instr := range instructions {
-		for i := range instr.Operands {
-			instr.Operands[i].Index = i
-		}
-
+		fixInstructionOperands(instr)
 		instr.LLVM = NewLLVMInstructionDescriptor(instr)
 	}
 

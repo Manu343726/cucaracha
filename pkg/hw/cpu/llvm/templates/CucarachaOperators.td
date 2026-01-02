@@ -42,6 +42,39 @@ def leg_call
     : SDNode<"CucarachaISD::CALL", SDT_CucarachaCall,
              [ SDNPHasChain, SDNPOptInGlue, SDNPOutGlue, SDNPVariadic ]>;
 
+// SELECT_CC node type profile
+def SDT_CucarachaSelectCC : SDTypeProfile<1, 5, [
+  SDTCisVT<0, i32>,
+  SDTCisSameAs<0, 1>,
+  SDTCisSameAs<1, 2>,
+  SDTCisSameAs<0, 3>,
+  SDTCisSameAs<0, 4>,
+  SDTCisVT<5, i32>
+]>;
+
+def Cucaracha_select_cc : SDNode<"CucarachaISD::SELECT_CC", SDT_CucarachaSelectCC>;
+
+// CMP node type profile - compares two values and produces result in CPSR
+// Result: i32 (CPSR value)
+// Operands: LHS, RHS (both i32 registers)
+def SDT_CucarachaCmp : SDTypeProfile<1, 2, [
+  SDTCisVT<0, i32>,    // Result (CPSR)
+  SDTCisVT<1, i32>,    // LHS
+  SDTCisVT<2, i32>     // RHS
+]>;
+
+def cucaracha_cmp : SDNode<"CucarachaISD::CMP", SDT_CucarachaCmp, []>;
+
+// BR_COND node type profile - takes CPSR value explicitly
+def SDT_CucarachaBrCond : SDTypeProfile<0, 3, [
+  SDTCisVT<0, i32>,    // cpsr register value
+  SDTCisVT<1, i32>,    // mask immediate
+  SDTCisVT<2, OtherVT> // target basic block
+]>;
+
+def cucaracha_brcond : SDNode<"CucarachaISD::BR_COND", SDT_CucarachaBrCond,
+                              [SDNPHasChain]>;
+
 //===----------------------------------------------------------------------===//
 // Operand Definitions.
 //===----------------------------------------------------------------------===//
@@ -50,13 +83,18 @@ def bl_target : Operand<i32>;
 
 def b_target : Operand<OtherVT>;
 
+// Branch target operand for direct branches to basic blocks
+def brtarget : Operand<OtherVT> {
+  let EncoderMethod = "getBranchTargetOpValue";
+}
+
 def cc_val : Operand<i32> {
   let PrintMethod = "printCondCode";
 }
 
 def memsrc : Operand<i32> {
-  let MIOperandInfo = (ops GRRegs, i32imm);
-  let PrintMetbod = "printAddrModeMemSrc";
+  let MIOperandInfo = (ops IntegerRegisters, i32imm);
+  let PrintMethod = "printAddrModeMemSrc";
   let EncoderMethod = "getMemSrcValue";
 }
 

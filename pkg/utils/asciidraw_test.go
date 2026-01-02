@@ -9,6 +9,9 @@ import (
 func TestAsciiFrame_NoFields(t *testing.T) {
 	fields := []AsciiFrameField{}
 
+	actual, err := AsciiFrame(fields, 16, "bits", AsciiFrameUnitLayout_RightToLeft, 0)
+	assert.NoError(t, err)
+
 	assert.Equal(t, ""+
 		`15            0
 +-------------+
@@ -16,7 +19,7 @@ func TestAsciiFrame_NoFields(t *testing.T) {
 +-------------+
  <- 16 bits -> 
 `,
-		AsciiFrame(fields, 16, "bits", AsciiFrameUnitLayout_RightToLeft, 0))
+		actual)
 }
 
 func TestAsciiFrame_SingleField(t *testing.T) {
@@ -28,6 +31,9 @@ func TestAsciiFrame_SingleField(t *testing.T) {
 		},
 	}
 
+	actual, err := AsciiFrame(fields, 16, "bits", AsciiFrameUnitLayout_RightToLeft, 0)
+	assert.NoError(t, err)
+
 	assert.Equal(t, ""+
 		`15            0
 +-------------+
@@ -35,7 +41,7 @@ func TestAsciiFrame_SingleField(t *testing.T) {
 +-------------+
  <- 16 bits -> 
 `,
-		AsciiFrame(fields, 16, "bits", AsciiFrameUnitLayout_RightToLeft, 0))
+		actual)
 }
 
 func TestAsciiFrame_SingleField_NotFittingFullFrame(t *testing.T) {
@@ -47,6 +53,9 @@ func TestAsciiFrame_SingleField_NotFittingFullFrame(t *testing.T) {
 		},
 	}
 
+	actual, err := AsciiFrame(fields, 32, "bits", AsciiFrameUnitLayout_RightToLeft, 0)
+	assert.NoError(t, err)
+
 	assert.Equal(t, ""+
 		`31            15            0
 +-------------+-------------+
@@ -54,7 +63,7 @@ func TestAsciiFrame_SingleField_NotFittingFullFrame(t *testing.T) {
 +-------------+-------------+
  <- 16 bits -> <- 16 bits -> 
 `,
-		AsciiFrame(fields, 32, "bits", AsciiFrameUnitLayout_RightToLeft, 0))
+		actual)
 }
 
 func TestAsciiFrame_SingleField_WithTextPadding(t *testing.T) {
@@ -66,6 +75,9 @@ func TestAsciiFrame_SingleField_WithTextPadding(t *testing.T) {
 		},
 	}
 
+	actual, err := AsciiFrame(fields, 16, "bits", AsciiFrameUnitLayout_RightToLeft, 4)
+	assert.NoError(t, err)
+
 	assert.Equal(t, ""+
 		`    15            0
     +-------------+
@@ -73,7 +85,7 @@ func TestAsciiFrame_SingleField_WithTextPadding(t *testing.T) {
     +-------------+
      <- 16 bits -> 
 `,
-		AsciiFrame(fields, 16, "bits", AsciiFrameUnitLayout_RightToLeft, 4))
+		actual)
 }
 
 func TestAsciiFrame_AVeryLooooooongField(t *testing.T) {
@@ -85,6 +97,10 @@ func TestAsciiFrame_AVeryLooooooongField(t *testing.T) {
 		},
 	}
 
+	actual, err := AsciiFrame(fields, 16, "bits", AsciiFrameUnitLayout_RightToLeft, 0)
+
+	assert.NoError(t, err)
+
 	assert.Equal(t, ""+
 		`15                           0
 +----------------------------+
@@ -92,7 +108,7 @@ func TestAsciiFrame_AVeryLooooooongField(t *testing.T) {
 +----------------------------+
  <-------- 16 bits ---------> 
 `,
-		AsciiFrame(fields, 16, "bits", AsciiFrameUnitLayout_RightToLeft, 0))
+		actual)
 }
 
 func TestAsciiFrame_TwoConsecutiveFields(t *testing.T) {
@@ -109,6 +125,9 @@ func TestAsciiFrame_TwoConsecutiveFields(t *testing.T) {
 		},
 	}
 
+	actual, err := AsciiFrame(fields, 32, "bits", AsciiFrameUnitLayout_RightToLeft, 0)
+	assert.NoError(t, err)
+
 	assert.Equal(t, ""+
 		`31             15            0
 +--------------+-------------+
@@ -116,7 +135,7 @@ func TestAsciiFrame_TwoConsecutiveFields(t *testing.T) {
 +--------------+-------------+
  <- 16 bits --> <- 16 bits -> 
 `,
-		AsciiFrame(fields, 32, "bits", AsciiFrameUnitLayout_RightToLeft, 0))
+		actual)
 }
 
 func TestAsciiFrame_TwoConsecutiveFields_LeftToRight(t *testing.T) {
@@ -133,14 +152,17 @@ func TestAsciiFrame_TwoConsecutiveFields_LeftToRight(t *testing.T) {
 		},
 	}
 
+	actual, err := AsciiFrame(fields, 32, "bits", AsciiFrameUnitLayout_LeftToRight, 0)
+	assert.NoError(t, err)
+
 	assert.Equal(t, ""+
-		`0              16             31
-+--------------+--------------+
-| first field  | second field |
-+--------------+--------------+
- <- 16 bytes -> <- 16 bytes -> 
+		`0             16             31
++-------------+--------------+
+| first field | second field |
++-------------+--------------+
+ <- 16 bits -> <- 16 bits --> 
 `,
-		AsciiFrame(fields, 32, "bytes", AsciiFrameUnitLayout_LeftToRight, 0))
+		actual)
 }
 
 func TestAsciiFrame_TwoFieldsWithAGap(t *testing.T) {
@@ -157,12 +179,15 @@ func TestAsciiFrame_TwoFieldsWithAGap(t *testing.T) {
 		},
 	}
 
+	actual, err := AsciiFrame(fields, 36, "bits", AsciiFrameUnitLayout_LeftToRight, 0)
+	assert.NoError(t, err)
+
 	assert.Equal(t, ""+
-		`0              16            20             35
-+--------------+-------------+--------------+
-| first field  |  (unused)   | second field |
-+--------------+-------------+--------------+
- <- 16 bytes -> <- 4 bytes -> <- 16 bytes -> 
+		`0             16           20             35
++-------------+------------+--------------+
+| first field |  (unused)  | second field |
++-------------+------------+--------------+
+ <- 16 bits -> <- 4 bits -> <- 16 bits --> 
 `,
-		AsciiFrame(fields, 32, "bytes", AsciiFrameUnitLayout_LeftToRight, 0))
+		actual)
 }

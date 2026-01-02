@@ -8,6 +8,26 @@ import (
 	"github.com/Manu343726/cucaracha/pkg/utils"
 )
 
+// ExecuteContext provides the CPU state needed for instruction execution
+type ExecuteContext interface {
+	// GetRegister returns the value of a register by index
+	GetRegister(idx uint32) uint32
+	// SetRegister sets the value of a register by index
+	SetRegister(idx uint32, value uint32)
+	// GetPC returns the current program counter
+	GetPC() uint32
+	// SetPC sets the program counter
+	SetPC(pc uint32)
+	// ReadMemory32 reads a 32-bit word from memory
+	ReadMemory32(addr uint32) (uint32, error)
+	// WriteMemory32 writes a 32-bit word to memory
+	WriteMemory32(addr uint32, value uint32) error
+}
+
+// ExecuteFunc is the signature for instruction execution functions
+// operands contains the decoded operand values (register indices or immediate values)
+type ExecuteFunc func(ctx ExecuteContext, operands []uint32) error
+
 // Contains information describing an instruction
 type InstructionDescriptor struct {
 	// Instruction opcode
@@ -16,6 +36,9 @@ type InstructionDescriptor struct {
 	Operands []*OperandDescriptor
 	// Instruction description (for documentation and debugging)
 	Description string
+
+	// Execute is the function that implements the instruction behavior
+	Execute ExecuteFunc
 
 	// LLVM instruction selection pattern template
 	LLVM_PatternTemplate string
@@ -26,6 +49,8 @@ type InstructionDescriptor struct {
 	LLVM_Defs []*registers.RegisterDescriptor
 	// Set of non operand registers that are implicitly read by the instruction
 	LLVM_Uses []*registers.RegisterDescriptor
+	// LLVM operand constraints (e.g. "$dst = $src" for tied operands)
+	LLVM_Constraints string
 	// LLVM instruction definition metadata
 	LLVM *LLVMInstructionDescriptor
 }
@@ -81,7 +106,13 @@ func (d *InstructionDescriptor) Documentation(leftpad int) string {
 			Width: op.EncodingBits,
 		}
 	})...)
-	builder.WriteString(utils.AsciiFrame(fields, Instructions.InstructionBits(), "bits", utils.AsciiFrameUnitLayout_RightToLeft, leftpad+2))
+
+	asciiFrame, err := utils.AsciiFrame(fields, d.InstructionBits(), "bits", utils.AsciiFrameUnitLayout_RightToLeft, leftpad+2)
+	if err != nil {
+		panic(fmt.Errorf("error generating documentation for instruction %s: %w", d.OpCode.String(), err))
+	}
+
+	builder.WriteString(asciiFrame)
 	builder.WriteString("\n")
 	builder.WriteString(leftpad_str)
 	builder.WriteString("Operands:\n\n")

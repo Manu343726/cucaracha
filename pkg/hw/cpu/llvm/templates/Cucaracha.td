@@ -14,7 +14,6 @@
 //===----------------------------------------------------------------------===//
 // Cucaracha documentation
 //===----------------------------------------------------------------------===//
-
 /*
 {{ .DocString }}
 */
@@ -30,6 +29,7 @@ include "llvm/Target/Target.td"
 //===----------------------------------------------------------------------===//
 
 {{ template "CucarachaRegisterInfo.td" . }}
+{{ template "CucarachaConditionCodes.td" . }}
 {{ template "CucarachaInstrInfo.td" . }}
 {{ template "CucarachaCallingConv.td" . }}
 

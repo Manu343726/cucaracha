@@ -17,3 +17,9 @@ class CucarachaPseudoInst<dag outs, dag ins, string asmstr, list<dag> pattern>
     : InstCucaracha<outs, ins, asmstr, pattern> {
   let isPseudo = 1;
 }
+
+class BranchInst<bits<4> opcode, dag outs, dag ins,
+                 string asmstr, list<dag> pattern>
+    : InstCucaracha<outs, ins, asmstr, pattern> {
+  let Inst{27-24} = opcode;
+}

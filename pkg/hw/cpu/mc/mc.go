@@ -18,6 +18,10 @@ type MachineCodeDescriptor struct {
 	RegisterClasses *registers.RegisterClassesDescriptor
 	// Information of machine register meta classes
 	RegisterMetaClasses []*registers.RegisterMetaClass
+	// Information about condition codes
+	ConditionCodes *instructions.ConditionCodesTemplateData
+
+	Name string
 }
 
 // Dumps all the MC description as one big multiline string
@@ -60,11 +64,13 @@ func (d *MachineCodeDescriptor) DocString() string {
 }
 
 func makeMachineFunctionDescriptor() MachineCodeDescriptor {
+	conditionCodes := instructions.GetConditionCodesTemplateData()
 	return MachineCodeDescriptor{
 		OpCodes:             &instructions.Opcodes,
 		Instructions:        &instructions.Instructions,
 		RegisterClasses:     &registers.RegisterClasses,
 		RegisterMetaClasses: registers.RegisterMetaClasses,
+		ConditionCodes:      &conditionCodes,
 	}
 }
 

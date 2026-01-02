@@ -34,7 +34,11 @@ func (instr RawInstruction) PrettyPrint(leftpad int) string {
 		}
 	})...)
 
-	return utils.AsciiFrame(fields, Instructions.InstructionBits(), "bits", utils.AsciiFrameUnitLayout_RightToLeft, leftpad)
+	asciiFrame, err := utils.AsciiFrame(fields, Instructions.InstructionBits(), "bits", utils.AsciiFrameUnitLayout_RightToLeft, leftpad)
+	if err != nil {
+		panic(fmt.Errorf("error generating pretty print for raw instruction %s: %w", instr.Descriptor.OpCode.String(), err))
+	}
+	return asciiFrame
 }
 
 func (instr *RawInstruction) String() string {

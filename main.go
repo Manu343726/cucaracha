@@ -5,7 +5,7 @@ package main
 
 import (
 	"github.com/Manu343726/cucaracha/cmd"
-	_ "github.com/Manu343726/cucaracha/cmd/mc"
+	_ "github.com/Manu343726/cucaracha/cmd/cpu"
 	_ "github.com/Manu343726/cucaracha/cmd/tools"
 )
 

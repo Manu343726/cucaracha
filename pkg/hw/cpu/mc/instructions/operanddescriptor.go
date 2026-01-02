@@ -32,6 +32,8 @@ type OperandDescriptor struct {
 	LLVM_CustomType string
 	// Custom operand pattern for LLVM instruction generation
 	LLVM_CustomPattern string
+	// If true, this operand is hidden from the assembly string (useful for tied operands)
+	LLVM_HideFromAsm bool
 }
 
 // Returns true if the operand is a register operand

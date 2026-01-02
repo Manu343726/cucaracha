@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/Manu343726/cucaracha/cmd/mc"
+	"github.com/Manu343726/cucaracha/cmd/cpu"
 	"github.com/Manu343726/cucaracha/cmd/tools"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -34,7 +34,7 @@ func Execute() {
 }
 
 func init() {
-	RootCmd.AddCommand(tools.ToolsCmd, mc.McCmd)
+	RootCmd.AddCommand(tools.ToolsCmd, cpu.CpuCmd)
 	cobra.OnInitialize(initConfig)
 }
 

@@ -58,5 +58,9 @@ func (d *RegisterClassDescriptor) Encode() uint64 {
 // Initializes a register class descriptor with the given registers
 func NewRegisterClassDescriptor(descriptor *RegisterClassDescriptor, registers []*RegisterDescriptor) *RegisterClassDescriptor {
 	descriptor.registers = registers
+	// Set the Index for each register based on its position in the array
+	for i, reg := range registers {
+		reg.Index = i
+	}
 	return descriptor
 }

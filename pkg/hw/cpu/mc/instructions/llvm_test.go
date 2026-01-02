@@ -50,16 +50,20 @@ func TestLLVMInstructionFlags_FlagsSet(t *testing.T) {
 func TestLLVMInstructionFlags_Flags(t *testing.T) {
 	flags := LLVMInstructionFlags_IsReturn | LLVMInstructionFlags_IsBranch
 	expected := map[LLVMInstructionFlags]bool{
-		LLVMInstructionFlags_IsReturn:  true,
-		LLVMInstructionFlags_IsBranch:  true,
-		LLVMInstructionFlags_IsCompare: false,
-		LLVMInstructionFlags_IsMoveImm: false,
-		LLVMInstructionFlags_IsMoveReg: false,
-		LLVMInstructionFlags_IsBitcast: false,
-		LLVMInstructionFlags_IsCall:    false,
-		LLVMInstructionFlags_MayLoad:   false,
-		LLVMInstructionFlags_MayStore:  false,
-		LLVMInstructionFlags_IsPseudo:  false,
+		LLVMInstructionFlags_IsReturn:           true,
+		LLVMInstructionFlags_IsBranch:           true,
+		LLVMInstructionFlags_IsCompare:          false,
+		LLVMInstructionFlags_IsMoveImm:          false,
+		LLVMInstructionFlags_IsMoveReg:          false,
+		LLVMInstructionFlags_IsBitcast:          false,
+		LLVMInstructionFlags_IsCall:             false,
+		LLVMInstructionFlags_MayLoad:            false,
+		LLVMInstructionFlags_MayStore:           false,
+		LLVMInstructionFlags_IsPseudo:           false,
+		LLVMInstructionFlags_IsBarrier:          false,
+		LLVMInstructionFlags_IsTerminator:       false,
+		LLVMInstructionFlags_UsesCustomInserter: false,
+		LLVMInstructionFlags_IsIndirectBranch:   false,
 	}
 	assert.Equal(t, expected, flags.Flags())
 }

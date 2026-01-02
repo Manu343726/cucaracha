@@ -5,7 +5,7 @@ import "github.com/Manu343726/cucaracha/pkg/hw/cpu/mc/types"
 // Contains all the metadata describing the registers and register classes supported by the Cucaracha architecture
 var RegisterClasses RegisterClassesDescriptor = NewRegisterClassesDescriptor([]*RegisterClassDescriptor{
 	StateRegisters(),
-	GeneralPurposeInt32(),
+	GeneralPurposeInt32(10),
 })
 
 // Contains all the different meta-classes of registers defined by the Cucaracha architecture, which are used to specify the kind of registers accepted by instruction operands
@@ -32,13 +32,13 @@ func StateRegisters() *RegisterClassDescriptor {
 }
 
 // General purpuse 32 bit integer registers descriptor
-func GeneralPurposeInt32() *RegisterClassDescriptor {
+func GeneralPurposeInt32(count int) *RegisterClassDescriptor {
 	return NewRegisterClassDescriptor(&RegisterClassDescriptor{
 		Class:              RegisterClass_GeneralPurposeInteger,
 		Description:        "General purpose word-sized 32 bit integer registers",
 		ValueType:          types.ValueType_Int32,
 		RegisterNamePrefix: "r",
-	}, MakeRegisters(10))
+	}, MakeRegisters(count))
 }
 
 // Program counter descriptor

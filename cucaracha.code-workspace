@@ -1,15 +1,15 @@
 {
 	"folders": [
 		{
+			"name": "cucaracha",
 			"path": "."
 		},
 		{
+			"name": "llvm-project",
 			"path": "../llvm-project"
-		},
-		{
-			"name": "vscode-cucaracha-debugger",
-			"path": "../vscode-cucaracha-debugger"
 		}
 	],
-	"settings": {}
+	"settings": {
+		"git.ignoreLimitWarning": true
+	}
 }

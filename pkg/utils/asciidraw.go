@@ -166,11 +166,11 @@ func (f *asciiFrame) Draw() string {
 	return result.String()
 }
 
-func fillAsciiFrameGaps(fields []AsciiFrameField, frameWidth int) []AsciiFrameField {
+func fillAsciiFrameGaps(fields []AsciiFrameField, frameWidth int) ([]AsciiFrameField, error) {
 	result := make([]AsciiFrameField, 0, len(fields))
 	currentUnit := 0
 
-	for _, field := range fields {
+	for i, field := range fields {
 		if field.Begin > currentUnit {
 			result = append(result, AsciiFrameField{
 				Name:  "(unused)",
@@ -178,7 +178,7 @@ func fillAsciiFrameGaps(fields []AsciiFrameField, frameWidth int) []AsciiFrameFi
 				Width: field.Begin - currentUnit,
 			})
 		} else if field.Begin < currentUnit {
-			panic("make sure fields are sorted by position and are not overlapping")
+			return nil, fmt.Errorf("fillAsciiFrameGaps error in field[%d]: make sure fields are sorted by position and are not overlapping (begin: %d < currentUnit: %d)", i, field.Begin, currentUnit)
 		}
 
 		result = append(result, field)
@@ -194,12 +194,15 @@ func fillAsciiFrameGaps(fields []AsciiFrameField, frameWidth int) []AsciiFrameFi
 		})
 	}
 
-	return result
+	return result, nil
 }
 
 // Prints an ascii diagram of a binary frame composed of contiguous fields of different unit lenghts
-func AsciiFrame(fields []AsciiFrameField, frameWidth int, unit string, layout AsciiFrameUnitLayout, leftpad int) string {
-	allFields := fillAsciiFrameGaps(fields, frameWidth)
+func AsciiFrame(fields []AsciiFrameField, frameWidth int, unit string, layout AsciiFrameUnitLayout, leftpad int) (string, error) {
+	allFields, err := fillAsciiFrameGaps(fields, frameWidth)
+	if err != nil {
+		return "", err
+	}
 
 	frame := asciiFrame{
 		fields:     allFields,
@@ -209,5 +212,5 @@ func AsciiFrame(fields []AsciiFrameField, frameWidth int, unit string, layout As
 		layout:     layout,
 	}
 
-	return frame.Draw()
+	return frame.Draw(), nil
 }

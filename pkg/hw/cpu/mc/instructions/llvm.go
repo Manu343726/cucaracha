@@ -65,19 +65,27 @@ const (
 	LLVMInstructionFlags_MayLoad
 	LLVMInstructionFlags_MayStore
 	LLVMInstructionFlags_IsPseudo
+	LLVMInstructionFlags_IsBarrier
+	LLVMInstructionFlags_IsTerminator
+	LLVMInstructionFlags_UsesCustomInserter
+	LLVMInstructionFlags_IsIndirectBranch
 )
 
 var llvmInstructionFlagsToString map[LLVMInstructionFlags]string = map[LLVMInstructionFlags]string{
-	LLVMInstructionFlags_IsReturn:  "isReturn",
-	LLVMInstructionFlags_IsBranch:  "isBranch",
-	LLVMInstructionFlags_IsCompare: "isCompare",
-	LLVMInstructionFlags_IsMoveImm: "isMovImm",
-	LLVMInstructionFlags_IsMoveReg: "isMovReg",
-	LLVMInstructionFlags_IsBitcast: "isBitcast",
-	LLVMInstructionFlags_IsCall:    "isCall",
-	LLVMInstructionFlags_MayLoad:   "mayLoad",
-	LLVMInstructionFlags_MayStore:  "mayStore",
-	LLVMInstructionFlags_IsPseudo:  "isPseudo",
+	LLVMInstructionFlags_IsReturn:           "isReturn",
+	LLVMInstructionFlags_IsBranch:           "isBranch",
+	LLVMInstructionFlags_IsCompare:          "isCompare",
+	LLVMInstructionFlags_IsMoveImm:          "isMovImm",
+	LLVMInstructionFlags_IsMoveReg:          "isMovReg",
+	LLVMInstructionFlags_IsBitcast:          "isBitcast",
+	LLVMInstructionFlags_IsCall:             "isCall",
+	LLVMInstructionFlags_MayLoad:            "mayLoad",
+	LLVMInstructionFlags_MayStore:           "mayStore",
+	LLVMInstructionFlags_IsPseudo:           "isPseudo",
+	LLVMInstructionFlags_IsBarrier:          "isBarrier",
+	LLVMInstructionFlags_IsTerminator:       "isTerminator",
+	LLVMInstructionFlags_UsesCustomInserter: "usesCustomInserter",
+	LLVMInstructionFlags_IsIndirectBranch:   "isIndirectBranch",
 }
 
 // Returns all the flags enabled
@@ -122,6 +130,8 @@ type LLVMInstructionDescriptor struct {
 	Operands    []*LLVMInstructionOperandDescriptor
 	Pattern     string
 	Flags       map[LLVMInstructionFlags]bool
+	// LLVM operand constraints (e.g. "$dst = $src" for tied operands)
+	Constraints string
 }
 
 // Returns the set of input operands declarations
@@ -141,8 +151,12 @@ func (d *LLVMInstructionDescriptor) Outs() []string {
 }
 
 // Returns all instruction operands in order in parameter form, that is, a $ followed by the operand name
+// Operands marked with LLVM_HideFromAsm are excluded from the assembly string
 func (d *LLVMInstructionDescriptor) Params() []string {
-	return utils.Map(d.Operands, (*LLVMInstructionOperandDescriptor).Param)
+	return utils.Map(
+		utils.Filter(d.Operands,
+			func(op *LLVMInstructionOperandDescriptor) bool { return !op.Operand.LLVM_HideFromAsm }),
+		(*LLVMInstructionOperandDescriptor).Param)
 }
 
 // Returns the LLVM type name of a given value type
@@ -191,6 +205,7 @@ func NewLLVMInstructionDescriptor(i *InstructionDescriptor) *LLVMInstructionDesc
 		Instruction: i,
 		Operands:    make([]*LLVMInstructionOperandDescriptor, len(i.Operands)),
 		Flags:       i.LLVM_InstructionFlags.Flags(),
+		Constraints: i.LLVM_Constraints,
 	}
 
 	totalSources := 0

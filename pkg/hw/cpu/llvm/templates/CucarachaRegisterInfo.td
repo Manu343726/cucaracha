@@ -11,7 +11,7 @@
 //  Declarations that describe the Cucaracha register file 
 //===----------------------------------------------------------------------===//
 
-class CucarachaReg<bits<{{ .RegisterClasses.RegisterBits }}> Enc, string n> : Register<n> {
+class CucarachaReg<bits<16> Enc, string n> : Register<n> {
   let HWEncoding = Enc;
   let Namespace = "Cucaracha";
 }
@@ -24,7 +24,6 @@ class CucarachaReg<bits<{{ .RegisterClasses.RegisterBits }}> Enc, string n> : Re
 //
 {{ range .AllRegisters }}
 // {{ .Description }}
-// {{ .Details }}
 def {{ .Name | ToUpper }}  : CucarachaReg<{{ .Encode }}, "{{ .Name }}">;
 {{ end }}
 {{ end }}
