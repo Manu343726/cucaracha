@@ -188,6 +188,62 @@ path/to/llvm-project/build_vs2022/Release/bin/clang.exe \
 ./cucaracha cpu exec program.o
 ```
 
+### Interactive Debugger
+
+The `debug` command provides a GDB-style interactive debugger:
+
+```bash
+# Start debugging a program
+./cucaracha cpu debug program.cucaracha
+./cucaracha cpu debug program.o
+```
+
+#### Debugger Commands
+
+| Command | Shortcut | Description |
+|---------|----------|-------------|
+| `step [n]` | `s` | Step n instructions (default: 1) |
+| `continue` | `c` | Continue execution until breakpoint |
+| `run` | `r` | Run until termination or breakpoint |
+| `break <addr>` | `b` | Set breakpoint at address |
+| `watch <addr>` | `w` | Set watchpoint on memory address |
+| `delete <id>` | `d` | Delete breakpoint/watchpoint by ID |
+| `list` | `l` | List all breakpoints/watchpoints |
+| `print <reg/@addr>` | `p` | Print register (r0-r9, sp, lr, pc, cpsr) or memory (@addr) |
+| `set <reg> <value>` | - | Set register value |
+| `disasm [addr] [n]` | `x` | Disassemble n instructions at addr |
+| `info` | `i` | Show CPU state (registers, flags) |
+| `stack` | - | Show stack contents |
+| `memory <addr> [n]` | `m` | Show n bytes of memory at addr |
+| `help` | `h` | Show help |
+| `quit` | `q` | Exit debugger |
+
+**Example session:**
+```
+$ ./cucaracha cpu debug program.cucaracha
+Loaded 17 instructions
+Entry point: 0x00010000
+Type 'help' for available commands.
+
+=> 0x00010000 [000C0410]: MOVIMM16L #4, r1
+(cucaracha) s
+=> 0x00010004 [00028820]: MOVIMM16L #2, r4
+(cucaracha) b 0x10010
+Breakpoint 0 set at 0x00010010
+(cucaracha) c
+Breakpoint hit at 0x00010010
+=> 0x00010010 [01140064]: ADD r0, r5, r1
+(cucaracha) p r0
+r0 = 0 (0x00000000)
+(cucaracha) i
+=== CPU State ===
+PC:   0x00010010
+SP:   131072 (0x00020000)
+...
+(cucaracha) q
+Exiting debugger.
+```
+
 ### Generating LLVM TableGen Files
 
 The LLVM backend's TableGen files can be regenerated from Go templates:

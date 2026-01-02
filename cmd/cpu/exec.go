@@ -103,8 +103,9 @@ func runExec(cmd *cobra.Command, args []string) {
 		}
 	}
 
-	// Create interpreter and load program
+	// Create interpreter and debugger
 	interp := interpreter.NewInterpreter(execMemorySize)
+	dbg := interpreter.NewDebugger(interp)
 
 	if err := loadProgramFile(interp, resolved); err != nil {
 		fmt.Fprintf(os.Stderr, "Error loading program into interpreter: %v\n", err)
@@ -114,6 +115,7 @@ func runExec(cmd *cobra.Command, args []string) {
 	// Define a magic termination address (just before the base address)
 	// When main returns (JMP lr, lr), PC will jump here and we'll detect program end
 	const TerminationAddress uint32 = 0x0000FFFC
+	dbg.AddTerminationAddress(TerminationAddress)
 
 	// Find the main function entry point
 	mainFunc, hasMain := resolved.Functions()["main"]
@@ -135,29 +137,29 @@ func runExec(cmd *cobra.Command, args []string) {
 		fmt.Fprintf(os.Stderr, "Starting execution at PC=0x%08X\n", interp.State().PC)
 	}
 
-	// Execute the program with optional tracing
-	var execErr error
+	// Execute the program using the debugger API
+	var result *interpreter.ExecutionResult
 	if execTrace {
-		execErr = executeWithTrace(interp, execMaxSteps, resolved, TerminationAddress)
-	} else if execMaxSteps > 0 {
-		execErr = executeUntilTermination(interp, execMaxSteps, TerminationAddress)
+		result = executeWithTraceDebugger(dbg, execMaxSteps, resolved)
 	} else {
-		execErr = executeUntilTermination(interp, 0, TerminationAddress)
+		result = dbg.Run(execMaxSteps)
 	}
 
 	// Check if execution stopped due to jumping past end of code (normal return from main)
 	state := interp.State()
 	layout := resolved.MemoryLayout()
 	endOfCode := layout.CodeStart + layout.CodeSize
-	normalExit := execErr != nil && state.PC >= endOfCode
+	normalExit := result.StopReason == interpreter.StopTermination ||
+		(result.Error != nil && state.PC >= endOfCode)
 
 	// Print final state
 	if execVerbose {
 		if normalExit {
 			fmt.Fprintf(os.Stderr, "\n=== Execution completed (returned from main) ===\n")
 		} else {
-			fmt.Fprintf(os.Stderr, "\n=== Execution %s ===\n", statusString(state, execErr))
+			fmt.Fprintf(os.Stderr, "\n=== Execution %s ===\n", result.StopReason.String())
 		}
+		fmt.Fprintf(os.Stderr, "Steps executed: %d\n", result.StepsExecuted)
 		fmt.Fprintf(os.Stderr, "Final PC: 0x%08X\n", state.PC)
 		fmt.Fprintf(os.Stderr, "Registers:\n")
 		for i := 0; i < 10; i++ {
@@ -180,20 +182,10 @@ func runExec(cmd *cobra.Command, args []string) {
 		os.Exit(0)
 	}
 
-	if execErr != nil && !state.Halted {
-		fmt.Fprintf(os.Stderr, "Execution error: %v\n", execErr)
+	if result.Error != nil && !state.Halted {
+		fmt.Fprintf(os.Stderr, "Execution error: %v\n", result.Error)
 		os.Exit(5)
 	}
-}
-
-func statusString(state *interpreter.CPUState, err error) string {
-	if state.Halted {
-		return "completed (halted)"
-	}
-	if err != nil {
-		return fmt.Sprintf("stopped with error: %v", err)
-	}
-	return "completed"
 }
 
 // loadProgramFile loads a resolved ProgramFile into the interpreter
@@ -269,9 +261,9 @@ func loadProgramFile(interp *interpreter.Interpreter, pf mc.ProgramFile) error {
 	return nil
 }
 
-// executeWithTrace runs the interpreter with instruction tracing
-func executeWithTrace(interp *interpreter.Interpreter, maxSteps int, pf mc.ProgramFile, terminationAddr uint32) error {
-	state := interp.State()
+// executeWithTraceDebugger runs the debugger with instruction tracing via event callback
+func executeWithTraceDebugger(dbg *interpreter.Debugger, maxSteps int, pf mc.ProgramFile) *interpreter.ExecutionResult {
+	state := dbg.State()
 	instrs := pf.Instructions()
 
 	// Build address to instruction index map
@@ -283,50 +275,29 @@ func executeWithTrace(interp *interpreter.Interpreter, maxSteps int, pf mc.Progr
 	}
 
 	stepCount := 0
-	for !state.Halted && (maxSteps == 0 || stepCount < maxSteps) {
-		// Check if we've reached the termination address
-		if state.PC == terminationAddr {
-			return nil // Normal termination
-		}
 
-		// Print current state before execution
-		pc := state.PC
-		idx, ok := addrToIdx[pc]
-		instrText := "???"
-		if ok && idx < len(instrs) {
-			instrText = instrs[idx].Text
-		}
+	// Set up tracing callback
+	dbg.SetEventCallback(func(event interpreter.ExecutionEvent, result *interpreter.ExecutionResult) bool {
+		if event == interpreter.EventStep {
+			// Print current state before execution
+			pc := result.LastPC
+			idx, ok := addrToIdx[pc]
+			instrText := "???"
+			if ok && idx < len(instrs) {
+				instrText = instrs[idx].Text
+			}
 
-		// Read the instruction word and show it
-		word, _ := state.ReadMemory32(pc)
+			// Read the instruction word and show it
+			word, _ := state.ReadMemory32(pc)
 
-		// Also print reg[1] directly to verify SP alias
-		fmt.Fprintf(os.Stderr, "[%4d] PC=0x%04X word=0x%08X sp=%6d (R[1]=%d) lr=%6d r0=%6d r4=%6d r5=%6d | %s\n",
-			stepCount, pc, word, *state.SP, state.Registers[1], *state.LR,
-			state.Registers[16], state.Registers[20], state.Registers[21],
-			instrText)
+			fmt.Fprintf(os.Stderr, "[%4d] PC=0x%04X word=0x%08X sp=%6d (R[1]=%d) lr=%6d r0=%6d r4=%6d r5=%6d | %s\n",
+				stepCount, pc, word, *state.SP, state.Registers[1], *state.LR,
+				state.Registers[16], state.Registers[20], state.Registers[21],
+				instrText)
+			stepCount++
+		}
+		return true // Continue execution
+	})
 
-		if err := interp.Step(); err != nil {
-			return err
-		}
-		stepCount++
-	}
-	return nil
-}
-
-// executeUntilTermination runs the interpreter until it hits the termination address or errors
-func executeUntilTermination(interp *interpreter.Interpreter, maxSteps int, terminationAddr uint32) error {
-	state := interp.State()
-	stepCount := 0
-	for !state.Halted && (maxSteps == 0 || stepCount < maxSteps) {
-		// Check if we've reached the termination address
-		if state.PC == terminationAddr {
-			return nil // Normal termination
-		}
-		if err := interp.Step(); err != nil {
-			return err
-		}
-		stepCount++
-	}
-	return nil
+	return dbg.Run(maxSteps)
 }
