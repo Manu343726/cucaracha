@@ -227,7 +227,7 @@ func TestResolveSymbols_UsageField(t *testing.T) {
 			{LineNumber: 2, Text: "MOVIMM16H myFunc@hi, r0", Symbols: []SymbolReference{{Name: "myFunc", Usage: SymbolUsageHi}}},
 			{LineNumber: 3, Text: "MOVIMM16L myGlobal@lo, r1", Symbols: []SymbolReference{{Name: "myGlobal", Usage: SymbolUsageLo}}},
 			{LineNumber: 4, Text: "MOVIMM16L .LBB0_1@lo, r2", Symbols: []SymbolReference{{Name: ".LBB0_1", Usage: SymbolUsageLo}}},
-			{LineNumber: 5, Text: "JMP myFunc, r0", Symbols: []SymbolReference{{Name: "myFunc", Usage: SymbolUsageFull}}},
+			{LineNumber: 5, Text: "JMP r0, lr", Symbols: []SymbolReference{}}, // JMP uses registers only, no symbols
 		},
 	}
 
@@ -256,10 +256,8 @@ func TestResolveSymbols_UsageField(t *testing.T) {
 	assert.Equal(t, ".LBB0_1", instructions[3].Symbols[0].Label.Name)
 	assert.Equal(t, SymbolUsageLo, instructions[3].Symbols[0].Usage)
 
-	// Test full usage (no suffix)
-	assert.Equal(t, SymbolKindFunction, instructions[4].Symbols[0].Kind())
-	assert.Equal(t, "myFunc", instructions[4].Symbols[0].Name)
-	assert.Equal(t, SymbolUsageFull, instructions[4].Symbols[0].Usage)
+	// JMP instruction has no symbols (register-indirect only)
+	assert.Equal(t, 0, len(instructions[4].Symbols))
 }
 
 func TestProgramFileContents_ImplementsInterface(t *testing.T) {

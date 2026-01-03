@@ -45,6 +45,7 @@ import (
 	"debug/elf"
 	"fmt"
 	"io"
+	"sort"
 
 	"github.com/Manu343726/cucaracha/pkg/hw/cpu/mc"
 )
@@ -90,8 +91,20 @@ func (p *DWARFParser) Parse() (*mc.DebugInfo, error) {
 }
 
 // parseLineInfo extracts source line number information from .debug_line
+// DWARF line info only records entries at statement boundaries. This function
+// propagates each entry to cover all instruction addresses (every 4 bytes)
+// until the next entry.
 func (p *DWARFParser) parseLineInfo() error {
 	reader := p.dwarfData.Reader()
+
+	// Collect all line entries first, then propagate
+	type lineEntryData struct {
+		addr   uint32
+		file   string
+		line   int
+		column int
+	}
+	var entries []lineEntryData
 
 	for {
 		entry, err := reader.Next()
@@ -129,16 +142,44 @@ func (p *DWARFParser) parseLineInfo() error {
 					continue
 				}
 
-				// Create source location
-				loc := &mc.SourceLocation{
-					File:   lineEntry.File.Name,
-					Line:   lineEntry.Line,
-					Column: lineEntry.Column,
-				}
-
-				addr := uint32(lineEntry.Address)
-				p.debugInfo.InstructionLocations[addr] = loc
+				entries = append(entries, lineEntryData{
+					addr:   uint32(lineEntry.Address),
+					file:   lineEntry.File.Name,
+					line:   lineEntry.Line,
+					column: lineEntry.Column,
+				})
 			}
+		}
+	}
+
+	// Sort entries by address
+	sort.Slice(entries, func(i, j int) bool {
+		return entries[i].addr < entries[j].addr
+	})
+
+	// Propagate each entry to cover all instruction addresses until the next entry
+	// Cucaracha instructions are 4 bytes each
+	const instrSize = 4
+
+	for i, entry := range entries {
+		loc := &mc.SourceLocation{
+			File:   entry.file,
+			Line:   entry.line,
+			Column: entry.column,
+		}
+
+		// Determine the end address for this entry
+		var endAddr uint32
+		if i+1 < len(entries) {
+			endAddr = entries[i+1].addr
+		} else {
+			// Last entry - just record this address
+			endAddr = entry.addr + instrSize
+		}
+
+		// Fill in all instruction addresses from this entry to the next
+		for addr := entry.addr; addr < endAddr; addr += instrSize {
+			p.debugInfo.InstructionLocations[addr] = loc
 		}
 	}
 
@@ -327,16 +368,17 @@ func (p *DWARFParser) decodeLocationExpr(expr []byte) mc.VariableLocation {
 
 	// DWARF location expression opcodes
 	const (
-		DW_OP_addr       = 0x03
-		DW_OP_reg0       = 0x50
-		DW_OP_reg31      = 0x6f
-		DW_OP_breg0      = 0x70
-		DW_OP_breg31     = 0x8f
-		DW_OP_fbreg      = 0x91
-		DW_OP_regx       = 0x90
-		DW_OP_stack_val  = 0x9f
-		DW_OP_piece      = 0x93
-		DW_OP_call_frame = 0x9c
+		DW_OP_addr        = 0x03
+		DW_OP_plus_uconst = 0x23
+		DW_OP_reg0        = 0x50
+		DW_OP_reg31       = 0x6f
+		DW_OP_breg0       = 0x70
+		DW_OP_breg31      = 0x8f
+		DW_OP_regx        = 0x90
+		DW_OP_fbreg       = 0x91
+		DW_OP_piece       = 0x93
+		DW_OP_stack_val   = 0x9f
+		DW_OP_call_frame  = 0x9c
 	)
 
 	op := expr[0]
@@ -365,6 +407,17 @@ func (p *DWARFParser) decodeLocationExpr(expr []byte) mc.VariableLocation {
 		offset := decodeSLEB128(expr[1:])
 		// Frame base is typically SP or FP
 		// For Cucaracha, we use SP (register 13)
+		return mc.MemoryLocation{
+			BaseRegister: 13, // SP
+			Offset:       offset,
+		}
+	}
+
+	// DW_OP_plus_uconst - adds unsigned constant
+	// When this appears alone, it's typically relative to the frame base (SP)
+	// This is commonly generated for local variables on the stack
+	if op == DW_OP_plus_uconst && len(expr) > 1 {
+		offset := int32(decodeULEB128(expr[1:]))
 		return mc.MemoryLocation{
 			BaseRegister: 13, // SP
 			Offset:       offset,

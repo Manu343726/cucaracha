@@ -24,8 +24,8 @@ func TestNewCPUState(t *testing.T) {
 	assert.Equal(t, uint32(0), state.PC)
 	assert.False(t, state.Halted)
 
-	// Stack pointer should be initialized to top of memory
-	assert.Equal(t, uint32(1024), *state.SP)
+	// Stack pointer should be initialized to last valid word-aligned address
+	assert.Equal(t, uint32(1020), *state.SP)
 
 	// SP should alias the sp register
 	assert.Equal(t, &state.Registers[regIdx("sp")], state.SP)
@@ -144,7 +144,7 @@ func TestInterpreter_Reset(t *testing.T) {
 	assert.Equal(t, uint32(0), interp.State().Registers[regIdx("r0")])
 	assert.Equal(t, uint32(0), interp.State().PC)
 	assert.False(t, interp.State().Halted)
-	assert.Equal(t, uint32(1024), *interp.State().SP)
+	assert.Equal(t, uint32(1020), *interp.State().SP)
 }
 
 func TestInterpreter_Step_Halted(t *testing.T) {

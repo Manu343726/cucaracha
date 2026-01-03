@@ -5,6 +5,7 @@ package interpreter
 import (
 	"fmt"
 	"sort"
+	"sync/atomic"
 
 	"github.com/Manu343726/cucaracha/pkg/hw/cpu/mc/instructions"
 )
@@ -67,6 +68,8 @@ const (
 	StopTermination
 	// StopMaxSteps indicates max steps limit was reached
 	StopMaxSteps
+	// StopInterrupt indicates execution was interrupted by user
+	StopInterrupt
 )
 
 // String returns the string representation of a StopReason
@@ -88,6 +91,8 @@ func (r StopReason) String() string {
 		return "termination"
 	case StopMaxSteps:
 		return "max_steps"
+	case StopInterrupt:
+		return "interrupt"
 	default:
 		return fmt.Sprintf("unknown(%d)", r)
 	}
@@ -185,6 +190,9 @@ type Debugger struct {
 
 	// Execution state
 	lastResult *ExecutionResult
+
+	// Interrupt flag (atomic for thread-safety)
+	interrupted int32
 }
 
 // NewDebugger creates a new debugger for the given interpreter
@@ -196,6 +204,22 @@ func NewDebugger(interp *Interpreter) *Debugger {
 		watchpoints:      make(map[int]*Watchpoint),
 		terminationAddrs: make(map[uint32]bool),
 	}
+}
+
+// Interrupt signals the debugger to stop execution.
+// This is safe to call from signal handlers or other goroutines.
+func (d *Debugger) Interrupt() {
+	atomic.StoreInt32(&d.interrupted, 1)
+}
+
+// ClearInterrupt clears the interrupt flag.
+func (d *Debugger) ClearInterrupt() {
+	atomic.StoreInt32(&d.interrupted, 0)
+}
+
+// IsInterrupted returns true if the interrupt flag is set.
+func (d *Debugger) IsInterrupted() bool {
+	return atomic.LoadInt32(&d.interrupted) != 0
 }
 
 // Interpreter returns the underlying interpreter
@@ -452,7 +476,17 @@ func (d *Debugger) Run(maxSteps int) *ExecutionResult {
 		LastPC: d.interp.state.PC,
 	}
 
+	// Clear any previous interrupt before starting
+	d.ClearInterrupt()
+
 	for {
+		// Check for interrupt (Ctrl+C)
+		if d.IsInterrupted() {
+			result.StopReason = StopInterrupt
+			d.ClearInterrupt()
+			break
+		}
+
 		// Check step limit
 		if maxSteps > 0 && result.StepsExecuted >= maxSteps {
 			result.StopReason = StopMaxSteps

@@ -265,14 +265,14 @@ cucaracha cpu clang -X -fno-builtin hello.c
 
 ### Interactive Debugger
 
-The `debug` command provides a GDB-style interactive debugger:
+The `debug` command provides a GDB-style interactive debugger with source-level debugging support:
 
 ```bash
 # Start debugging a program
 ./cucaracha cpu debug program.cucaracha
 ./cucaracha cpu debug program.o
 
-# Debug a C source file directly (compiles first)
+# Debug a C source file directly (compiles first with DWARF debug info)
 ./cucaracha cpu debug hello.c
 ```
 
@@ -280,7 +280,8 @@ The `debug` command provides a GDB-style interactive debugger:
 
 | Command | Shortcut | Description |
 |---------|----------|-------------|
-| `step [n]` | `s` | Step n instructions (default: 1) |
+| `step [n]` | `s` | Step n source lines (or instructions if no debug info) |
+| `stepi [n]` | `si` | Step n instructions |
 | `continue` | `c` | Continue execution until breakpoint |
 | `run` | `r` | Run until termination or breakpoint |
 | `break <addr>` | `b` | Set breakpoint at address |
@@ -290,36 +291,78 @@ The `debug` command provides a GDB-style interactive debugger:
 | `print <reg/@addr>` | `p` | Print register (r0-r9, sp, lr, pc, cpsr) or memory (@addr) |
 | `set <reg> <value>` | - | Set register value |
 | `disasm [addr] [n]` | `x` | Disassemble n instructions at addr |
+| `disasm -i` | `x -i` | **Interactive disassembly view with CFG** |
+| `memory -i [addr]` | `m -i` | **Interactive memory view** |
+| `source [n]` | `src` | Show n lines of source around current location |
+| `vars` | `v` | Show accessible variables at current location |
 | `info` | `i` | Show CPU state (registers, flags) |
 | `stack` | - | Show stack contents |
 | `memory <addr> [n]` | `m` | Show n bytes of memory at addr |
 | `help` | `h` | Show help |
 | `quit` | `q` | Exit debugger |
 
+#### Interactive Disassembly View (CFG Visualization)
+
+The interactive disassembly view (`disasm -i` or `x -i`) provides a radare2-style visualization:
+
+```
+╭─ int x = 5;
+│  0x10000 12345678 │ MOVIMM16L #5, r0
+╰  0x10004 87654321 │ ST r0, [sp+4]
+╭─ if (x > 0) {
+│  0x10008 AABBCCDD │ LD [sp+4], r0
+│  0x1000C 11223344 │ CMP r0, r1, cpsr
+│  0x10010 55667788 ╭ CJMP #1, r2, lr         ↓ 0x10020
+╰  0x10014 99AABBCC ╰─────────────────────────→
+```
+
+**Features:**
+- **CFG arrows**: Visual representation of control flow (jumps, branches)
+- **Color-coded branches**: Different colors for different branch edges
+- **Source line grouping**: Instructions grouped by source line with `╭│╰` brackets
+- **C syntax highlighting**: Keywords, types, strings, numbers colored
+- **Branch hints**: Target address or symbol shown at end of line
+- **Keyboard navigation**: Arrow keys, Page Up/Down, Home/End
+
+**Interactive View Keys:**
+| Key | Action |
+|-----|--------|
+| ↑/↓ | Move up/down one instruction |
+| Shift+↑/↓ | Move up/down 10 instructions |
+| Page Up/Down | Move by screen height |
+| Home/End | Jump to start/end of code |
+| P | Jump to current PC |
+| ? | Show help |
+| Q/ESC | Exit view |
+
+#### Source-Level Debugging
+
+When debugging C files with DWARF debug info, the debugger provides:
+
+- **Source location tracking**: Shows file:line for each instruction
+- **Source line stepping**: `step` command steps by source lines
+- **Variable inspection**: `vars` shows accessible local variables
+- **C syntax highlighting**: Source code displayed with colors
+
 **Example session:**
 ```
-$ ./cucaracha cpu debug program.cucaracha
-Loaded 17 instructions
+$ ./cucaracha cpu debug program.c
+Compiled program.c to temporary file
+Loaded 17 instructions with DWARF debug info
 Entry point: 0x00010000
 Type 'help' for available commands.
 
-=> 0x00010000 [000C0410]: MOVIMM16L #4, r1
+  main.c:5  int x = 5;
+=> 0x00010000 [000C0410]: MOVIMM16L #5, r0
 (cucaracha) s
-=> 0x00010004 [00028820]: MOVIMM16L #2, r4
-(cucaracha) b 0x10010
-Breakpoint 0 set at 0x00010010
-(cucaracha) c
-Breakpoint hit at 0x00010010
-=> 0x00010010 [01140064]: ADD r0, r5, r1
-(cucaracha) p r0
-r0 = 0 (0x00000000)
-(cucaracha) i
-=== CPU State ===
-PC:   0x00010010
-SP:   131072 (0x00020000)
-...
-(cucaracha) q
-Exiting debugger.
+  main.c:6  int y = x + 3;
+=> 0x00010008 [00028820]: LD [sp+4], r1
+(cucaracha) vars
+Variables at main.c:6:
+  x (int): 5 [sp+4]
+  y (int): <not yet initialized> [sp+8]
+(cucaracha) x -i
+[Interactive disassembly view opens]
 ```
 
 ### Generating LLVM TableGen Files
@@ -342,6 +385,9 @@ The LLVM backend's TableGen files can be regenerated from Go templates:
 | Binary Execution | ✅ Working |
 | Clang Integration | ✅ Auto-discovery, compilation, verbose output |
 | Interactive Debugger | ✅ GDB-style CLI with breakpoints/watchpoints |
+| Source-Level Debugging | ✅ DWARF debug info, source stepping, variable inspection |
+| CFG Visualization | ✅ Interactive disassembly with control flow arrows |
+| C Syntax Highlighting | ✅ Keywords, types, strings, numbers colored |
 
 ### Test Programs
 All test programs compile and execute correctly:

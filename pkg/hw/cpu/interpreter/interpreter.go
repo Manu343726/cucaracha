@@ -36,8 +36,9 @@ func NewCPUState(memorySize uint32) *CPUState {
 	lrIdx := registers.Register("lr").Encode()
 	state.SP = &state.Registers[spIdx]
 	state.LR = &state.Registers[lrIdx]
-	// Initialize stack pointer to top of memory
-	*state.SP = memorySize
+	// Initialize stack pointer to last valid word-aligned address
+	// Stack grows downward, so SP points to the next address to write
+	*state.SP = memorySize - 4
 	return state
 }
 
