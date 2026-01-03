@@ -211,6 +211,7 @@ func CompileSourceFile(inputPath string, outputFormat llvm.OutputFormat, verbose
 	opts := &llvm.CompileOptions{
 		OutputFormat: outputFormat,
 		OptLevel:     llvm.OptNone,
+		DebugInfo:    true, // Always include debug info for exec/debug commands
 		Verbose:      verbose,
 	}
 

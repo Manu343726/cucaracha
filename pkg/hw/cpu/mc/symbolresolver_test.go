@@ -24,6 +24,7 @@ func (m *mockProgramFile) Instructions() []Instruction    { return m.instruction
 func (m *mockProgramFile) Globals() []Global              { return m.globals }
 func (m *mockProgramFile) Labels() []Label                { return m.labels }
 func (m *mockProgramFile) MemoryLayout() *MemoryLayout    { return nil }
+func (m *mockProgramFile) DebugInfo() *DebugInfo          { return nil }
 
 func TestResolveSymbols_ResolvesAllSymbolTypes(t *testing.T) {
 	// Create a program with functions, globals, and labels

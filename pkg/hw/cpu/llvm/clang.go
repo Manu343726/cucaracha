@@ -294,7 +294,16 @@ func supportsCucarachaTarget(clangPath string) bool {
 	return strings.Contains(string(output), "cucaracha")
 }
 
-// CompileOptions specifies options for compilation
+// CompileOptions specifies options for compilation.
+//
+// Example:
+//
+//	opts := &CompileOptions{
+//	    OutputFormat: OutputObject,
+//	    OptLevel:     OptNone,
+//	    DebugInfo:    true,  // Include DWARF for debugging
+//	}
+//	result, err := toolchain.Compile("program.c", opts)
 type CompileOptions struct {
 	// OutputFormat specifies the output format (assembly, object, LLVM IR)
 	OutputFormat OutputFormat
@@ -319,13 +328,22 @@ type CompileOptions struct {
 
 	// KeepTempFiles keeps intermediate temporary files
 	KeepTempFiles bool
+
+	// DebugInfo includes DWARF debug information in the output (-g flag).
+	// When true, the compiled object file will contain .debug_* sections
+	// that can be parsed by DWARFParser to enable source-level debugging.
+	// This maps instruction addresses to source file/line/column and tracks
+	// variable locations for the debugger's 'source' and 'vars' commands.
+	DebugInfo bool
 }
 
-// DefaultCompileOptions returns default compilation options
+// DefaultCompileOptions returns default compilation options.
+// By default, includes debug info (DebugInfo: true) to support source-level debugging.
 func DefaultCompileOptions() *CompileOptions {
 	return &CompileOptions{
 		OutputFormat: OutputObject,
 		OptLevel:     OptNone,
+		DebugInfo:    true, // Include debug info by default for source-level debugging
 	}
 }
 
@@ -377,6 +395,11 @@ func (t *ClangToolchain) Compile(inputPath string, opts *CompileOptions) (*Compi
 	args := []string{
 		"--target=cucaracha",
 		opts.OptLevel.String(),
+	}
+
+	// Add debug info flag
+	if opts.DebugInfo {
+		args = append(args, "-g")
 	}
 
 	// Add output format flags

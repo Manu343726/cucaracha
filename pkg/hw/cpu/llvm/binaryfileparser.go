@@ -34,6 +34,7 @@ type BinaryFile struct {
 	globalsValue    []mc.Global
 	labelsValue     []mc.Label
 	memoryLayout    *mc.MemoryLayout
+	debugInfo       *mc.DebugInfo
 }
 
 // ParseBinaryFile parses a .o ELF file and returns a ProgramFile
@@ -84,6 +85,15 @@ func (p *BinaryFileParser) Parse() (*BinaryFile, error) {
 		instructionsAll: []mc.Instruction{},
 		globalsValue:    []mc.Global{},
 		labelsValue:     []mc.Label{},
+	}
+
+	// Try to parse DWARF debug information (optional, don't fail if not available)
+	dwarfParser, err := NewDWARFParser(elfFile)
+	if err == nil {
+		debugInfo, err := dwarfParser.Parse()
+		if err == nil {
+			result.debugInfo = debugInfo
+		}
 	}
 
 	// Find the .text section for code
@@ -405,6 +415,11 @@ func (f *BinaryFile) Labels() []mc.Label {
 // MemoryLayout returns the memory layout information
 func (f *BinaryFile) MemoryLayout() *mc.MemoryLayout {
 	return f.memoryLayout
+}
+
+// DebugInfo returns the debug information (source locations, variables)
+func (f *BinaryFile) DebugInfo() *mc.DebugInfo {
+	return f.debugInfo
 }
 
 // sectionInfo holds information about an ELF section for relocation processing

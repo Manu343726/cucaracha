@@ -202,6 +202,12 @@ func ResolveMemory(pf ProgramFile, config MemoryResolverConfig) (ProgramFile, er
 		DataStart:   dataStart,
 	}
 
+	// Remap debug info addresses to match the relocated code
+	debugInfo := pf.DebugInfo()
+	if debugInfo != nil {
+		debugInfo = remapDebugInfoAddresses(debugInfo, codeStart)
+	}
+
 	return &ProgramFileContents{
 		FileNameValue:     pf.FileName(),
 		SourceFileValue:   pf.SourceFile(),
@@ -210,7 +216,74 @@ func ResolveMemory(pf ProgramFile, config MemoryResolverConfig) (ProgramFile, er
 		GlobalsValue:      resolvedGlobals,
 		LabelsValue:       resolvedLabels,
 		MemoryLayoutValue: layout,
+		DebugInfoValue:    debugInfo,
 	}, nil
+}
+
+// remapDebugInfoAddresses adjusts all addresses in debug info to account for code relocation.
+//
+// When DWARF debug information is parsed from an ELF object file, the addresses are
+// relative to the ELF file's virtual address layout (typically starting at 0x0 for
+// relocatable objects). When the code is loaded into memory at a different base address
+// (e.g., 0x10000), all debug info addresses must be adjusted by adding the code start address.
+//
+// This function creates a new DebugInfo with all address-containing fields remapped:
+//   - InstructionLocations: Maps instruction addresses to source locations
+//   - InstructionVariables: Maps instruction addresses to accessible variables
+//   - Functions: Function start/end addresses and scope addresses
+//
+// Example: If DWARF says function main() starts at 0x100 and code is loaded at 0x10000,
+// the remapped function will have StartAddress = 0x10100.
+//
+// Parameters:
+//   - original: The debug info with addresses relative to the ELF file
+//   - codeStart: The actual memory address where code is loaded (e.g., 0x10000)
+//
+// Returns a new DebugInfo with all addresses adjusted, or nil if original is nil.
+func remapDebugInfoAddresses(original *DebugInfo, codeStart uint32) *DebugInfo {
+	if original == nil {
+		return nil
+	}
+
+	remapped := NewDebugInfo()
+	remapped.CompilationUnit = original.CompilationUnit
+	remapped.Producer = original.Producer
+	remapped.SourceFiles = original.SourceFiles
+
+	// Remap instruction locations
+	for addr, loc := range original.InstructionLocations {
+		remapped.InstructionLocations[codeStart+addr] = loc
+	}
+
+	// Remap instruction variables
+	for addr, vars := range original.InstructionVariables {
+		remapped.InstructionVariables[codeStart+addr] = vars
+	}
+
+	// Remap functions
+	for name, fn := range original.Functions {
+		remappedFn := &FunctionDebugInfo{
+			Name:           fn.Name,
+			StartAddress:   codeStart + fn.StartAddress,
+			EndAddress:     codeStart + fn.EndAddress,
+			SourceFile:     fn.SourceFile,
+			StartLine:      fn.StartLine,
+			EndLine:        fn.EndLine,
+			Parameters:     fn.Parameters,
+			LocalVariables: fn.LocalVariables,
+		}
+		// Remap scopes
+		for _, scope := range fn.Scopes {
+			remappedFn.Scopes = append(remappedFn.Scopes, ScopeInfo{
+				StartAddress: codeStart + scope.StartAddress,
+				EndAddress:   codeStart + scope.EndAddress,
+				Variables:    scope.Variables,
+			})
+		}
+		remapped.Functions[name] = remappedFn
+	}
+
+	return remapped
 }
 
 // alignAddress aligns an address to the given alignment

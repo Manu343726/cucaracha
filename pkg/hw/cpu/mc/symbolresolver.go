@@ -101,5 +101,6 @@ func ResolveSymbols(pf ProgramFile) (ProgramFile, error) {
 		InstructionsValue: resolvedInstructions,
 		GlobalsValue:      resolvedGlobals,
 		LabelsValue:       resolvedLabels,
+		DebugInfoValue:    pf.DebugInfo(),
 	}, nil
 }

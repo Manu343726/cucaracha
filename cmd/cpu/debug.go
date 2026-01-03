@@ -46,6 +46,12 @@ var (
 	// Flag colors
 	colorFlagSet   = color.New(color.FgGreen, color.Bold)
 	colorFlagClear = color.New(color.FgHiBlack)
+	// Source code colors
+	colorSource     = color.New(color.FgHiWhite)
+	colorSourceFile = color.New(color.FgHiBlue)
+	colorSourceLine = color.New(color.FgHiCyan)
+	colorVarName    = color.New(color.FgHiGreen)
+	colorVarType    = color.New(color.FgHiYellow)
 )
 
 // Instruction part colors
@@ -159,6 +165,12 @@ The command accepts:
 When a source file is provided, it is automatically compiled using clang
 with the Cucaracha target before debugging.
 
+For binary/object files compiled with debug info (-g), source-level debugging
+is available:
+  - The debugger will show the corresponding source code line when stepping
+  - Use 'source' to view source code around the current location
+  - Use 'vars' to see variables accessible at the current location
+
 Available debugger commands:
   step, s [n]        - Step n instructions (default: 1)
   continue, c        - Continue execution until breakpoint
@@ -173,6 +185,8 @@ Available debugger commands:
   info, i            - Show CPU state (registers, flags)
   stack              - Show stack contents
   memory, m <addr> [n] - Show n bytes of memory at addr
+  source, src [n]    - Show n lines of source code around current location
+  vars, v            - Show variables accessible at current location
   help, h            - Show this help
   quit, q            - Exit debugger
 
@@ -187,7 +201,7 @@ func init() {
 	CpuCmd.AddCommand(debugCmd)
 	debugCmd.Flags().Uint32VarP(&debugMemorySize, "memory", "m", 0x20000, "Memory size in bytes (default: 128KB)")
 	debugCmd.Flags().BoolVarP(&debugVerbose, "verbose", "v", false, "Print verbose output")
-	debugCmd.Flags().StringVar(&debugCompileFormat, "compile-to", "assembly", "Compilation output format for source files: assembly, object")
+	debugCmd.Flags().StringVar(&debugCompileFormat, "compile-to", "object", "Compilation output format for source files: assembly, object (default: object for DWARF debug info)")
 }
 
 // debugSession holds the state of an interactive debugging session
@@ -199,6 +213,10 @@ type debugSession struct {
 	running         bool
 	lastCmd         string
 	terminationAddr uint32
+	// Debug information for source-level debugging
+	debugInfo *mc.DebugInfo
+	// Last shown source location (to avoid repetitive display)
+	lastSourceLoc *mc.SourceLocation
 }
 
 func runDebug(cmd *cobra.Command, args []string) {
@@ -214,7 +232,7 @@ func runDebug(cmd *cobra.Command, args []string) {
 		case "object", "obj", "o":
 			outputFormat = llvm.OutputObject
 		default:
-			outputFormat = llvm.OutputAssembly
+			outputFormat = llvm.OutputObject // Default to object for DWARF debug info
 		}
 
 		compiledPath, cleanupFn, err := CompileSourceFile(inputPath, outputFormat, debugVerbose)
@@ -299,6 +317,13 @@ func runDebug(cmd *cobra.Command, args []string) {
 		}
 	}
 
+	// Get debug info from resolved program
+	debugInfo := resolved.DebugInfo()
+	if debugInfo != nil {
+		// Try to load source files if debug info available
+		debugInfo.TryLoadSourceFiles()
+	}
+
 	session := &debugSession{
 		dbg:             dbg,
 		pf:              resolved,
@@ -306,9 +331,13 @@ func runDebug(cmd *cobra.Command, args []string) {
 		idxToAddr:       idxToAddr,
 		running:         true,
 		terminationAddr: TerminationAddress,
+		debugInfo:       debugInfo,
 	}
 
 	fmt.Printf("Loaded %d instructions\n", len(resolved.Instructions()))
+	if debugInfo != nil && len(debugInfo.InstructionLocations) > 0 {
+		colorSuccess.Printf("Debug info: %d source locations\n", len(debugInfo.InstructionLocations))
+	}
 	fmt.Printf("Entry point: %s\n", colorAddr.Sprintf("0x%08X", interp.State().PC))
 	colorSuccess.Println("Type 'help' for available commands.")
 	fmt.Println()
@@ -372,6 +401,10 @@ func (s *debugSession) executeCommand(line string) {
 		s.cmdStack()
 	case "memory", "m":
 		s.cmdMemory(args)
+	case "source", "src":
+		s.cmdSource(args)
+	case "vars", "v":
+		s.cmdVars()
 	case "help", "h", "?":
 		s.cmdHelp()
 	case "quit", "q", "exit":
@@ -834,6 +867,142 @@ func (s *debugSession) cmdMemory(args []string) {
 	}
 }
 
+func (s *debugSession) cmdSource(args []string) {
+	if s.debugInfo == nil {
+		colorWarning.Println("No debug information available.")
+		return
+	}
+
+	pc := s.dbg.State().PC
+
+	// Get current source location
+	loc := s.debugInfo.GetSourceLocation(pc)
+	if loc == nil || !loc.IsValid() {
+		colorWarning.Println("No source location for current address.")
+		return
+	}
+
+	// Determine how many lines to show (default: 10 centered on current line)
+	contextLines := 5
+	if len(args) > 0 {
+		if n, err := strconv.Atoi(args[0]); err == nil && n > 0 {
+			contextLines = n / 2
+		}
+	}
+
+	fmt.Printf("%s:\n", colorSourceFile.Sprint(loc.File))
+
+	// Show source lines
+	startLine := loc.Line - contextLines
+	if startLine < 1 {
+		startLine = 1
+	}
+	endLine := loc.Line + contextLines
+
+	for line := startLine; line <= endLine; line++ {
+		srcLine := s.debugInfo.GetSourceLine(loc.File, line)
+		if srcLine == "" && line > loc.Line {
+			// End of file
+			break
+		}
+		marker := "   "
+		lineColor := colorSource
+		if line == loc.Line {
+			marker = colorPC.Sprint("=>")
+			lineColor = color.New(color.FgWhite, color.Bold)
+		}
+		fmt.Printf("%s %s %s\n",
+			marker,
+			colorSourceLine.Sprintf("%4d", line),
+			lineColor.Sprint(strings.TrimRight(srcLine, "\r\n")))
+	}
+}
+
+func (s *debugSession) cmdVars() {
+	if s.debugInfo == nil {
+		colorWarning.Println("No debug information available.")
+		return
+	}
+
+	pc := s.dbg.State().PC
+	vars := s.debugInfo.GetVariables(pc)
+
+	if len(vars) == 0 {
+		colorWarning.Println("No variables accessible at current location.")
+		return
+	}
+
+	colorHeader.Println("Accessible Variables:")
+	for _, v := range vars {
+		// Format variable location
+		var locStr string
+		switch loc := v.Location.(type) {
+		case mc.RegisterLocation:
+			regName := fmt.Sprintf("r%d", loc.Register)
+			if loc.Register == 13 {
+				regName = "sp"
+			} else if loc.Register == 14 {
+				regName = "lr"
+			}
+			locStr = colorReg.Sprintf("@%s", regName)
+		case mc.MemoryLocation:
+			baseReg := fmt.Sprintf("r%d", loc.BaseRegister)
+			if loc.BaseRegister == 13 {
+				baseReg = "sp"
+			} else if loc.BaseRegister == 14 {
+				baseReg = "lr"
+			}
+			if loc.Offset >= 0 {
+				locStr = colorAddr.Sprintf("[%s+%d]", baseReg, loc.Offset)
+			} else {
+				locStr = colorAddr.Sprintf("[%s%d]", baseReg, loc.Offset)
+			}
+		case mc.ConstantLocation:
+			locStr = colorValue.Sprintf("=%d", loc.Value)
+		default:
+			locStr = "?"
+		}
+
+		// Try to read the value if in register or memory
+		var valueStr string
+		switch loc := v.Location.(type) {
+		case mc.RegisterLocation:
+			regIdx := 16 + loc.Register // r0 starts at index 16
+			if loc.Register < 10 {
+				val := s.dbg.State().Registers[regIdx]
+				valueStr = colorValue.Sprintf(" = %d", int32(val))
+			}
+		case mc.MemoryLocation:
+			// Compute memory address
+			var baseVal uint32
+			if loc.BaseRegister == 13 {
+				baseVal = s.dbg.GetSP()
+			} else if loc.BaseRegister == 14 {
+				baseVal = s.dbg.GetLR()
+			} else if loc.BaseRegister < 10 {
+				baseVal = s.dbg.State().Registers[16+loc.BaseRegister]
+			}
+			addr := uint32(int32(baseVal) + loc.Offset)
+			if data, err := s.dbg.ReadMemory(addr, 4); err == nil && len(data) == 4 {
+				val := uint32(data[0]) | uint32(data[1])<<8 | uint32(data[2])<<16 | uint32(data[3])<<24
+				valueStr = colorValue.Sprintf(" = %d", int32(val))
+			}
+		}
+
+		paramStr := ""
+		if v.IsParameter {
+			paramStr = colorVarType.Sprint(" (param)")
+		}
+
+		fmt.Printf("  %s %s: %s%s%s\n",
+			colorVarName.Sprint(v.Name),
+			colorVarType.Sprint(v.TypeName),
+			locStr,
+			valueStr,
+			paramStr)
+	}
+}
+
 func (s *debugSession) cmdHelp() {
 	colorHeader.Println("Cucaracha Debugger Commands:")
 	fmt.Println()
@@ -863,6 +1032,11 @@ func (s *debugSession) cmdHelp() {
 	fmt.Printf("  %s, %s <addr> [n] - Show n bytes of memory at addr\n", colorInstr.Sprint("memory"), colorInstr.Sprint("m"))
 	fmt.Println()
 
+	colorHeader.Println("Source-Level Debugging:")
+	fmt.Printf("  %s, %s [n]   - Show source code around current line\n", colorInstr.Sprint("source"), colorInstr.Sprint("src"))
+	fmt.Printf("  %s, %s            - Show accessible variables at current location\n", colorInstr.Sprint("vars"), colorInstr.Sprint("v"))
+	fmt.Println()
+
 	colorHeader.Println("Other:")
 	fmt.Printf("  %s, %s            - Show this help\n", colorInstr.Sprint("help"), colorInstr.Sprint("h"))
 	fmt.Printf("  %s, %s            - Exit debugger\n", colorInstr.Sprint("quit"), colorInstr.Sprint("q"))
@@ -873,6 +1047,27 @@ func (s *debugSession) cmdHelp() {
 func (s *debugSession) showCurrentInstruction() {
 	state := s.dbg.State()
 	pc := state.PC
+
+	// Show source location if available and changed
+	if s.debugInfo != nil {
+		if loc := s.debugInfo.GetSourceLocation(pc); loc != nil && loc.IsValid() {
+			// Check if source location changed (different file or line)
+			showSource := s.lastSourceLoc == nil ||
+				s.lastSourceLoc.File != loc.File ||
+				s.lastSourceLoc.Line != loc.Line
+			if showSource {
+				s.lastSourceLoc = loc
+				// Show source file and line
+				fmt.Printf("%s %s\n",
+					colorSourceFile.Sprint(loc.File+":"),
+					colorSourceLine.Sprintf("%d", loc.Line))
+				// Show actual source line if available
+				if srcLine := s.debugInfo.GetSourceLine(loc.File, loc.Line); srcLine != "" {
+					fmt.Printf("   %s\n", colorSource.Sprint(strings.TrimRight(srcLine, "\r\n")))
+				}
+			}
+		}
+	}
 
 	instrText := s.getInstructionText(pc)
 	word, _ := state.ReadMemory32(pc)

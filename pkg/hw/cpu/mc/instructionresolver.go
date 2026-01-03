@@ -74,6 +74,7 @@ func (r *InstructionResolver) ResolveInstructions(pf ProgramFile) (ProgramFile, 
 		LabelsValue:       pf.Labels(),
 		SourceFileValue:   pf.SourceFile(),
 		MemoryLayoutValue: pf.MemoryLayout(),
+		DebugInfoValue:    pf.DebugInfo(),
 	}, nil
 }
 
@@ -427,6 +428,7 @@ func (r *InstructionResolver) ResolveWithContext(pf ProgramFile) (ProgramFile, e
 		LabelsValue:       pf.Labels(),
 		SourceFileValue:   pf.SourceFile(),
 		MemoryLayoutValue: pf.MemoryLayout(),
+		DebugInfoValue:    pf.DebugInfo(),
 	}
 
 	// Resolve each instruction with context

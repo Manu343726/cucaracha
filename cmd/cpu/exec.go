@@ -365,6 +365,12 @@ func loadProgramFile(interp *interpreter.Interpreter, pf mc.ProgramFile) error {
 func executeWithTraceDebugger(dbg *interpreter.Debugger, maxSteps int, pf mc.ProgramFile) *interpreter.ExecutionResult {
 	state := dbg.State()
 	instrs := pf.Instructions()
+	debugInfo := pf.DebugInfo()
+
+	// Try to load source files if debug info available
+	if debugInfo != nil {
+		debugInfo.TryLoadSourceFiles()
+	}
 
 	// Build address to instruction index map
 	addrToIdx := make(map[uint32]int)
@@ -380,8 +386,12 @@ func executeWithTraceDebugger(dbg *interpreter.Debugger, maxSteps int, pf mc.Pro
 	traceWord := color.New(color.FgMagenta)
 	traceReg := color.New(color.FgGreen)
 	traceValue := color.New(color.FgWhite)
+	traceSrcFile := color.New(color.FgHiBlue)
+	traceSrcLine := color.New(color.FgHiCyan)
+	traceSrcCode := color.New(color.FgWhite, color.Bold)
 
 	stepCount := 0
+	var lastSourceLoc *mc.SourceLocation
 
 	// Set up tracing callback
 	dbg.SetEventCallback(func(event interpreter.ExecutionEvent, result *interpreter.ExecutionResult) bool {
@@ -392,6 +402,29 @@ func executeWithTraceDebugger(dbg *interpreter.Debugger, maxSteps int, pf mc.Pro
 			instrText := "???"
 			if ok && idx < len(instrs) {
 				instrText = instrs[idx].Text
+			}
+
+			// Show source location if available and changed
+			if debugInfo != nil {
+				if loc := debugInfo.GetSourceLocation(pc); loc != nil && loc.IsValid() {
+					// Check if source location changed (different file or line)
+					showSource := lastSourceLoc == nil ||
+						lastSourceLoc.File != loc.File ||
+						lastSourceLoc.Line != loc.Line
+					if showSource {
+						lastSourceLoc = loc
+						// Show source file and line
+						srcLine := debugInfo.GetSourceLine(loc.File, loc.Line)
+						srcStr := ""
+						if srcLine != "" {
+							srcStr = strings.TrimSpace(srcLine)
+						}
+						fmt.Fprintf(os.Stderr, "  %s:%s  %s\n",
+							traceSrcFile.Sprint(loc.File),
+							traceSrcLine.Sprintf("%d", loc.Line),
+							traceSrcCode.Sprint(srcStr))
+					}
+				}
 			}
 
 			// Read the instruction word and show it

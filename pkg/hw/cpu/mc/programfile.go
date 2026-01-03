@@ -144,6 +144,9 @@ type ProgramFile interface {
 
 	// MemoryLayout returns the memory layout information, or nil if not resolved
 	MemoryLayout() *MemoryLayout
+
+	// DebugInfo returns debug information (source locations, variables), or nil if not available
+	DebugInfo() *DebugInfo
 }
 
 // ProgramFileContents is a struct that stores all the contents of a program file.
@@ -157,6 +160,7 @@ type ProgramFileContents struct {
 	GlobalsValue      []Global
 	LabelsValue       []Label
 	MemoryLayoutValue *MemoryLayout
+	DebugInfoValue    *DebugInfo
 }
 
 // FileName returns the path to the program file
@@ -192,6 +196,11 @@ func (p *ProgramFileContents) Labels() []Label {
 // MemoryLayout returns the memory layout information, or nil if not resolved
 func (p *ProgramFileContents) MemoryLayout() *MemoryLayout {
 	return p.MemoryLayoutValue
+}
+
+// DebugInfo returns the debug information, or nil if not available
+func (p *ProgramFileContents) DebugInfo() *DebugInfo {
+	return p.DebugInfoValue
 }
 
 // Resolve applies all resolvers to a ProgramFile in the correct order:

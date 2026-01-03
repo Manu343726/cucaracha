@@ -167,3 +167,8 @@ func (f *AssemblyFile) Labels() []mc.Label {
 func (f *AssemblyFile) MemoryLayout() *mc.MemoryLayout {
 	return nil
 }
+
+// DebugInfo returns nil since assembly files don't have DWARF debug info
+func (f *AssemblyFile) DebugInfo() *mc.DebugInfo {
+	return nil
+}
