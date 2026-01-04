@@ -1,6 +1,9 @@
 package debugger
 
 import (
+	"strconv"
+	"strings"
+
 	"github.com/Manu343726/cucaracha/pkg/hw/cpu/interpreter"
 	"github.com/Manu343726/cucaracha/pkg/hw/cpu/mc"
 )
@@ -81,6 +84,189 @@ func (c *Controller) CmdStep(count int) {
 			return
 		}
 	}
+}
+
+// CmdNext steps over function calls at source level (like step but doesn't enter functions)
+func (c *Controller) CmdNext(count int) {
+	if count <= 0 {
+		count = 1
+	}
+
+	// Check if we have debug info for source-level stepping
+	debugInfo := c.backend.DebugInfo()
+	hasDebugInfo := debugInfo != nil && len(debugInfo.InstructionLocations) > 0
+
+	if !hasDebugInfo {
+		// No debug info: fall back to instruction-level next
+		c.CmdInstructionNext(count)
+		return
+	}
+
+	// Source-level next (step over)
+	for i := 0; i < count; i++ {
+		if !c.nextSourceLine() {
+			return
+		}
+	}
+}
+
+// nextSourceLine executes instructions until the source line changes, stepping over calls.
+// Returns false if execution should stop (termination, breakpoint, etc.)
+func (c *Controller) nextSourceLine() bool {
+	// Get current source location
+	state := c.backend.GetState()
+	startLoc := c.backend.GetSourceLocation(state.PC)
+
+	var startFile string
+	var startLine int
+
+	if startLoc != nil && startLoc.IsValid() {
+		startFile = startLoc.File
+		startLine = startLoc.Line
+	}
+
+	// Step over until source line changes
+	const maxInstructions = 10000 // Safety limit
+	for step := 0; step < maxInstructions; step++ {
+		// Execute one "next" (step over calls)
+		if !c.nextOneInstruction(true) {
+			return false
+		}
+
+		// Check if source line changed
+		state = c.backend.GetState()
+		currentLoc := c.backend.GetSourceLocation(state.PC)
+
+		if startLoc == nil || !startLoc.IsValid() {
+			// We started without source info - stop when we find source info
+			if currentLoc != nil && currentLoc.IsValid() {
+				c.checkSourceLocationChange()
+				return true
+			}
+			continue
+		}
+
+		// We started with source info - stop when it changes
+		if currentLoc == nil || !currentLoc.IsValid() {
+			continue
+		}
+
+		if currentLoc.File != startFile || currentLoc.Line != startLine {
+			c.checkSourceLocationChange()
+			return true
+		}
+	}
+
+	c.ui.ShowMessage(LevelWarning, "Stepped %d instructions without source line change", maxInstructions)
+	return true
+}
+
+// nextOneInstruction executes a single "next" (step over calls).
+// If showTrace is true, shows the instruction after stepping.
+// Returns false if execution should stop.
+func (c *Controller) nextOneInstruction(showTrace bool) bool {
+	result := c.backend.Next(1)
+
+	if result.Error != nil {
+		c.ui.OnEvent(EventData{
+			Event:   EventError,
+			Error:   result.Error,
+			Message: result.Error.Error(),
+		})
+		return false
+	}
+
+	switch result.StopReason {
+	case interpreter.StopTermination:
+		c.ui.OnEvent(EventData{
+			Event:       EventProgramTerminated,
+			ReturnValue: result.ReturnValue,
+		})
+		return false
+
+	case interpreter.StopHalt:
+		c.ui.OnEvent(EventData{
+			Event: EventProgramHalted,
+		})
+		return false
+
+	case interpreter.StopBreakpoint:
+		c.ui.OnEvent(EventData{
+			Event:        EventBreakpointHit,
+			Address:      result.LastPC,
+			BreakpointID: result.BreakpointID,
+		})
+		c.showCurrentInstruction()
+		return false
+
+	case interpreter.StopWatchpoint:
+		c.ui.OnEvent(EventData{
+			Event:        EventWatchpointHit,
+			Address:      result.LastPC,
+			WatchpointID: result.WatchpointID,
+		})
+		c.showCurrentInstruction()
+		return false
+	}
+
+	if showTrace {
+		c.showCurrentInstructionOnly()
+	}
+
+	return true
+}
+
+// CmdInstructionNext steps over function calls at instruction level
+func (c *Controller) CmdInstructionNext(count int) {
+	if count <= 0 {
+		count = 1
+	}
+
+	for i := 0; i < count; i++ {
+		result := c.backend.Next(1)
+
+		if result.Error != nil {
+			c.ui.ShowMessage(LevelError, "Error: %v", result.Error)
+			return
+		}
+
+		switch result.StopReason {
+		case interpreter.StopTermination:
+			c.ui.OnEvent(EventData{
+				Event:         EventProgramTerminated,
+				ReturnValue:   result.ReturnValue,
+				StepsExecuted: result.StepsExecuted,
+			})
+			return
+
+		case interpreter.StopBreakpoint:
+			c.ui.OnEvent(EventData{
+				Event:         EventBreakpointHit,
+				Address:       result.LastPC,
+				BreakpointID:  result.BreakpointID,
+				StepsExecuted: result.StepsExecuted,
+			})
+			c.showCurrentInstruction()
+			return
+
+		case interpreter.StopWatchpoint:
+			c.ui.OnEvent(EventData{
+				Event:         EventWatchpointHit,
+				Address:       result.LastPC,
+				WatchpointID:  result.WatchpointID,
+				StepsExecuted: result.StepsExecuted,
+			})
+			c.showCurrentInstruction()
+			return
+		}
+
+		// Show source location change during multi-step
+		if count > 1 {
+			c.checkSourceLocationChange()
+		}
+	}
+
+	c.showCurrentInstruction()
 }
 
 // stepSourceLine executes instructions until the source line changes.
@@ -264,8 +450,19 @@ func (c *Controller) CmdContinue() {
 	}
 }
 
-// CmdRun runs until termination
+// CmdRun runs until termination. If program already terminated, asks to restart.
 func (c *Controller) CmdRun() {
+	// Check if program already terminated - if so, ask to restart
+	if c.backend.IsTerminated() {
+		if !c.ui.PromptConfirm("Program already terminated. Restart?") {
+			return
+		}
+		if err := c.backend.Reset(); err != nil {
+			c.ui.ShowMessage(LevelError, "Failed to reset: %v", err)
+			return
+		}
+	}
+
 	result := c.backend.Run()
 
 	switch result.StopReason {
@@ -411,19 +608,43 @@ func (c *Controller) CmdInfo() {
 	c.ui.ShowRegisters(state.Registers, state.Flags)
 }
 
-// CmdStack shows stack contents
+// CmdStack shows stack contents and call frames
 func (c *Controller) CmdStack() {
 	state := c.backend.GetState()
-	stackSize := 64 // Default bytes to show
 
-	data, err := c.backend.ReadMemory(state.SP, stackSize)
-	if err != nil {
-		c.ui.ShowMessage(LevelError, "Failed to read stack: %v", err)
-		return
+	// Get call stack frames (this doesn't read raw memory, just uses debug info)
+	frames := c.backend.GetStackFrames()
+
+	// Try to read stack memory, handling boundary conditions
+	// Stack grows downward, so SP may be near top of memory
+	stackSize := 64
+	memSize := len(c.backend.Runner().State().Memory)
+
+	// Calculate how much we can safely read
+	if int(state.SP)+stackSize > memSize {
+		stackSize = memSize - int(state.SP)
+	}
+	if stackSize < 0 {
+		stackSize = 0
 	}
 
-	frames := c.backend.GetStackFrames()
+	var data []byte
+	var err error
+	if stackSize > 0 {
+		data, err = c.backend.ReadMemory(state.SP, stackSize)
+		if err != nil {
+			// Just show frames without raw stack data
+			data = nil
+		}
+	}
+
 	c.ui.ShowStack(state.SP, data, frames)
+}
+
+// CmdBacktrace shows the call stack (function frames)
+func (c *Controller) CmdBacktrace() {
+	frames := c.backend.GetCallStack()
+	c.ui.ShowBacktrace(frames)
 }
 
 // CmdMemory shows memory contents
@@ -632,6 +853,31 @@ func (c *Controller) getMemoryRegions() []MemoryRegion {
 }
 
 // ResolveAddress resolves an address expression (for command parsing)
+// Supports:
+//   - Hex addresses: 0x10000
+//   - Decimal: 65536
+//   - Symbols: main, loop
+//   - Registers: pc, sp, $r0
+//   - Source locations: file.c:10, :10 (current file)
 func (c *Controller) ResolveAddress(expr string) (uint32, error) {
+	expr = strings.TrimSpace(expr)
+
+	// Check for source location syntax (file:line or :line)
+	if strings.Contains(expr, ":") {
+		parts := strings.SplitN(expr, ":", 2)
+		if len(parts) == 2 {
+			file := strings.TrimSpace(parts[0])
+			lineStr := strings.TrimSpace(parts[1])
+
+			// Try to parse the line number
+			line, err := strconv.Atoi(lineStr)
+			if err == nil && line > 0 {
+				// This looks like a source location
+				return c.backend.ResolveSourceLocation(file, line)
+			}
+		}
+	}
+
+	// Fall back to expression evaluation
 	return c.backend.EvalExpression(expr)
 }

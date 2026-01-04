@@ -210,6 +210,9 @@ type DebuggerUI interface {
 	// ShowStack displays the stack contents
 	ShowStack(sp uint32, data []byte, frames []StackFrame)
 
+	// ShowBacktrace displays the call stack (function frames)
+	ShowBacktrace(frames []StackFrame)
+
 	// ShowSource displays source code
 	ShowSource(location *mc.SourceLocation, lines []SourceLine, currentLine int)
 

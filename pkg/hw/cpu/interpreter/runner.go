@@ -60,6 +60,39 @@ func NewRunner(memorySize uint32) *Runner {
 	}
 }
 
+// Reset resets the CPU state and reloads the program to its initial state.
+// Preserves breakpoints but clears all memory and register state.
+func (r *Runner) Reset() error {
+	if r.program == nil {
+		return fmt.Errorf("no program loaded")
+	}
+
+	// Get memory size before clearing
+	memSize := uint32(len(r.interp.state.Memory))
+
+	// Clear memory
+	for i := range r.interp.state.Memory {
+		r.interp.state.Memory[i] = 0
+	}
+
+	// Reset registers
+	for i := range r.interp.state.Registers {
+		r.interp.state.Registers[i] = 0
+	}
+
+	// Reset stack pointer to initial position
+	*r.interp.state.SP = memSize - 4
+
+	// Clear result
+	r.result = nil
+
+	// Clear address map and rebuild
+	r.addrToIdx = make(map[uint32]int)
+
+	// Reload the program
+	return r.LoadProgram(r.program)
+}
+
 // LoadProgram loads a resolved ProgramFile into memory and sets up execution.
 // The program must already be resolved (have addresses assigned).
 // Returns an error if loading fails.

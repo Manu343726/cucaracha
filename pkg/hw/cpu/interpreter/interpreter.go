@@ -4,6 +4,7 @@ package interpreter
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/Manu343726/cucaracha/pkg/hw/cpu/mc"
 	"github.com/Manu343726/cucaracha/pkg/hw/cpu/mc/instructions"
@@ -88,6 +89,9 @@ func (s *CPUState) SetPC(pc uint32) {
 // Interpreter executes Cucaracha machine code using the instruction descriptors
 type Interpreter struct {
 	state *CPUState
+	// Execution delay for slow-motion mode (in milliseconds)
+	// 0 means no delay (full speed)
+	executionDelayMs int
 }
 
 // NewInterpreter creates a new interpreter with the given memory size
@@ -95,6 +99,20 @@ func NewInterpreter(memorySize uint32) *Interpreter {
 	return &Interpreter{
 		state: NewCPUState(memorySize),
 	}
+}
+
+// SetExecutionDelay sets the delay between instruction executions in milliseconds.
+// Use 0 for full speed, higher values for slower execution (slow-motion mode).
+func (i *Interpreter) SetExecutionDelay(delayMs int) {
+	if delayMs < 0 {
+		delayMs = 0
+	}
+	i.executionDelayMs = delayMs
+}
+
+// GetExecutionDelay returns the current execution delay in milliseconds.
+func (i *Interpreter) GetExecutionDelay() int {
+	return i.executionDelayMs
 }
 
 // State returns the current CPU state
@@ -176,6 +194,11 @@ func (i *Interpreter) Step() error {
 	// Advance PC if not modified by a branch
 	if i.state.PC == oldPC {
 		i.state.PC += 4 // Instructions are 32 bits
+	}
+
+	// Apply execution delay for slow-motion mode
+	if i.executionDelayMs > 0 {
+		time.Sleep(time.Duration(i.executionDelayMs) * time.Millisecond)
 	}
 
 	return nil

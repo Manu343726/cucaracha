@@ -222,6 +222,18 @@ func (d *Debugger) IsInterrupted() bool {
 	return atomic.LoadInt32(&d.interrupted) != 0
 }
 
+// SetExecutionDelay sets the delay between instruction executions in milliseconds.
+// Use 0 for full speed, higher values for slower execution (slow-motion mode).
+// This delegates to the underlying Interpreter.
+func (d *Debugger) SetExecutionDelay(delayMs int) {
+	d.interp.SetExecutionDelay(delayMs)
+}
+
+// GetExecutionDelay returns the current execution delay in milliseconds.
+func (d *Debugger) GetExecutionDelay() int {
+	return d.interp.GetExecutionDelay()
+}
+
 // Interpreter returns the underlying interpreter
 func (d *Debugger) Interpreter() *Interpreter {
 	return d.interp

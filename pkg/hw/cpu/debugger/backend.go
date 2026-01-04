@@ -2,6 +2,7 @@ package debugger
 
 import (
 	"fmt"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -36,9 +37,10 @@ func getRegisterIndex(name string) uint32 {
 
 // Backend implements DebuggerBackend using an interpreter.Runner
 type Backend struct {
-	runner    *interpreter.Runner
-	addrToIdx map[uint32]int
-	idxToAddr map[int]uint32
+	runner     *interpreter.Runner
+	addrToIdx  map[uint32]int
+	idxToAddr  map[int]uint32
+	lastResult *ExecutionResult // Last execution result for termination check
 }
 
 // NewBackend creates a new debugger backend with the given memory size
@@ -68,6 +70,26 @@ func (b *Backend) Runner() *interpreter.Runner {
 // This is safe to call from signal handlers or other goroutines.
 func (b *Backend) Interrupt() {
 	b.runner.Debugger().Interrupt()
+}
+
+// SetExecutionDelay sets the delay between instruction executions in milliseconds.
+// Use 0 for full speed, higher values for slower execution (slow-motion mode).
+// Predefined speeds: 0=instant, 50=fast, 100=normal, 250=slow, 500=very slow
+func (b *Backend) SetExecutionDelay(delayMs int) {
+	b.runner.Debugger().SetExecutionDelay(delayMs)
+}
+
+// GetExecutionDelay returns the current execution delay in milliseconds.
+func (b *Backend) GetExecutionDelay() int {
+	return b.runner.Debugger().GetExecutionDelay()
+}
+
+// IsTerminated returns true if the program has terminated.
+func (b *Backend) IsTerminated() bool {
+	if b.lastResult == nil {
+		return false
+	}
+	return b.lastResult.StopReason == interpreter.StopTermination
 }
 
 // LoadProgram loads a program into the backend
@@ -165,12 +187,188 @@ func (b *Backend) Run() ExecutionResult {
 		execResult.ReturnValue = b.runner.Debugger().State().Registers[regR0Idx]
 	}
 
+	// Store result for termination check
+	b.lastResult = &execResult
+
 	return execResult
 }
 
+// Next executes until the next source line, stepping over function calls
+// If the current instruction is a call, it sets a temporary breakpoint at the return address
+// and continues until that breakpoint is hit
+func (b *Backend) Next(count int) ExecutionResult {
+	var lastResult ExecutionResult
+
+	for i := 0; i < count; i++ {
+		result := b.nextOne()
+		lastResult = result
+
+		if result.Error != nil {
+			break
+		}
+		if result.StopReason != interpreter.StopStep && result.StopReason != interpreter.StopNone {
+			break
+		}
+	}
+
+	return lastResult
+}
+
+// nextOne executes one "next" step (stepping over calls)
+func (b *Backend) nextOne() ExecutionResult {
+	pc := b.runner.State().PC
+
+	// Check if the current instruction is a call
+	if b.isCallInstruction(pc) {
+		// Set temporary breakpoint at return address (PC + 4)
+		returnAddr := pc + 4
+
+		// Add temporary breakpoint
+		bp, err := b.AddBreakpoint(returnAddr)
+		if err != nil {
+			// If we can't set breakpoint, just do a regular step
+			return b.Step(1)
+		}
+
+		// Continue execution
+		result := b.Continue()
+
+		// Remove temporary breakpoint
+		b.RemoveBreakpoint(bp.ID)
+
+		// If we stopped at our temporary breakpoint, report as step
+		if result.StopReason == interpreter.StopBreakpoint && b.runner.State().PC == returnAddr {
+			result.StopReason = interpreter.StopStep
+		}
+
+		return result
+	}
+
+	// Not a call, just do a regular step
+	return b.Step(1)
+}
+
+// isCallInstruction checks if the instruction at addr is a function call
+// A branch is a call if the branch target is a function symbol
+func (b *Backend) isCallInstruction(addr uint32) bool {
+	program := b.runner.Program()
+	if program == nil {
+		return false
+	}
+
+	idx, found := b.addrToIdx[addr]
+	if !found {
+		return false
+	}
+
+	instrs := program.Instructions()
+	if idx >= len(instrs) {
+		return false
+	}
+
+	instr := instrs[idx]
+	if instr.Instruction == nil || instr.Instruction.Descriptor == nil {
+		return false
+	}
+
+	// Check if it's a branch instruction (JMP or CJMP)
+	mnemonic := strings.ToUpper(instr.Instruction.Descriptor.OpCode.Mnemonic)
+	if mnemonic != "JMP" && mnemonic != "CJMP" {
+		return false
+	}
+
+	// Check if the branch target is a function
+	// Use the same logic as getBranchTarget - backtrack to find the MOVIMM16L/H
+	// that loads the target register, and check if the symbol is a function
+	return b.isBranchTargetFunction(idx, instrs)
+}
+
+// isBranchTargetFunction checks if the branch target at the given instruction index is a function
+func (b *Backend) isBranchTargetFunction(instrIdx int, instrs []mc.Instruction) bool {
+	instr := instrs[instrIdx]
+
+	// Get mnemonic
+	if instr.Instruction == nil || instr.Instruction.Descriptor == nil {
+		return false
+	}
+	mnemonic := strings.ToUpper(instr.Instruction.Descriptor.OpCode.Mnemonic)
+
+	// Determine which operand is the target register
+	targetRegIdx := 0
+	if mnemonic == "CJMP" && len(instr.Instruction.OperandValues) >= 2 {
+		targetRegIdx = 1 // CJMP: condcode, target, link
+	}
+
+	// Get the target register
+	if targetRegIdx >= len(instr.Instruction.OperandValues) {
+		return false
+	}
+	targetOp := instr.Instruction.OperandValues[targetRegIdx]
+	if targetOp.Kind() != instructions.OperandKind_Register {
+		return false
+	}
+	targetReg := targetOp.Register()
+	if targetReg == nil {
+		return false
+	}
+	targetRegName := targetReg.Name()
+
+	// Backtrack through previous instructions looking for MOVIMM16L/MOVIMM16H
+	// that write to this register and have a function symbol
+	for i := instrIdx - 1; i >= 0 && i >= instrIdx-20; i-- {
+		prevInstr := instrs[i]
+		if prevInstr.Instruction == nil || prevInstr.Instruction.Descriptor == nil {
+			continue
+		}
+
+		prevMnemonic := strings.ToUpper(prevInstr.Instruction.Descriptor.OpCode.Mnemonic)
+
+		// Check if this instruction writes to our target register with an immediate
+		if (prevMnemonic == "MOVIMM16L" || prevMnemonic == "MOVIMM16H") &&
+			len(prevInstr.Instruction.OperandValues) >= 2 {
+
+			// MOVIMM16L/H format: imm, dest_reg
+			destOp := prevInstr.Instruction.OperandValues[1]
+			if destOp.Kind() == instructions.OperandKind_Register {
+				destReg := destOp.Register()
+				if destReg != nil && destReg.Name() == targetRegName {
+					// Found an immediate load to our target register
+					// Check for associated function symbol
+					for _, sym := range prevInstr.Symbols {
+						if sym.Function != nil {
+							return true // Branch target is a function - this is a call
+						}
+					}
+				}
+			}
+		}
+
+		// If we found a different instruction that writes to our register, stop
+		if prevMnemonic != "MOVIMM16L" && prevMnemonic != "MOVIMM16H" {
+			if prevInstr.Instruction != nil && prevInstr.Instruction.Descriptor != nil {
+				for opIdx, opDesc := range prevInstr.Instruction.Descriptor.Operands {
+					if opIdx < len(prevInstr.Instruction.OperandValues) &&
+						opDesc.Role == instructions.OperandRole_Destination {
+						destOp := prevInstr.Instruction.OperandValues[opIdx]
+						if destOp.Kind() == instructions.OperandKind_Register {
+							destReg := destOp.Register()
+							if destReg != nil && destReg.Name() == targetRegName {
+								// Different instruction writes to target reg, stop backtracking
+								return false
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return false
+}
+
 // Reset resets the program state
-func (b *Backend) Reset() {
-	// TODO: Implement reset functionality in Runner
+func (b *Backend) Reset() error {
+	return b.runner.Reset()
 }
 
 // GetState returns the current debugger state
@@ -630,6 +828,60 @@ func (b *Backend) GetSourceLocation(pc uint32) *mc.SourceLocation {
 	return debugInfo.GetSourceLocation(pc)
 }
 
+// ResolveSourceLocation finds the first instruction address for a given source file and line
+// If file is empty, uses the current source file (based on PC)
+func (b *Backend) ResolveSourceLocation(file string, line int) (uint32, error) {
+	debugInfo := b.runner.DebugInfo()
+	if debugInfo == nil {
+		return 0, fmt.Errorf("no debug info available")
+	}
+
+	// If no file specified, use current file
+	if file == "" {
+		currentLoc := b.GetSourceLocation(b.runner.State().PC)
+		if currentLoc == nil || currentLoc.File == "" {
+			return 0, fmt.Errorf("no current source file")
+		}
+		file = currentLoc.File
+	}
+
+	// Find the first instruction that matches the file and line
+	var bestAddr uint32
+	var found bool
+
+	for addr, loc := range debugInfo.InstructionLocations {
+		if loc.File == file && loc.Line == line {
+			if !found || addr < bestAddr {
+				bestAddr = addr
+				found = true
+			}
+		}
+	}
+
+	// Also try matching just the basename for convenience
+	if !found {
+		fileBase := filepath.Base(file)
+		for addr, loc := range debugInfo.InstructionLocations {
+			locBase := filepath.Base(loc.File)
+			if locBase == fileBase && loc.Line == line {
+				if !found || addr < bestAddr {
+					bestAddr = addr
+					found = true
+				}
+			}
+		}
+	}
+
+	if !found {
+		if file != "" {
+			return 0, fmt.Errorf("no instruction found for %s:%d", file, line)
+		}
+		return 0, fmt.Errorf("no instruction found for line %d", line)
+	}
+
+	return bestAddr, nil
+}
+
 // GetVariables returns the variables accessible at the given PC
 func (b *Backend) GetVariables(pc uint32) []VariableValue {
 	debugInfo := b.runner.DebugInfo()
@@ -776,32 +1028,10 @@ func (b *Backend) readVariableValue(v mc.VariableInfo) interface{} {
 	}
 }
 
-// GetStackFrames returns the current stack frames
+// GetStackFrames returns the current stack frames by unwinding the call stack.
+// The stack is returned with the current frame first (index 0).
 func (b *Backend) GetStackFrames() []StackFrame {
-	// Basic implementation - just return current frame
-	state := b.runner.Debugger().State()
-	debugInfo := b.runner.DebugInfo()
-
-	frames := []StackFrame{
-		{
-			Address: state.PC,
-		},
-	}
-
-	// Try to get function name
-	if name, ok := b.GetSymbolAt(state.PC); ok {
-		frames[0].Function = name
-	}
-
-	// Try to get source location
-	if debugInfo != nil {
-		if loc := debugInfo.GetSourceLocation(state.PC); loc != nil {
-			frames[0].File = loc.File
-			frames[0].Line = loc.Line
-		}
-	}
-
-	return frames
+	return b.GetCallStack()
 }
 
 // GetSourceLines returns source lines for display
@@ -1426,4 +1656,173 @@ func (b *Backend) resolveAddressOrSymbol(s string) (uint32, error) {
 	}
 
 	return 0, fmt.Errorf("invalid address or unknown symbol: %s", s)
+}
+
+// GetFunctionAtAddress returns the function containing the given address
+func (b *Backend) GetFunctionAtAddress(addr uint32) (*mc.FunctionDebugInfo, bool) {
+	debugInfo := b.runner.DebugInfo()
+	if debugInfo == nil {
+		return nil, false
+	}
+
+	for _, fn := range debugInfo.Functions {
+		if addr >= fn.StartAddress && addr < fn.EndAddress {
+			return fn, true
+		}
+	}
+
+	// Fallback: check program functions
+	program := b.runner.Program()
+	if program == nil {
+		return nil, false
+	}
+
+	for name, fn := range program.Functions() {
+		if len(fn.InstructionRanges) > 0 {
+			startIdx := fn.InstructionRanges[0].Start
+			// Calculate end index from last range: Start + Count - 1 + 1 = Start + Count
+			lastRange := fn.InstructionRanges[len(fn.InstructionRanges)-1]
+			endIdx := lastRange.Start + lastRange.Count
+			if startAddr, ok := b.idxToAddr[startIdx]; ok {
+				endAddr := startAddr
+				if ea, ok := b.idxToAddr[endIdx]; ok {
+					endAddr = ea
+				} else if endIdx > 0 {
+					// Try the last instruction index
+					if ea, ok := b.idxToAddr[endIdx-1]; ok {
+						endAddr = ea + 4 // Include the last instruction
+					}
+				}
+				if addr >= startAddr && addr < endAddr {
+					// Create a minimal FunctionDebugInfo
+					return &mc.FunctionDebugInfo{
+						Name:         name,
+						StartAddress: startAddr,
+						EndAddress:   endAddr,
+						SourceFile:   fn.SourceFile,
+						StartLine:    fn.StartLine,
+						EndLine:      fn.EndLine,
+					}, true
+				}
+			}
+		}
+	}
+
+	return nil, false
+}
+
+// GetCallStack returns the current call stack by unwinding frames.
+// The stack is returned with the current frame first (index 0).
+func (b *Backend) GetCallStack() []StackFrame {
+	state := b.runner.Debugger().State()
+	frames := make([]StackFrame, 0, 16)
+
+	// Frame 0: Current PC
+	pc := state.PC
+	lr := *state.LR
+	sp := *state.SP
+
+	// Add current frame
+	frame := b.buildStackFrame(pc)
+	frames = append(frames, frame)
+
+	// Memory size for bounds checking
+	memSize := uint32(len(state.Memory))
+
+	// Termination address (return from main)
+	terminationAddr := interpreter.TerminationAddress
+
+	// Unwind stack by following return addresses
+	// We look for the LR value which points to the return address
+	// In a typical calling convention:
+	// - LR contains the return address for the current function
+	// - When a function calls another, it saves LR on the stack
+
+	// First, check if LR points to a valid code address (not terminated yet)
+	if lr != terminationAddr && lr != 0 && lr >= 0x10000 && lr < memSize {
+		frame := b.buildStackFrame(lr)
+		if frame.Function != "" || frame.File != "" {
+			frames = append(frames, frame)
+		}
+	}
+
+	// Try to unwind further by scanning the stack for return addresses
+	// This is a heuristic approach since we don't have frame pointers
+	currentSP := sp
+	seenAddrs := make(map[uint32]bool)
+	seenAddrs[pc] = true
+	if lr != 0 {
+		seenAddrs[lr] = true
+	}
+
+	// Scan stack entries looking for potential return addresses
+	maxFrames := 20
+	maxStackScan := uint32(256) // Scan up to 256 bytes of stack
+
+	for i := uint32(0); i < maxStackScan && len(frames) < maxFrames; i += 4 {
+		addr := currentSP + i
+		if addr+4 > memSize {
+			break
+		}
+
+		// Read potential return address from stack
+		potentialRA := uint32(state.Memory[addr]) |
+			uint32(state.Memory[addr+1])<<8 |
+			uint32(state.Memory[addr+2])<<16 |
+			uint32(state.Memory[addr+3])<<24
+
+		// Check if this looks like a valid return address
+		if potentialRA == 0 || potentialRA == terminationAddr {
+			continue
+		}
+		if potentialRA < 0x10000 || potentialRA >= memSize {
+			continue
+		}
+		if seenAddrs[potentialRA] {
+			continue
+		}
+
+		// Check if this address is within a known function
+		if fn, ok := b.GetFunctionAtAddress(potentialRA); ok {
+			seenAddrs[potentialRA] = true
+			frame := StackFrame{
+				Address:  potentialRA,
+				Function: fn.Name,
+				File:     fn.SourceFile,
+				Line:     fn.StartLine,
+			}
+			// Get more precise line info if available
+			if srcLoc := b.GetSourceLocation(potentialRA); srcLoc != nil {
+				frame.File = srcLoc.File
+				frame.Line = srcLoc.Line
+			}
+			frames = append(frames, frame)
+		}
+	}
+
+	return frames
+}
+
+// buildStackFrame creates a StackFrame for the given address
+func (b *Backend) buildStackFrame(addr uint32) StackFrame {
+	frame := StackFrame{
+		Address: addr,
+	}
+
+	// Try to get function name
+	if fn, ok := b.GetFunctionAtAddress(addr); ok {
+		frame.Function = fn.Name
+		frame.File = fn.SourceFile
+		frame.Line = fn.StartLine
+	} else if sym, ok := b.GetSymbolAt(addr); ok {
+		frame.Function = sym
+	}
+
+	// Try to get source location
+	if srcLoc := b.GetSourceLocation(addr); srcLoc != nil {
+		frame.File = srcLoc.File
+		frame.Line = srcLoc.Line
+	}
+
+	return frame
 }

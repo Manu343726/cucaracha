@@ -14,6 +14,7 @@ import (
 	"syscall"
 
 	"github.com/Manu343726/cucaracha/pkg/hw/cpu/debugger"
+	"github.com/Manu343726/cucaracha/pkg/hw/cpu/interpreter"
 	"github.com/Manu343726/cucaracha/pkg/hw/cpu/loader"
 	"github.com/Manu343726/cucaracha/pkg/hw/cpu/mc"
 	"github.com/Manu343726/cucaracha/pkg/hw/cpu/mc/instructions"
@@ -49,6 +50,7 @@ var (
 	colorVarName    = color.New(color.FgHiGreen)
 	colorVarType    = color.New(color.FgHiYellow)
 	colorHiBlack    = color.New(color.FgHiBlack)
+	colorFunc       = color.New(color.FgHiMagenta, color.Bold)
 )
 
 // Instruction part colors
@@ -392,6 +394,37 @@ func (ui *cliUI) ShowStack(sp uint32, data []byte, frames []debugger.StackFrame)
 	}
 }
 
+// ShowBacktrace displays the call stack (function frames)
+func (ui *cliUI) ShowBacktrace(frames []debugger.StackFrame) {
+	if len(frames) == 0 {
+		fmt.Println("No call stack information available")
+		return
+	}
+
+	colorHeader.Println("Backtrace:")
+	for i, frame := range frames {
+		funcName := frame.Function
+		if funcName == "" {
+			funcName = "??"
+		}
+
+		location := ""
+		if frame.File != "" {
+			if frame.Line > 0 {
+				location = fmt.Sprintf(" at %s:%d", frame.File, frame.Line)
+			} else {
+				location = fmt.Sprintf(" at %s", frame.File)
+			}
+		}
+
+		fmt.Printf("  #%d  %s %s%s\n",
+			i,
+			colorFunc.Sprint(funcName),
+			colorAddr.Sprintf("[0x%08X]", frame.Address),
+			colorSourceFile.Sprint(location))
+	}
+}
+
 // ShowSource displays source code
 func (ui *cliUI) ShowSource(location *mc.SourceLocation, lines []debugger.SourceLine, currentLine int) {
 	if location == nil {
@@ -655,10 +688,13 @@ var debugCmd = &cobra.Command{
 	Long: `Interactive debugger for Cucaracha CPU programs.
 
 Commands:
-  step, s [n]        - Execute n instructions (default: 1)
+  step, s [n]        - Execute n source lines (default: 1)
+  next, n [n]        - Step over function calls (default: 1)
+  stepi, si [n]      - Execute n instructions (default: 1)
+  nexti, ni [n]      - Step over calls at instruction level (default: 1)
   continue, c        - Continue execution until breakpoint
   run, r             - Run until termination or breakpoint
-  break, b <addr>    - Set breakpoint at address
+  break, b [addr|file:line] - Set breakpoint (default: PC)
   watch, w <addr>    - Set watchpoint on memory address
   delete, d <id>     - Delete breakpoint/watchpoint by ID
   list, l            - List all breakpoints and watchpoints
@@ -666,11 +702,13 @@ Commands:
   set <reg> <value>  - Set register value
   disasm, x [addr] [n] - Disassemble n instructions
   info, i            - Show CPU state
-  stack              - Show stack contents
+  stack              - Interactive stack memory view
+  bt                 - Show backtrace (call stack)
   memory, m <addr> [n] - Show memory contents
   source, src [n]    - Show source code
   vars, v            - Show variables
   eval, e <expr>     - Evaluate expression
+  exec, ex           - Interactive execution view (combined panels)
   help, h            - Show help
   quit, q            - Exit debugger`,
 	Args: cobra.ExactArgs(1),
@@ -755,11 +793,12 @@ func runDebug(cmd *cobra.Command, args []string) {
 	// Set up tab completion
 	line.SetCompleter(func(input string) []string {
 		commands := []string{
-			"step", "s", "stepi", "si", "continue", "c", "run", "r",
+			"step", "s", "next", "n", "stepi", "si", "nexti", "ni", "continue", "c", "run", "r",
 			"break", "b", "watch", "w", "delete", "d", "list", "l",
 			"print", "p", "set", "disasm", "x",
-			"info", "i", "stack", "memory", "m",
+			"info", "i", "stack", "memory", "m", "bt", "backtrace",
 			"source", "src", "vars", "v", "eval", "e",
+			"exec", "ex",
 			"help", "h", "quit", "q", "exit",
 		}
 		var completions []string
@@ -870,6 +909,24 @@ func executeCommand(c *debugger.Controller, line string) {
 		}
 		c.CmdStep(count)
 
+	case "next", "n":
+		count := 1
+		if len(args) > 0 {
+			if n, err := strconv.Atoi(args[0]); err == nil && n > 0 {
+				count = n
+			}
+		}
+		c.CmdNext(count)
+
+	case "nexti", "ni":
+		count := 1
+		if len(args) > 0 {
+			if n, err := strconv.Atoi(args[0]); err == nil && n > 0 {
+				count = n
+			}
+		}
+		c.CmdInstructionNext(count)
+
 	case "stepi", "si":
 		count := 1
 		if len(args) > 0 {
@@ -886,14 +943,17 @@ func executeCommand(c *debugger.Controller, line string) {
 		c.CmdRun()
 
 	case "break", "b":
+		var addr uint32
 		if len(args) == 0 {
-			c.UI().ShowMessage(debugger.LevelError, "Usage: break <address>")
-			return
-		}
-		addr, err := c.ResolveAddress(args[0])
-		if err != nil {
-			c.UI().ShowMessage(debugger.LevelError, "Invalid address: %s", args[0])
-			return
+			// No argument: use current PC
+			addr = c.Backend().GetState().PC
+		} else {
+			var err error
+			addr, err = c.ResolveAddress(args[0])
+			if err != nil {
+				c.UI().ShowMessage(debugger.LevelError, "Invalid address: %s", args[0])
+				return
+			}
 		}
 		c.CmdBreak(addr)
 
@@ -966,7 +1026,18 @@ func executeCommand(c *debugger.Controller, line string) {
 		c.CmdInfo()
 
 	case "stack":
-		c.CmdStack()
+		// Interactive stack view - restricted to stack region (SP to end of memory)
+		state := c.Backend().GetState()
+		memSize := uint32(len(c.Backend().Runner().State().Memory))
+		bounds := &MemoryViewBounds{
+			MinAddr: state.SP,
+			MaxAddr: memSize - 4,
+			Title:   "Stack View",
+		}
+		interactiveMemoryViewWithBounds(c, state.SP, bounds)
+
+	case "bt", "backtrace":
+		c.CmdBacktrace()
 
 	case "memory", "m":
 		if len(args) == 0 {
@@ -1019,6 +1090,10 @@ func executeCommand(c *debugger.Controller, line string) {
 			return
 		}
 		c.CmdEval(strings.Join(args, " "))
+
+	case "exec", "ex":
+		// Interactive execution display
+		interactiveExecutionView(c)
 
 	case "help", "h", "?":
 		c.CmdHelp()
@@ -1115,8 +1190,20 @@ func calculateMemViewLines() int {
 	return contentLines
 }
 
+// MemoryViewBounds defines the address range for an interactive memory view
+type MemoryViewBounds struct {
+	MinAddr uint32 // Minimum viewable address (inclusive)
+	MaxAddr uint32 // Maximum viewable address (inclusive, will be aligned)
+	Title   string // Optional title for the view (e.g., "Stack View")
+}
+
 // interactiveMemoryView displays memory with keyboard navigation
 func interactiveMemoryView(c *debugger.Controller, startAddr uint32) {
+	interactiveMemoryViewWithBounds(c, startAddr, nil)
+}
+
+// interactiveMemoryViewWithBounds displays memory with keyboard navigation, optionally restricted to bounds
+func interactiveMemoryViewWithBounds(c *debugger.Controller, startAddr uint32, bounds *MemoryViewBounds) {
 	// Get memory size for bounds checking
 	memSize := uint32(len(c.Backend().Runner().State().Memory))
 	if memSize == 0 {
@@ -1124,10 +1211,27 @@ func interactiveMemoryView(c *debugger.Controller, startAddr uint32) {
 		return
 	}
 
+	// Determine effective bounds
+	minAddr := uint32(0)
+	maxAddr := memSize - 4
+	viewTitle := "Memory View"
+	if bounds != nil {
+		minAddr = bounds.MinAddr &^ 0x3 // Align to word boundary
+		if bounds.MaxAddr < memSize {
+			maxAddr = bounds.MaxAddr &^ 0x3
+		}
+		if bounds.Title != "" {
+			viewTitle = bounds.Title
+		}
+	}
+
 	// Align to word boundary and clamp to valid range
 	addr := startAddr &^ 0x3
-	if addr >= memSize {
-		addr = (memSize - 4) &^ 0x3
+	if addr < minAddr {
+		addr = minAddr
+	}
+	if addr > maxAddr {
+		addr = maxAddr
 	}
 
 	// Save terminal state and enable raw mode
@@ -1151,7 +1255,7 @@ func interactiveMemoryView(c *debugger.Controller, startAddr uint32) {
 	defer unregisterResize()
 
 	// Clear screen and show initial view
-	showInteractiveMemory(c, addr, memSize)
+	showInteractiveMemoryWithBounds(c, addr, memSize, minAddr, maxAddr, viewTitle)
 
 	// Read keyboard input with resize detection
 	buf := make([]byte, 8)
@@ -1189,7 +1293,7 @@ func interactiveMemoryView(c *debugger.Controller, startAddr uint32) {
 		select {
 		case <-resizeChan:
 			// Terminal resized, redraw
-			showInteractiveMemory(c, addr, memSize)
+			showInteractiveMemoryWithBounds(c, addr, memSize, minAddr, maxAddr, viewTitle)
 			continue
 		case k, ok := <-inputChan:
 			if !ok {
@@ -1200,12 +1304,6 @@ func interactiveMemoryView(c *debugger.Controller, startAddr uint32) {
 		}
 
 		newAddr := addr
-
-		// Calculate max address that allows at least some display
-		maxAddr := memSize - 4
-		if maxAddr > memSize { // overflow check
-			maxAddr = 0
-		}
 
 		// Parse key sequences
 		switch {
@@ -1219,7 +1317,7 @@ func interactiveMemoryView(c *debugger.Controller, startAddr uint32) {
 			// Arrow keys, Home, End
 			switch key[2] {
 			case 'A': // Up arrow - move up 1 word (4 bytes)
-				if addr >= 4 {
+				if addr >= minAddr+4 {
 					newAddr = addr - 4
 				}
 			case 'B': // Down arrow - move down 1 word (4 bytes)
@@ -1227,7 +1325,7 @@ func interactiveMemoryView(c *debugger.Controller, startAddr uint32) {
 					newAddr = addr + 4
 				}
 			case 'H': // Home key - go to start
-				newAddr = 0
+				newAddr = minAddr
 			case 'F': // End key - go to end
 				newAddr = maxAddr &^ 0x3
 			case '5': // Page Up - need to read one more byte
@@ -1241,14 +1339,14 @@ func interactiveMemoryView(c *debugger.Controller, startAddr uint32) {
 			if key[3] == '~' {
 				switch key[2] {
 				case '1': // Home key (alternate) - go to start
-					newAddr = 0
+					newAddr = minAddr
 				case '4': // End key (alternate) - go to end
 					newAddr = maxAddr &^ 0x3
 				case '5': // Page Up - move up 100 words (400 bytes)
-					if addr >= 400 {
+					if addr >= minAddr+400 {
 						newAddr = addr - 400
 					} else {
-						newAddr = 0
+						newAddr = minAddr
 					}
 				case '6': // Page Down - move down 100 words (400 bytes)
 					if addr+400 <= maxAddr {
@@ -1263,10 +1361,10 @@ func interactiveMemoryView(c *debugger.Controller, startAddr uint32) {
 			// Shift+Arrow keys (ESC [ 1 ; 2 A/B)
 			switch key[5] {
 			case 'A': // Shift+Up - move up 10 words (40 bytes)
-				if addr >= 40 {
+				if addr >= minAddr+40 {
 					newAddr = addr - 40
 				} else {
-					newAddr = 0
+					newAddr = minAddr
 				}
 			case 'B': // Shift+Down - move down 10 words (40 bytes)
 				if addr+40 <= maxAddr {
@@ -1278,29 +1376,32 @@ func interactiveMemoryView(c *debugger.Controller, startAddr uint32) {
 
 		case len(key) == 1 && key[0] == 'G': // G - go to stack pointer
 			sp := c.Backend().GetState().SP &^ 0x3
-			if sp <= maxAddr {
+			if sp >= minAddr && sp <= maxAddr {
 				newAddr = sp
-			} else {
-				newAddr = maxAddr &^ 0x3
 			}
 
 		case len(key) == 1 && key[0] == '?': // ? - show help
 			showMemoryViewHelp()
 			// Wait for any key
 			os.Stdin.Read(buf)
-			showInteractiveMemory(c, addr, memSize)
+			showInteractiveMemoryWithBounds(c, addr, memSize, minAddr, maxAddr, viewTitle)
 			continue
 		}
 
 		if newAddr != addr {
 			addr = newAddr
-			showInteractiveMemory(c, addr, memSize)
+			showInteractiveMemoryWithBounds(c, addr, memSize, minAddr, maxAddr, viewTitle)
 		}
 	}
 }
 
-// showInteractiveMemory displays the memory view at the given address
+// showInteractiveMemory displays the memory view at the given address (full memory range)
 func showInteractiveMemory(c *debugger.Controller, addr uint32, memSize uint32) {
+	showInteractiveMemoryWithBounds(c, addr, memSize, 0, memSize-4, "Memory View")
+}
+
+// showInteractiveMemoryWithBounds displays the memory view at the given address with restricted bounds
+func showInteractiveMemoryWithBounds(c *debugger.Controller, addr uint32, memSize uint32, minAddr, maxAddr uint32, title string) {
 	// Move cursor to top-left and clear entire screen
 	fmt.Print("\033[H\033[2J")
 
@@ -1309,8 +1410,8 @@ func showInteractiveMemory(c *debugger.Controller, addr uint32, memSize uint32) 
 	contentLines := calculateMemViewLines()
 
 	// Header (use \r\n for raw terminal mode)
-	colorHeader.Printf("Memory View - %s", colorAddr.Sprintf("0x%08X", addr))
-	colorHiBlack.Printf(" (memory: 0x%X bytes)\r\n", memSize)
+	colorHeader.Printf("%s - %s", title, colorAddr.Sprintf("0x%08X", addr))
+	colorHiBlack.Printf(" (range: 0x%X - 0x%X)\r\n", minAddr, maxAddr)
 	colorHiBlack.Print("↑/↓: ±1 word | Shift+↑/↓: ±10 words | PgUp/PgDn: ±100 words | Home/End | G: SP | q/ESC: exit\r\n")
 	fmt.Print("\r\n")
 
@@ -2631,6 +2732,1244 @@ func showMemoryViewHelp() {
 	fmt.Println("Other:")
 	fmt.Println("  q/ESC       Exit memory view")
 	fmt.Println("  ?           Show this help")
+	fmt.Println()
+	colorHiBlack.Println("Press any key to continue...")
+}
+
+// =============================================================================
+// Interactive Execution Display
+// =============================================================================
+
+// execViewLayout defines the layout dimensions for the execution view
+type execViewLayout struct {
+	termWidth, termHeight int
+	// Panel dimensions
+	disasmWidth, disasmHeight int
+	regsWidth, regsHeight     int
+	varsWidth, varsHeight     int
+	stackWidth, stackHeight   int
+	statusHeight              int
+}
+
+// calculateExecViewLayout computes panel dimensions based on terminal size
+func calculateExecViewLayout() execViewLayout {
+	w, h := getTerminalSize()
+
+	// Minimum terminal size requirements
+	if w < 80 {
+		w = 80
+	}
+	if h < 20 {
+		h = 20
+	}
+
+	layout := execViewLayout{
+		termWidth:    w,
+		termHeight:   h,
+		statusHeight: 3, // Status bar at bottom
+	}
+
+	// Available height for panels (minus header and status)
+	availableHeight := h - 4 - layout.statusHeight
+	if availableHeight < 10 {
+		availableHeight = 10
+	}
+
+	// Left side: Disassembly (takes ~60% width, minimum 50 chars)
+	layout.disasmWidth = w * 60 / 100
+	if layout.disasmWidth < 50 {
+		layout.disasmWidth = 50
+	}
+	// Cap disassembly width to leave room for right panel
+	maxDisasmWidth := w - 35 // Leave at least 32 chars + 3 separator for right panel
+	if layout.disasmWidth > maxDisasmWidth {
+		layout.disasmWidth = maxDisasmWidth
+	}
+	layout.disasmHeight = availableHeight
+
+	// Right side width (minimum 30 chars for readable register display)
+	rightWidth := w - layout.disasmWidth - 3 // 3 for separator " │ "
+	if rightWidth < 30 {
+		rightWidth = 30
+	}
+
+	// Right panels: Registers (top), Variables (middle), Stack (bottom)
+	layout.regsWidth = rightWidth
+
+	// Calculate register panel height based on content:
+	// - 1 line header
+	// - 2 lines for PC/SP/LR/CPSR
+	// - 1 line for flags
+	// - 7 lines for r0-r12 (pairs)
+	// Total: ~11 lines ideal, but cap at 1/3 of available
+	layout.regsHeight = 11
+	maxRegsHeight := availableHeight / 3
+	if layout.regsHeight > maxRegsHeight {
+		layout.regsHeight = maxRegsHeight
+	}
+	if layout.regsHeight < 5 {
+		layout.regsHeight = 5 // Minimum to show essential registers
+	}
+
+	// Split remaining height between variables and stack
+	remainingHeight := availableHeight - layout.regsHeight
+	if remainingHeight < 6 {
+		remainingHeight = 6
+	}
+
+	layout.varsWidth = rightWidth
+	layout.varsHeight = remainingHeight / 2
+	if layout.varsHeight < 3 {
+		layout.varsHeight = 3
+	}
+
+	layout.stackWidth = rightWidth
+	layout.stackHeight = remainingHeight - layout.varsHeight
+	if layout.stackHeight < 3 {
+		layout.stackHeight = 3
+	}
+
+	return layout
+}
+
+// interactiveExecutionView displays a combined execution view with all panels
+func interactiveExecutionView(c *debugger.Controller) {
+	// Get code bounds
+	program := c.Backend().Program()
+	layout := program.MemoryLayout()
+	if layout == nil {
+		c.UI().ShowMessage(debugger.LevelError, "No program loaded")
+		return
+	}
+
+	// Save terminal state and enable raw mode
+	fd := int(os.Stdin.Fd())
+	oldState, err := term.MakeRaw(fd)
+	if err != nil {
+		c.UI().ShowMessage(debugger.LevelError, "Cannot enable raw terminal mode: %v", err)
+		return
+	}
+	defer term.Restore(fd, oldState)
+
+	// Set up resize detection
+	resizeChan := make(chan debugger.TerminalSize, 1)
+	unregisterResize := c.UI().OnResize(func(size debugger.TerminalSize) {
+		select {
+		case resizeChan <- size:
+		default:
+		}
+	})
+	defer unregisterResize()
+
+	// Track execution state
+	execState := &execViewState{
+		followPC:    true,
+		disasmAddr:  c.Backend().GetState().PC,
+		codeStart:   layout.CodeStart,
+		codeEnd:     layout.CodeStart + layout.CodeSize,
+		memSize:     uint32(len(c.Backend().Runner().State().Memory)),
+		statusMsg:   "Ready. Press ? for help.",
+		inputMode:   false,
+		inputBuffer: "",
+		inputPrompt: "",
+	}
+
+	// Initial render
+	renderExecutionView(c, execState)
+
+	// Input handling goroutine
+	buf := make([]byte, 16)
+	inputChan := make(chan []byte, 1)
+	done := make(chan struct{})
+	go func() {
+		for {
+			n, err := os.Stdin.Read(buf)
+			if err != nil {
+				close(inputChan)
+				return
+			}
+			key := make([]byte, n)
+			copy(key, buf[:n])
+			select {
+			case inputChan <- key:
+			case <-done:
+				return
+			}
+		}
+	}()
+
+	cleanup := func() {
+		close(done)
+		select {
+		case <-inputChan:
+		default:
+		}
+	}
+
+	for {
+		var key []byte
+		select {
+		case <-resizeChan:
+			renderExecutionView(c, execState)
+			continue
+		case k, ok := <-inputChan:
+			if !ok {
+				cleanup()
+				return
+			}
+			key = k
+		}
+
+		// Handle input mode (for breakpoint addresses, etc.)
+		if execState.inputMode {
+			if handleExecViewInput(c, execState, key) {
+				renderExecutionView(c, execState)
+			}
+			continue
+		}
+
+		// Handle normal key commands
+		action := handleExecViewKey(c, execState, key)
+		switch action {
+		case execActionQuit:
+			fmt.Print("\033[H\033[2J") // Clear screen before exit
+			cleanup()
+			return
+		case execActionRedraw:
+			renderExecutionView(c, execState)
+		case execActionHelp:
+			showExecViewHelp()
+			os.Stdin.Read(buf) // Wait for key
+			renderExecutionView(c, execState)
+		}
+	}
+}
+
+// execViewState holds the state for the execution view
+type execViewState struct {
+	followPC    bool   // Auto-follow PC in disassembly
+	disasmAddr  uint32 // Current top address in disassembly view
+	codeStart   uint32
+	codeEnd     uint32
+	memSize     uint32
+	statusMsg   string // Status message to display
+	inputMode   bool   // Whether we're in input mode
+	inputBuffer string // Current input buffer
+	inputPrompt string // Input prompt text
+	inputAction string // What to do with the input ("break", "delete", etc.)
+}
+
+// execViewAction represents the action to take after key handling
+type execViewAction int
+
+const (
+	execActionNone execViewAction = iota
+	execActionRedraw
+	execActionQuit
+	execActionHelp
+)
+
+// handleExecViewKey processes a key press in the execution view
+func handleExecViewKey(c *debugger.Controller, state *execViewState, key []byte) execViewAction {
+	// Get current CPU state
+	cpuState := c.Backend().GetState()
+
+	switch {
+	// Quit commands
+	case len(key) == 1 && (key[0] == 'q' || key[0] == 'Q' || key[0] == 27): // q, Q, ESC
+		return execActionQuit
+
+	// Help
+	case len(key) == 1 && key[0] == '?':
+		return execActionHelp
+
+	// Step commands
+	case len(key) == 1 && (key[0] == 's' || key[0] == 'S'): // Step (source-level)
+		execStep(c, state, 1, true)
+		return execActionRedraw
+
+	case len(key) == 1 && (key[0] == 'i' || key[0] == 'I'): // Step instruction
+		execStep(c, state, 1, false)
+		return execActionRedraw
+
+	case len(key) == 1 && (key[0] == 'c' || key[0] == 'C'): // Continue
+		execContinue(c, state)
+		return execActionRedraw
+
+	case len(key) == 1 && (key[0] == 'r' || key[0] == 'R'): // Run
+		execRun(c, state)
+		return execActionRedraw
+
+	// Breakpoint commands
+	case len(key) == 1 && key[0] == 'b': // Add breakpoint at PC
+		pc := c.Backend().GetState().PC
+		bp, err := c.Backend().AddBreakpoint(pc)
+		if err != nil {
+			state.statusMsg = fmt.Sprintf("Error: %v", err)
+		} else {
+			state.statusMsg = fmt.Sprintf("Breakpoint %d set at 0x%08X", bp.ID, pc)
+		}
+		return execActionRedraw
+
+	case len(key) == 1 && key[0] == 'B': // Add breakpoint at address (prompt)
+		state.inputMode = true
+		state.inputPrompt = "Break at address: "
+		state.inputBuffer = ""
+		state.inputAction = "break"
+		return execActionRedraw
+
+	case len(key) == 1 && (key[0] == 'd' || key[0] == 'D'): // Delete breakpoint
+		state.inputMode = true
+		state.inputPrompt = "Delete breakpoint ID: "
+		state.inputBuffer = ""
+		state.inputAction = "delete"
+		return execActionRedraw
+
+	// Toggle follow PC
+	case len(key) == 1 && (key[0] == 'f' || key[0] == 'F'):
+		state.followPC = !state.followPC
+		if state.followPC {
+			state.disasmAddr = cpuState.PC
+			state.statusMsg = "Follow PC: ON"
+		} else {
+			state.statusMsg = "Follow PC: OFF"
+		}
+		return execActionRedraw
+
+	// Navigation (arrow keys)
+	case len(key) == 3 && key[0] == 27 && key[1] == '[':
+		switch key[2] {
+		case 'A': // Up arrow
+			if state.disasmAddr >= state.codeStart+4 {
+				state.disasmAddr -= 4
+				state.followPC = false
+			}
+			return execActionRedraw
+		case 'B': // Down arrow
+			if state.disasmAddr+4 < state.codeEnd {
+				state.disasmAddr += 4
+				state.followPC = false
+			}
+			return execActionRedraw
+		}
+
+	// Page Up/Down
+	case len(key) == 4 && key[0] == 27 && key[1] == '[' && key[3] == '~':
+		viewLayout := calculateExecViewLayout()
+		pageSize := uint32((viewLayout.disasmHeight / 2) * 4) // Half page
+		if pageSize < 20 {
+			pageSize = 20
+		}
+		switch key[2] {
+		case '5': // Page Up
+			if state.disasmAddr >= state.codeStart+pageSize {
+				state.disasmAddr -= pageSize
+			} else {
+				state.disasmAddr = state.codeStart
+			}
+			state.followPC = false
+			return execActionRedraw
+		case '6': // Page Down
+			if state.disasmAddr+pageSize < state.codeEnd {
+				state.disasmAddr += pageSize
+			} else {
+				state.disasmAddr = state.codeEnd - 4
+			}
+			state.followPC = false
+			return execActionRedraw
+		}
+
+	// Go to PC
+	case len(key) == 1 && (key[0] == 'p' || key[0] == 'P'):
+		state.disasmAddr = cpuState.PC
+		state.followPC = true
+		state.statusMsg = "Jumped to PC"
+		return execActionRedraw
+
+	// Reset
+	case len(key) == 1 && key[0] == '0':
+		if err := c.Backend().Reset(); err != nil {
+			state.statusMsg = fmt.Sprintf("Reset failed: %v", err)
+		} else {
+			state.disasmAddr = c.Backend().GetState().PC
+			state.followPC = true
+			state.statusMsg = "Program reset"
+		}
+		return execActionRedraw
+
+	// Speed control: decrease delay (faster)
+	case len(key) == 1 && (key[0] == '+' || key[0] == '='):
+		currentDelay := c.Backend().GetExecutionDelay()
+		newDelay := decreaseDelay(currentDelay)
+		c.Backend().SetExecutionDelay(newDelay)
+		state.statusMsg = fmt.Sprintf("Speed: %s", getSpeedName(newDelay))
+		return execActionRedraw
+
+	// Speed control: increase delay (slower)
+	case len(key) == 1 && key[0] == '-':
+		currentDelay := c.Backend().GetExecutionDelay()
+		newDelay := increaseDelay(currentDelay)
+		c.Backend().SetExecutionDelay(newDelay)
+		state.statusMsg = fmt.Sprintf("Speed: %s", getSpeedName(newDelay))
+		return execActionRedraw
+	}
+
+	return execActionNone
+}
+
+// Speed presets (in milliseconds)
+var speedPresets = []int{0, 25, 50, 100, 200, 500, 1000}
+var speedNames = []string{"instant", "very fast", "fast", "normal", "slow", "very slow", "ultra slow"}
+
+// getSpeedName returns the name for a delay value
+func getSpeedName(delayMs int) string {
+	for i, preset := range speedPresets {
+		if delayMs <= preset {
+			return speedNames[i]
+		}
+	}
+	return fmt.Sprintf("%dms", delayMs)
+}
+
+// decreaseDelay returns the next faster speed
+func decreaseDelay(currentDelay int) int {
+	for i := len(speedPresets) - 1; i >= 0; i-- {
+		if speedPresets[i] < currentDelay {
+			return speedPresets[i]
+		}
+	}
+	return 0
+}
+
+// increaseDelay returns the next slower speed
+func increaseDelay(currentDelay int) int {
+	for _, preset := range speedPresets {
+		if preset > currentDelay {
+			return preset
+		}
+	}
+	return speedPresets[len(speedPresets)-1]
+}
+
+// handleExecViewInput handles input mode (text entry)
+func handleExecViewInput(c *debugger.Controller, state *execViewState, key []byte) bool {
+	if len(key) == 0 {
+		return false
+	}
+
+	switch {
+	case key[0] == 27: // ESC - cancel input
+		state.inputMode = false
+		state.inputBuffer = ""
+		state.statusMsg = "Cancelled"
+		return true
+
+	case key[0] == 13 || key[0] == 10: // Enter - submit
+		state.inputMode = false
+		processExecViewInput(c, state)
+		return true
+
+	case key[0] == 127 || key[0] == 8: // Backspace
+		if len(state.inputBuffer) > 0 {
+			state.inputBuffer = state.inputBuffer[:len(state.inputBuffer)-1]
+		}
+		return true
+
+	case key[0] >= 32 && key[0] < 127: // Printable char
+		state.inputBuffer += string(key[0])
+		return true
+	}
+
+	return false
+}
+
+// processExecViewInput processes the completed input
+func processExecViewInput(c *debugger.Controller, state *execViewState) {
+	input := strings.TrimSpace(state.inputBuffer)
+	if input == "" {
+		state.statusMsg = "No input"
+		return
+	}
+
+	switch state.inputAction {
+	case "break":
+		addr, err := c.ResolveAddress(input)
+		if err != nil {
+			state.statusMsg = fmt.Sprintf("Invalid address: %s", input)
+			return
+		}
+		bp, err := c.Backend().AddBreakpoint(addr)
+		if err != nil {
+			state.statusMsg = fmt.Sprintf("Error: %v", err)
+			return
+		}
+		state.statusMsg = fmt.Sprintf("Breakpoint %d set at 0x%08X", bp.ID, addr)
+
+	case "delete":
+		id, err := strconv.Atoi(input)
+		if err != nil {
+			state.statusMsg = fmt.Sprintf("Invalid ID: %s", input)
+			return
+		}
+		err = c.Backend().RemoveBreakpoint(id)
+		if err != nil {
+			state.statusMsg = fmt.Sprintf("Error: %v", err)
+			return
+		}
+		state.statusMsg = fmt.Sprintf("Breakpoint %d deleted", id)
+	}
+}
+
+// execStep executes step(s) and updates state
+func execStep(c *debugger.Controller, state *execViewState, count int, sourceLevel bool) {
+	// Execute step without UI output (we'll render ourselves)
+	var result debugger.ExecutionResult
+	if sourceLevel {
+		// Source-level step
+		result = stepSourceLineQuiet(c, count)
+	} else {
+		// Instruction step
+		result = c.Backend().Step(count)
+	}
+
+	// Update state based on result
+	updateStateAfterExec(c, state, result, "step")
+}
+
+// stepSourceLineQuiet does source-level stepping without UI output
+func stepSourceLineQuiet(c *debugger.Controller, count int) debugger.ExecutionResult {
+	var lastResult debugger.ExecutionResult
+
+	debugInfo := c.Backend().DebugInfo()
+	hasDebugInfo := debugInfo != nil && len(debugInfo.InstructionLocations) > 0
+
+	if !hasDebugInfo {
+		// No debug info: fall back to instruction stepping
+		return c.Backend().Step(count)
+	}
+
+	for i := 0; i < count; i++ {
+		cpuState := c.Backend().GetState()
+		startLoc := c.Backend().GetSourceLocation(cpuState.PC)
+
+		var startFile string
+		var startLine int
+		if startLoc != nil && startLoc.IsValid() {
+			startFile = startLoc.File
+			startLine = startLoc.Line
+		}
+
+		// Step until source line changes
+		const maxInstructions = 10000
+		for step := 0; step < maxInstructions; step++ {
+			lastResult = c.Backend().Step(1)
+			if lastResult.Error != nil || lastResult.StopReason != 0 {
+				return lastResult
+			}
+
+			cpuState = c.Backend().GetState()
+			currentLoc := c.Backend().GetSourceLocation(cpuState.PC)
+
+			if startLoc == nil || !startLoc.IsValid() {
+				if currentLoc != nil && currentLoc.IsValid() {
+					break
+				}
+				continue
+			}
+
+			if currentLoc == nil || !currentLoc.IsValid() {
+				continue
+			}
+
+			if currentLoc.File != startFile || currentLoc.Line != startLine {
+				break
+			}
+		}
+
+		if lastResult.Error != nil || lastResult.StopReason != 0 {
+			return lastResult
+		}
+	}
+
+	return lastResult
+}
+
+// execContinue runs until breakpoint/termination
+func execContinue(c *debugger.Controller, state *execViewState) {
+	state.statusMsg = "Running..."
+	result := c.Backend().Continue()
+	updateStateAfterExec(c, state, result, "continue")
+}
+
+// execRun runs until termination
+func execRun(c *debugger.Controller, state *execViewState) {
+	state.statusMsg = "Running..."
+	result := c.Backend().Run()
+	updateStateAfterExec(c, state, result, "run")
+}
+
+// updateStateAfterExec updates the view state after execution
+func updateStateAfterExec(c *debugger.Controller, state *execViewState, result debugger.ExecutionResult, cmd string) {
+	cpuState := c.Backend().GetState()
+
+	// Update disassembly address if following PC
+	if state.followPC {
+		state.disasmAddr = cpuState.PC
+	}
+
+	// Update status based on result
+	switch result.StopReason {
+	case interpreter.StopNone:
+		state.statusMsg = "Ready"
+
+	case interpreter.StopStep:
+		state.statusMsg = fmt.Sprintf("Stepped %d instruction(s)", result.StepsExecuted)
+
+	case interpreter.StopBreakpoint:
+		state.statusMsg = fmt.Sprintf("Breakpoint %d hit at 0x%08X",
+			result.BreakpointID, result.LastPC)
+
+	case interpreter.StopWatchpoint:
+		state.statusMsg = fmt.Sprintf("Watchpoint %d triggered at 0x%08X",
+			result.WatchpointID, result.LastPC)
+
+	case interpreter.StopHalt:
+		state.statusMsg = "CPU halted"
+
+	case interpreter.StopError:
+		state.statusMsg = fmt.Sprintf("Error at 0x%08X", result.LastPC)
+
+	case interpreter.StopTermination:
+		state.statusMsg = fmt.Sprintf("Program terminated. Return value: %d (0x%08X)",
+			int32(result.ReturnValue), result.ReturnValue)
+
+	case interpreter.StopMaxSteps:
+		state.statusMsg = fmt.Sprintf("Max steps reached (%d)", result.StepsExecuted)
+
+	case interpreter.StopInterrupt:
+		state.statusMsg = fmt.Sprintf("Interrupted after %d steps", result.StepsExecuted)
+
+	default:
+		state.statusMsg = fmt.Sprintf("Unknown stop reason: %d", result.StopReason)
+	}
+
+	if result.Error != nil {
+		state.statusMsg = fmt.Sprintf("Error: %v", result.Error)
+	}
+}
+
+// renderExecutionView renders the entire execution view
+func renderExecutionView(c *debugger.Controller, state *execViewState) {
+	// Clear screen
+	fmt.Print("\033[H\033[2J")
+
+	layout := calculateExecViewLayout()
+	cpuState := c.Backend().GetState()
+
+	// Header
+	colorHeader.Printf("═══ Cucaracha Execution View ")
+	fmt.Print(strings.Repeat("═", layout.termWidth-30))
+	fmt.Print("\r\n")
+
+	// Calculate available height for main content
+	mainHeight := layout.termHeight - 4 - layout.statusHeight
+
+	// Collect disassembly panel content
+	disasmLines := renderDisasmPanel(c, state, layout.disasmWidth, mainHeight)
+
+	// Collect right panel content (registers, variables, stack)
+	rightLines := renderRightPanels(c, cpuState, layout, mainHeight)
+
+	// Render both panels side by side
+	for i := 0; i < mainHeight; i++ {
+		// Disassembly line
+		if i < len(disasmLines) {
+			fmt.Print(disasmLines[i])
+		} else {
+			fmt.Print(strings.Repeat(" ", layout.disasmWidth))
+		}
+
+		// Separator
+		colorHiBlack.Print(" │ ")
+
+		// Right panel line
+		if i < len(rightLines) {
+			fmt.Print(rightLines[i])
+		}
+
+		fmt.Print("\r\n")
+	}
+
+	// Separator
+	fmt.Print(strings.Repeat("─", layout.termWidth))
+	fmt.Print("\r\n")
+
+	// Status bar
+	renderStatusBar(c, state, layout)
+}
+
+// renderDisasmPanel renders the disassembly panel with source code grouping
+func renderDisasmPanel(c *debugger.Controller, state *execViewState, width, height int) []string {
+	lines := make([]string, 0, height)
+
+	// Panel header - calculate visible length properly
+	headerPrefix := "┌─ Disassembly @ "
+	headerAddr := fmt.Sprintf("0x%08X ", state.disasmAddr)
+	headerSuffix := ""
+	if state.followPC {
+		headerSuffix = "[follow PC]"
+	}
+	// Calculate remaining dashes needed (prefix + addr + suffix + dashes = width)
+	visibleLen := len(headerPrefix) + len(headerAddr) + len(headerSuffix)
+	dashCount := width - visibleLen
+	if dashCount < 0 {
+		dashCount = 0
+	}
+	header := headerPrefix + colorAddr.Sprint(headerAddr)
+	if state.followPC {
+		header += colorSuccess.Sprint(headerSuffix)
+	}
+	header += strings.Repeat("─", dashCount)
+	lines = append(lines, truncateOrPadString(header, width))
+
+	// Get breakpoints
+	bpSet := make(map[uint32]bool)
+	for _, bp := range c.Backend().ListBreakpoints() {
+		bpSet[bp.Address] = true
+	}
+
+	cpuState := c.Backend().GetState()
+
+	// First pass: collect all instructions and their source info
+	type instrInfo struct {
+		addr     uint32
+		mnemonic string
+		operands string
+		srcFile  string
+		srcLine  int
+		srcText  string
+		isPC     bool
+		isBP     bool
+	}
+	instructions := make([]instrInfo, 0, height-1)
+	addr := state.disasmAddr
+
+	for len(instructions) < height-1 && addr < state.codeEnd {
+		instrs, err := c.Backend().Disassemble(addr, 1)
+		if err != nil || len(instrs) == 0 {
+			instructions = append(instructions, instrInfo{
+				addr:     addr,
+				mnemonic: "???",
+				isPC:     addr == cpuState.PC,
+				isBP:     bpSet[addr],
+			})
+			addr += 4
+			continue
+		}
+
+		instr := instrs[0]
+		info := instrInfo{
+			addr:     addr,
+			mnemonic: instr.Mnemonic,
+			operands: instr.Operands,
+			isPC:     addr == cpuState.PC,
+			isBP:     bpSet[addr],
+		}
+
+		// Get source location
+		if srcLoc := c.Backend().GetSourceLocation(addr); srcLoc != nil {
+			info.srcFile = srcLoc.File
+			info.srcLine = srcLoc.Line
+			// Get source text if debug info is available
+			if debugInfo := c.Backend().DebugInfo(); debugInfo != nil {
+				info.srcText = strings.TrimSpace(debugInfo.GetSourceLine(srcLoc.File, srcLoc.Line))
+			}
+		}
+
+		instructions = append(instructions, info)
+		addr += 4
+	}
+
+	// Second pass: compute source line groups
+	type srcGroupInfo struct {
+		isFirst  bool
+		isLast   bool
+		isSingle bool
+	}
+	srcGroups := make([]srcGroupInfo, len(instructions))
+
+	for i := range instructions {
+		instr := &instructions[i]
+		// Check if this is first of a group (different from previous, or first instruction)
+		isFirst := i == 0 || instr.srcFile != instructions[i-1].srcFile || instr.srcLine != instructions[i-1].srcLine
+		// Check if this is last of a group (different from next, or last instruction)
+		isLast := i == len(instructions)-1 || instr.srcFile != instructions[i+1].srcFile || instr.srcLine != instructions[i+1].srcLine
+		srcGroups[i] = srcGroupInfo{
+			isFirst:  isFirst,
+			isLast:   isLast,
+			isSingle: isFirst && isLast,
+		}
+	}
+
+	// Colors for source display
+	colorSourceFile := color.New(color.FgCyan)
+	colorSourceLine := color.New(color.FgYellow)
+	colorSourceText := color.New(color.FgWhite)
+
+	// Third pass: render instructions with source grouping
+	for i, instr := range instructions {
+		line := "│ "
+
+		// Marker
+		if instr.isPC && instr.isBP {
+			line += colorBreakpoint.Sprint("*") + colorPC.Sprint(">")
+		} else if instr.isPC {
+			line += colorPC.Sprint("=>")
+		} else if instr.isBP {
+			line += colorBreakpoint.Sprint("* ")
+		} else {
+			line += "  "
+		}
+
+		// Address
+		line += colorAddr.Sprintf(" 0x%08X", instr.addr) + " "
+
+		// Instruction (fixed width for alignment)
+		instrText := instr.mnemonic
+		if instr.operands != "" {
+			instrText += " " + instr.operands
+		}
+		instrColored := colorizeInstruction(instrText)
+		// Pad instruction to 18 chars for alignment
+		instrPadding := 18 - len(instrText)
+		if instrPadding < 0 {
+			instrPadding = 0
+		}
+		line += instrColored + strings.Repeat(" ", instrPadding)
+
+		// Source grouping indicator and source info
+		srcGroup := srcGroups[i]
+		if instr.srcFile != "" {
+			// Draw grouping bracket
+			if srcGroup.isSingle {
+				line += colorHiBlack.Sprint(" ─ ")
+			} else if srcGroup.isFirst {
+				line += colorHiBlack.Sprint(" ╭ ")
+			} else if srcGroup.isLast {
+				line += colorHiBlack.Sprint(" ╰ ")
+			} else {
+				line += colorHiBlack.Sprint(" │ ")
+			}
+
+			// Show file:line on first instruction of group
+			if srcGroup.isFirst {
+				fileBase := filepath.Base(instr.srcFile)
+				line += colorSourceFile.Sprint(fileBase)
+				line += colorHiBlack.Sprint(":")
+				line += colorSourceLine.Sprintf("%-4d", instr.srcLine)
+
+				// Show source text if there's room
+				if instr.srcText != "" {
+					srcTextTrimmed := strings.TrimSpace(instr.srcText)
+					// Calculate remaining width (rough estimate: border + marker + addr + instr + bracket + file:line)
+					usedLen := 2 + 3 + 12 + 18 + 3 + len(fileBase) + 1 + 4 + 1
+					remainingWidth := width - usedLen
+					if remainingWidth > 5 {
+						if len(srcTextTrimmed) > remainingWidth {
+							srcTextTrimmed = srcTextTrimmed[:remainingWidth-1] + "…"
+						}
+						line += " " + colorSourceText.Sprint(srcTextTrimmed)
+					}
+				}
+			}
+		}
+
+		lines = append(lines, truncateOrPadString(line, width))
+	}
+
+	// Pad remaining lines
+	for len(lines) < height {
+		lines = append(lines, "│"+strings.Repeat(" ", width-1))
+	}
+
+	return lines
+}
+
+// renderRightPanels renders the right side panels (registers, variables, stack)
+func renderRightPanels(c *debugger.Controller, cpuState debugger.DebuggerState, layout execViewLayout, totalHeight int) []string {
+	lines := make([]string, 0, totalHeight)
+
+	// Calculate panel heights
+	regsHeight := layout.regsHeight
+	varsHeight := layout.varsHeight
+	stackHeight := layout.stackHeight
+	rightWidth := layout.regsWidth
+
+	// Adjust heights to fit
+	usedHeight := regsHeight + varsHeight + stackHeight
+	if usedHeight > totalHeight {
+		// Reduce proportionally
+		ratio := float64(totalHeight) / float64(usedHeight)
+		regsHeight = int(float64(regsHeight) * ratio)
+		varsHeight = int(float64(varsHeight) * ratio)
+		stackHeight = totalHeight - regsHeight - varsHeight
+	}
+
+	// Registers panel
+	lines = append(lines, renderRegistersPanel(cpuState, rightWidth, regsHeight)...)
+
+	// Variables panel
+	vars := c.Backend().GetVariables(cpuState.PC)
+	lines = append(lines, renderVariablesPanel(vars, rightWidth, varsHeight)...)
+
+	// Call Stack panel - show unwound call stack frames
+	callStack := c.Backend().GetCallStack()
+	lines = append(lines, renderCallStackPanel(callStack, rightWidth, stackHeight)...)
+
+	// Pad if needed
+	for len(lines) < totalHeight {
+		lines = append(lines, strings.Repeat(" ", rightWidth))
+	}
+
+	return lines
+}
+
+// renderRegistersPanel renders the registers panel
+func renderRegistersPanel(state debugger.DebuggerState, width, height int) []string {
+	lines := make([]string, 0, height)
+
+	// Header
+	headerText := "┌─ Registers "
+	header := headerText + strings.Repeat("─", width-len(headerText))
+	lines = append(lines, truncateOrPadString(header, width))
+
+	if height <= 1 {
+		return lines
+	}
+
+	// PC, SP, LR, CPSR
+	lines = append(lines, truncateOrPadString(fmt.Sprintf("│ %s: %s  %s: %s",
+		colorReg.Sprint("PC"), colorAddr.Sprintf("0x%08X", state.PC),
+		colorReg.Sprint("SP"), colorAddr.Sprintf("0x%08X", state.SP)), width))
+
+	if len(lines) >= height {
+		return lines
+	}
+
+	lines = append(lines, truncateOrPadString(fmt.Sprintf("│ %s: %s  %s: %s",
+		colorReg.Sprint("LR"), colorAddr.Sprintf("0x%08X", state.LR),
+		colorReg.Sprint("CPSR"), colorHex.Sprintf("0x%08X", state.CPSR)), width))
+
+	if len(lines) >= height {
+		return lines
+	}
+
+	// Flags
+	formatFlag := func(name string, set bool) string {
+		if set {
+			return colorFlagSet.Sprint(name)
+		}
+		return colorFlagClear.Sprint(name)
+	}
+	flagsLine := fmt.Sprintf("│ Flags: %s %s %s %s",
+		formatFlag("N", state.Flags.N),
+		formatFlag("Z", state.Flags.Z),
+		formatFlag("C", state.Flags.C),
+		formatFlag("V", state.Flags.V))
+	lines = append(lines, truncateOrPadString(flagsLine, width))
+
+	if len(lines) >= height {
+		return lines
+	}
+
+	// General purpose registers (r0-r12) in pairs
+	for i := 0; i < 13 && len(lines) < height; i += 2 {
+		var r0, r1 uint32
+		for _, reg := range state.Registers {
+			if reg.Name == fmt.Sprintf("r%d", i) {
+				r0 = reg.Value
+			}
+			if reg.Name == fmt.Sprintf("r%d", i+1) {
+				r1 = reg.Value
+			}
+		}
+
+		if i+1 < 13 {
+			line := fmt.Sprintf("│ %s: %s  %s: %s",
+				colorReg.Sprintf("r%-2d", i), colorValue.Sprintf("%10d", int32(r0)),
+				colorReg.Sprintf("r%-2d", i+1), colorValue.Sprintf("%10d", int32(r1)))
+			lines = append(lines, truncateOrPadString(line, width))
+		} else {
+			line := fmt.Sprintf("│ %s: %s",
+				colorReg.Sprintf("r%-2d", i), colorValue.Sprintf("%10d", int32(r0)))
+			lines = append(lines, truncateOrPadString(line, width))
+		}
+	}
+
+	// Pad
+	for len(lines) < height {
+		lines = append(lines, "│"+strings.Repeat(" ", width-1))
+	}
+
+	return lines
+}
+
+// renderVariablesPanel renders the variables panel
+func renderVariablesPanel(vars []debugger.VariableValue, width, height int) []string {
+	lines := make([]string, 0, height)
+
+	// Header
+	headerText := "├─ Variables "
+	header := headerText + strings.Repeat("─", width-len(headerText))
+	lines = append(lines, truncateOrPadString(header, width))
+
+	if height <= 1 {
+		return lines
+	}
+
+	if len(vars) == 0 {
+		lines = append(lines, truncateOrPadString("│ (no variables in scope)", width))
+	} else {
+		for i, v := range vars {
+			if len(lines) >= height {
+				break
+			}
+			line := fmt.Sprintf("│ %s %s = %s",
+				colorVarName.Sprint(v.Name),
+				colorVarType.Sprint(v.TypeName),
+				colorValue.Sprint(v.ValueString))
+			if v.Location != "" && v.Location != "<optimized out>" {
+				line += colorHiBlack.Sprintf(" @ %s", v.Location)
+			}
+			lines = append(lines, truncateOrPadString(line, width))
+			_ = i
+		}
+	}
+
+	// Pad
+	for len(lines) < height {
+		lines = append(lines, "│"+strings.Repeat(" ", width-1))
+	}
+
+	return lines
+}
+
+// renderCallStackPanel renders the call stack panel showing unwound stack frames
+func renderCallStackPanel(frames []debugger.StackFrame, width, height int) []string {
+	lines := make([]string, 0, height)
+
+	// Header
+	headerText := fmt.Sprintf("├─ Call Stack (%d frames) ", len(frames))
+	header := headerText + strings.Repeat("─", width-len(headerText))
+	lines = append(lines, truncateOrPadString(header, width))
+
+	if height <= 1 {
+		return lines
+	}
+
+	if len(frames) == 0 {
+		line := "│ " + colorHiBlack.Sprint("(no call stack)")
+		lines = append(lines, truncateOrPadString(line, width))
+	} else {
+		// Show frames with most recent (current) first
+		for i, frame := range frames {
+			if len(lines) >= height {
+				break
+			}
+
+			// Frame number and marker
+			marker := "  "
+			if i == 0 {
+				marker = colorPC.Sprint("→ ")
+			}
+
+			// Build frame line
+			funcName := frame.Function
+			if funcName == "" {
+				funcName = "??"
+			}
+
+			// Format: #N funcName at file:line [addr]
+			var line string
+			if frame.File != "" && frame.Line > 0 {
+				fileName := filepath.Base(frame.File)
+				line = fmt.Sprintf("│ %s#%d %s at %s:%d",
+					marker, i,
+					colorFunc.Sprint(funcName),
+					colorSourceFile.Sprint(fileName),
+					frame.Line)
+			} else if frame.File != "" {
+				fileName := filepath.Base(frame.File)
+				line = fmt.Sprintf("│ %s#%d %s at %s",
+					marker, i,
+					colorFunc.Sprint(funcName),
+					colorSourceFile.Sprint(fileName))
+			} else {
+				line = fmt.Sprintf("│ %s#%d %s",
+					marker, i,
+					colorFunc.Sprint(funcName))
+			}
+
+			// Add address on same line if room
+			addrStr := colorAddr.Sprintf(" [0x%08X]", frame.Address)
+			if len(line)+14 <= width { // 14 = len(" [0x00000000]")
+				line += addrStr
+			}
+
+			lines = append(lines, truncateOrPadString(line, width))
+		}
+	}
+
+	// Pad
+	for len(lines) < height {
+		lines = append(lines, "│"+strings.Repeat(" ", width-1))
+	}
+
+	return lines
+}
+
+// renderStatusBar renders the status bar at the bottom
+func renderStatusBar(c *debugger.Controller, state *execViewState, layout execViewLayout) {
+	// Input mode line
+	if state.inputMode {
+		colorPrompt.Printf("%s", state.inputPrompt)
+		fmt.Print(state.inputBuffer)
+		colorHiBlack.Print("_")
+		fmt.Print(strings.Repeat(" ", layout.termWidth-len(state.inputPrompt)-len(state.inputBuffer)-2))
+		fmt.Print("\r\n")
+	} else {
+		// Status message
+		fmt.Print(state.statusMsg)
+		fmt.Print(strings.Repeat(" ", layout.termWidth-len(state.statusMsg)))
+		fmt.Print("\r\n")
+	}
+
+	// Breakpoints line
+	bps := c.Backend().ListBreakpoints()
+	bpInfo := fmt.Sprintf("Breakpoints: %d", len(bps))
+	if len(bps) > 0 && len(bps) <= 5 {
+		addrs := make([]string, 0, len(bps))
+		for _, bp := range bps {
+			addrs = append(addrs, fmt.Sprintf("%d@0x%X", bp.ID, bp.Address))
+		}
+		bpInfo += " [" + strings.Join(addrs, ", ") + "]"
+	}
+
+	// Add speed indicator
+	speedDelay := c.Backend().GetExecutionDelay()
+	speedInfo := fmt.Sprintf(" | Speed: %s", getSpeedName(speedDelay))
+	bpInfo += speedInfo
+
+	colorHiBlack.Print(bpInfo)
+	fmt.Print(strings.Repeat(" ", layout.termWidth-len(bpInfo)))
+	fmt.Print("\r\n")
+
+	// Help hint (no trailing newline)
+	helpHint := "s:step i:stepi c:run r:run b:bp d:del f:follow p:PC 0:rst +/-:speed ?:help q:quit"
+	colorHiBlack.Print(helpHint)
+}
+
+// truncateOrPadString truncates or pads a string to exactly the specified width, accounting for ANSI codes
+func truncateOrPadString(s string, width int) string {
+	// Count visible length and track positions
+	visibleLen := 0
+	inEscape := false
+	result := strings.Builder{}
+
+	for _, r := range s {
+		if r == '\033' {
+			inEscape = true
+			result.WriteRune(r)
+			continue
+		}
+		if inEscape {
+			result.WriteRune(r)
+			if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') {
+				inEscape = false
+			}
+			continue
+		}
+		if visibleLen >= width {
+			break
+		}
+		result.WriteRune(r)
+		visibleLen++
+	}
+
+	// Pad with spaces if needed
+	for visibleLen < width {
+		result.WriteRune(' ')
+		visibleLen++
+	}
+
+	return result.String()
+}
+
+// truncateString truncates a string to fit within width, accounting for ANSI codes
+func truncateString(s string, width int) string {
+	// Simple truncation - doesn't account for ANSI codes perfectly but good enough
+	visibleLen := 0
+	inEscape := false
+	result := strings.Builder{}
+
+	for _, r := range s {
+		if r == '\033' {
+			inEscape = true
+			result.WriteRune(r)
+			continue
+		}
+		if inEscape {
+			result.WriteRune(r)
+			if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') {
+				inEscape = false
+			}
+			continue
+		}
+		if visibleLen >= width {
+			break
+		}
+		result.WriteRune(r)
+		visibleLen++
+	}
+
+	return result.String()
+}
+
+// showExecViewHelp displays help for the execution view
+func showExecViewHelp() {
+	fmt.Print("\033[H\033[2J")
+	colorHeader.Println("Execution View Help")
+	fmt.Println()
+	colorHeader.Println("Execution Commands:")
+	fmt.Println("  s           Step (source-level, steps to next source line)")
+	fmt.Println("  i           Step instruction (single machine instruction)")
+	fmt.Println("  c           Continue until breakpoint or termination")
+	fmt.Println("  r           Run until termination")
+	fmt.Println("  0           Reset program to initial state")
+	fmt.Println()
+	colorHeader.Println("Speed Control:")
+	fmt.Println("  + or =      Increase execution speed (shorter delay)")
+	fmt.Println("  -           Decrease execution speed (longer delay)")
+	fmt.Println("              Presets: instant, very fast, fast, normal, slow, very slow, ultra slow")
+	fmt.Println()
+	colorHeader.Println("Breakpoints:")
+	fmt.Println("  b           Add breakpoint (prompts for address)")
+	fmt.Println("  d           Delete breakpoint (prompts for ID)")
+	fmt.Println()
+	colorHeader.Println("Navigation:")
+	fmt.Println("  ↑/↓         Scroll disassembly up/down")
+	fmt.Println("  PgUp/PgDn   Scroll disassembly by half page")
+	fmt.Println("  p/P         Jump to current PC")
+	fmt.Println("  f/F         Toggle follow PC mode")
+	fmt.Println()
+	colorHeader.Println("Display:")
+	fmt.Printf("  %s  Current program counter (PC)\n", colorPC.Sprint("=>"))
+	fmt.Printf("  %s   Breakpoint set\n", colorBreakpoint.Sprint("*"))
+	fmt.Printf("  %s  Breakpoint at PC\n", colorBreakpoint.Sprint("*")+colorPC.Sprint(">"))
+	fmt.Println()
+	colorHeader.Println("Other:")
+	fmt.Println("  ?           Show this help")
+	fmt.Println("  q/Q/ESC     Exit execution view")
 	fmt.Println()
 	colorHiBlack.Println("Press any key to continue...")
 }
