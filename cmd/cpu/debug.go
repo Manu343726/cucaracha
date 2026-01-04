@@ -704,9 +704,12 @@ Commands:
   info, i            - Show CPU state
   stack              - Interactive stack memory view
   bt                 - Show backtrace (call stack)
+  up [n]             - Move up n frames (to caller)
+  down [n]           - Move down n frames (to callee)
+  frame, f [n]       - Select frame n (or show current)
   memory, m <addr> [n] - Show memory contents
   source, src [n]    - Show source code
-  vars, v            - Show variables
+  vars, v            - Show variables (in selected frame)
   eval, e <expr>     - Evaluate expression
   exec, ex           - Interactive execution view (combined panels)
   help, h            - Show help
@@ -797,6 +800,7 @@ func runDebug(cmd *cobra.Command, args []string) {
 			"break", "b", "watch", "w", "delete", "d", "list", "l",
 			"print", "p", "set", "disasm", "x",
 			"info", "i", "stack", "memory", "m", "bt", "backtrace",
+			"up", "down", "frame", "f",
 			"source", "src", "vars", "v", "eval", "e",
 			"exec", "ex",
 			"help", "h", "quit", "q", "exit",
@@ -1038,6 +1042,45 @@ func executeCommand(c *debugger.Controller, line string) {
 
 	case "bt", "backtrace":
 		c.CmdBacktrace()
+
+	case "up":
+		count := 1
+		if len(args) > 0 {
+			if n, err := strconv.Atoi(args[0]); err == nil && n > 0 {
+				count = n
+			}
+		}
+		c.CmdUp(count)
+
+	case "down":
+		count := 1
+		if len(args) > 0 {
+			if n, err := strconv.Atoi(args[0]); err == nil && n > 0 {
+				count = n
+			}
+		}
+		c.CmdDown(count)
+
+	case "frame", "f":
+		if len(args) == 0 {
+			// Show current frame
+			frames := c.Backend().GetCallStack()
+			if len(frames) > 0 {
+				frame := frames[c.SelectedFrame()]
+				funcName := frame.Function
+				if funcName == "" {
+					funcName = "??"
+				}
+				c.UI().ShowMessage(debugger.LevelInfo, "#%d  %s [0x%08X]", c.SelectedFrame(), funcName, frame.Address)
+			}
+			return
+		}
+		frameNum, err := strconv.Atoi(args[0])
+		if err != nil {
+			c.UI().ShowMessage(debugger.LevelError, "Invalid frame number: %s", args[0])
+			return
+		}
+		c.CmdFrame(frameNum)
 
 	case "memory", "m":
 		if len(args) == 0 {

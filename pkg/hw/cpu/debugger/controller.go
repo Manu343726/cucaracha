@@ -17,6 +17,7 @@ type Controller struct {
 	running       bool
 	lastSourceLoc *mc.SourceLocation
 	lastCommand   string
+	selectedFrame int // Currently selected stack frame (0 = current/innermost)
 }
 
 // NewController creates a new debugger controller
@@ -58,12 +59,24 @@ func (c *Controller) LastCommand() string {
 	return c.lastCommand
 }
 
+// SelectedFrame returns the currently selected stack frame index (0 = innermost/current)
+func (c *Controller) SelectedFrame() int {
+	return c.selectedFrame
+}
+
+// resetSelectedFrame resets the selected frame to the current (innermost) frame.
+// Called after any execution (step, continue, run, etc.)
+func (c *Controller) resetSelectedFrame() {
+	c.selectedFrame = 0
+}
+
 // --- Command Implementations ---
 
 // CmdStep steps through source lines when debug info is available.
 // If no debug info, steps by single instruction.
 // When stepping through source lines, shows instruction traces for each instruction.
 func (c *Controller) CmdStep(count int) {
+	c.resetSelectedFrame() // Reset frame selection on execution
 	if count <= 0 {
 		count = 1
 	}
@@ -88,6 +101,7 @@ func (c *Controller) CmdStep(count int) {
 
 // CmdNext steps over function calls at source level (like step but doesn't enter functions)
 func (c *Controller) CmdNext(count int) {
+	c.resetSelectedFrame() // Reset frame selection on execution
 	if count <= 0 {
 		count = 1
 	}
@@ -218,6 +232,7 @@ func (c *Controller) nextOneInstruction(showTrace bool) bool {
 
 // CmdInstructionNext steps over function calls at instruction level
 func (c *Controller) CmdInstructionNext(count int) {
+	c.resetSelectedFrame() // Reset frame selection on execution
 	if count <= 0 {
 		count = 1
 	}
@@ -380,6 +395,7 @@ func (c *Controller) stepOneInstruction(showTrace bool) bool {
 
 // CmdInstructionStep executes exactly n instructions (ignores source-level stepping)
 func (c *Controller) CmdInstructionStep(count int) {
+	c.resetSelectedFrame() // Reset frame selection on execution
 	if count <= 0 {
 		count = 1
 	}
@@ -400,6 +416,7 @@ func (c *Controller) CmdInstructionStep(count int) {
 
 // CmdContinue continues execution until breakpoint or termination
 func (c *Controller) CmdContinue() {
+	c.resetSelectedFrame() // Reset frame selection on execution
 	result := c.backend.Continue()
 
 	switch result.StopReason {
@@ -452,6 +469,7 @@ func (c *Controller) CmdContinue() {
 
 // CmdRun runs until termination. If program already terminated, asks to restart.
 func (c *Controller) CmdRun() {
+	c.resetSelectedFrame() // Reset frame selection on execution
 	// Check if program already terminated - if so, ask to restart
 	if c.backend.IsTerminated() {
 		if !c.ui.PromptConfirm("Program already terminated. Restart?") {
@@ -663,16 +681,21 @@ func (c *Controller) CmdMemory(addr uint32, count int) {
 	c.ui.ShowMemory(addr, data, regions)
 }
 
-// CmdSource shows source code around current location
+// CmdSource shows source code around current location or selected frame
 func (c *Controller) CmdSource(lines int) {
 	if lines <= 0 {
 		lines = 10
 	}
 
-	state := c.backend.GetState()
-	loc := c.backend.GetSourceLocation(state.PC)
+	// Get location for the selected frame
+	pc := c.getSelectedFramePC()
+	loc := c.backend.GetSourceLocation(pc)
 	if loc == nil {
-		c.ui.ShowMessage(LevelWarning, "No source information available at current location")
+		if c.selectedFrame > 0 {
+			c.ui.ShowMessage(LevelWarning, "No source information available at frame #%d", c.selectedFrame)
+		} else {
+			c.ui.ShowMessage(LevelWarning, "No source information available at current location")
+		}
 		return
 	}
 
@@ -706,16 +729,137 @@ func (c *Controller) CmdSource(lines int) {
 }
 
 // CmdVars shows accessible variables
+// Uses the currently selected frame's PC for variable lookup
 func (c *Controller) CmdVars() {
-	state := c.backend.GetState()
-	vars := c.backend.GetVariables(state.PC)
+	// Get the PC for the selected frame
+	pc := c.getSelectedFramePC()
+
+	vars := c.backend.GetVariables(pc)
 
 	if len(vars) == 0 {
-		c.ui.ShowMessage(LevelInfo, "No variables accessible at current location.")
+		if c.selectedFrame > 0 {
+			c.ui.ShowMessage(LevelInfo, "No variables accessible at frame #%d.", c.selectedFrame)
+		} else {
+			c.ui.ShowMessage(LevelInfo, "No variables accessible at current location.")
+		}
 		return
 	}
 
 	c.ui.ShowVariables(vars)
+}
+
+// getSelectedFramePC returns the PC for the currently selected frame
+func (c *Controller) getSelectedFramePC() uint32 {
+	if c.selectedFrame == 0 {
+		return c.backend.GetState().PC
+	}
+
+	frames := c.backend.GetCallStack()
+	if c.selectedFrame < len(frames) {
+		return frames[c.selectedFrame].Address
+	}
+
+	// Fall back to current PC if frame index is out of range
+	return c.backend.GetState().PC
+}
+
+// CmdUp moves up the call stack (to older/caller frames)
+func (c *Controller) CmdUp(count int) {
+	if count <= 0 {
+		count = 1
+	}
+
+	frames := c.backend.GetCallStack()
+	if len(frames) == 0 {
+		c.ui.ShowMessage(LevelWarning, "No call stack available")
+		return
+	}
+
+	newFrame := c.selectedFrame + count
+	if newFrame >= len(frames) {
+		newFrame = len(frames) - 1
+		if c.selectedFrame == newFrame {
+			c.ui.ShowMessage(LevelWarning, "Already at outermost frame")
+			return
+		}
+	}
+
+	c.selectedFrame = newFrame
+	c.showSelectedFrame(frames)
+}
+
+// CmdDown moves down the call stack (to newer/callee frames)
+func (c *Controller) CmdDown(count int) {
+	if count <= 0 {
+		count = 1
+	}
+
+	if c.selectedFrame == 0 {
+		c.ui.ShowMessage(LevelWarning, "Already at innermost frame")
+		return
+	}
+
+	newFrame := c.selectedFrame - count
+	if newFrame < 0 {
+		newFrame = 0
+	}
+
+	c.selectedFrame = newFrame
+	frames := c.backend.GetCallStack()
+	c.showSelectedFrame(frames)
+}
+
+// CmdFrame selects a specific frame by number
+func (c *Controller) CmdFrame(frameNum int) {
+	frames := c.backend.GetCallStack()
+	if len(frames) == 0 {
+		c.ui.ShowMessage(LevelWarning, "No call stack available")
+		return
+	}
+
+	if frameNum < 0 || frameNum >= len(frames) {
+		c.ui.ShowMessage(LevelError, "Frame %d out of range (0-%d)", frameNum, len(frames)-1)
+		return
+	}
+
+	c.selectedFrame = frameNum
+	c.showSelectedFrame(frames)
+}
+
+// showSelectedFrame displays information about the currently selected frame
+func (c *Controller) showSelectedFrame(frames []StackFrame) {
+	if c.selectedFrame >= len(frames) {
+		return
+	}
+
+	frame := frames[c.selectedFrame]
+	funcName := frame.Function
+	if funcName == "" {
+		funcName = "??"
+	}
+
+	// Show frame info
+	if frame.File != "" && frame.Line > 0 {
+		c.ui.ShowMessage(LevelInfo, "#%d  %s at %s:%d [0x%08X]",
+			c.selectedFrame, funcName, frame.File, frame.Line, frame.Address)
+	} else if frame.File != "" {
+		c.ui.ShowMessage(LevelInfo, "#%d  %s at %s [0x%08X]",
+			c.selectedFrame, funcName, frame.File, frame.Address)
+	} else {
+		c.ui.ShowMessage(LevelInfo, "#%d  %s [0x%08X]",
+			c.selectedFrame, funcName, frame.Address)
+	}
+
+	// Show source at this location if available
+	if frame.File != "" && frame.Line > 0 {
+		debugInfo := c.backend.DebugInfo()
+		if debugInfo != nil {
+			srcText := debugInfo.GetSourceLine(frame.File, frame.Line)
+			if srcText != "" {
+				c.ui.ShowMessage(LevelInfo, "%d\t%s", frame.Line, srcText)
+			}
+		}
+	}
 }
 
 // CmdEval evaluates an expression
