@@ -280,7 +280,8 @@ func findProjectClang(config *ClangConfig) (clangPath, llvmRoot string) {
 		if runtime.GOOS == "windows" {
 			buildDirs = []string{"build_vs2022", "build", "build_msvc"}
 		} else {
-			buildDirs = []string{"build", "build_gcc", "build_clang", "build_docker_linux_gcc"}
+			// Prioritize build_docker_linux_gcc for Docker/dev container environments
+			buildDirs = []string{"build_docker_linux_gcc", "build_linux_gcc", "build", "build_gcc", "build_clang"}
 		}
 	}
 
