@@ -456,11 +456,11 @@ func (ui *cliUI) ShowFrameInfo(frame debugger.StackFrame, frameNum int, sourceLi
 		colorAddr.Sprintf("[0x%08X]", frame.Address),
 		colorSourceFile.Sprint(location))
 
-	// Print source line if available
+	// Print source line if available with syntax highlighting
 	if sourceLine != "" && frame.Line > 0 {
 		fmt.Printf("%s %s\n",
 			colorSourceLine.Sprintf("%4d", frame.Line),
-			colorSource.Sprint(strings.TrimRight(sourceLine, "\r\n")))
+			utils.HighlightCCode(strings.TrimRight(sourceLine, "\r\n")))
 	}
 }
 
