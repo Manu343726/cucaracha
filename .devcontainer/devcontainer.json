@@ -1,19 +1,9 @@
 {
     "name": "Cucaracha Development",
-    "image": "mcr.microsoft.com/devcontainers/base:ubuntu-22.04",
-    "features": {
-        "ghcr.io/devcontainers/features/go:1": {
-            "version": "latest"
-        },
-        "ghcr.io/devcontainers/features/python:1": {
-            "version": "3.11"
-        },
-        "ghcr.io/devcontainers/features/common-utils:2": {
-            "installZsh": true,
-            "configureZshAsDefaultShell": true
-        }
+    "build": {
+        "dockerfile": "Dockerfile",
+        "context": "."
     },
-    "postCreateCommand": "sudo apt-get update && sudo apt-get install -y build-essential cmake ninja-build clang lld ccache",
     "customizations": {
         "vscode": {
             "extensions": [
@@ -31,8 +21,10 @@
     },
     "mounts": [
         "source=${localWorkspaceFolder}/../llvm-project,target=/workspaces/llvm-project,type=bind,consistency=cached",
-        "source=${localWorkspaceFolder}/../cucaracha-os,target=/workspaces/cucaracha-os,type=bind,consistency=cached"
+        "source=${localWorkspaceFolder}/../cucaracha-os,target=/workspaces/cucaracha-os,type=bind,consistency=cached",
+        "source=${localEnv:HOME}/.gitconfig,target=/home/vscode/.gitconfig,type=bind,consistency=cached"
     ],
     "workspaceFolder": "/workspaces/cucaracha",
-    "workspaceMount": "source=${localWorkspaceFolder},target=/workspaces/cucaracha,type=bind,consistency=cached"
+    "workspaceMount": "source=${localWorkspaceFolder},target=/workspaces/cucaracha,type=bind,consistency=cached",
+    "remoteUser": "vscode"
 }

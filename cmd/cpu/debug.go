@@ -787,6 +787,11 @@ func runDebug(cmd *cobra.Command, args []string) {
 	}
 	defer loadResult.Cleanup()
 
+	// Display any warnings from loading
+	for _, warning := range loadResult.Warnings {
+		fmt.Printf("WARNING: %s\n", warning)
+	}
+
 	if loadResult.WasCompiled {
 		fmt.Printf("Compiled %s -> %s\n", inputPath, loadResult.CompiledPath)
 	}
