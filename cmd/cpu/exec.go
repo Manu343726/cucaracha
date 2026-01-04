@@ -7,7 +7,21 @@ import (
 	"github.com/Manu343726/cucaracha/pkg/hw/cpu/interpreter"
 	"github.com/Manu343726/cucaracha/pkg/hw/cpu/loader"
 	"github.com/Manu343726/cucaracha/pkg/hw/cpu/mc"
+	"github.com/fatih/color"
 	"github.com/spf13/cobra"
+)
+
+// Color definitions for exec output
+var (
+	execColorHeader  = color.New(color.FgWhite, color.Bold)
+	execColorSuccess = color.New(color.FgGreen, color.Bold)
+	execColorWarning = color.New(color.FgYellow)
+	execColorError   = color.New(color.FgRed, color.Bold)
+	execColorAddr    = color.New(color.FgCyan)
+	execColorValue   = color.New(color.FgWhite, color.Bold)
+	execColorReg     = color.New(color.FgGreen)
+	execColorLabel   = color.New(color.FgHiBlack)
+	execColorFile    = color.New(color.FgHiBlue)
 )
 
 var (
@@ -17,6 +31,7 @@ var (
 	execTrace         bool
 	execCompileFormat string
 	execTargetSpeed   float64
+	execBuildClang    bool
 )
 
 var execCmd = &cobra.Command{
@@ -32,11 +47,14 @@ The command accepts:
 When a source file is provided, it is automatically compiled using clang
 with the Cucaracha target before execution.
 
+If --build-clang is specified and llvm-project is found but clang hasn't
+been built yet, it will automatically build clang from source.
+
 Example:
   cucaracha cpu exec program.cucaracha
   cucaracha cpu exec program.o
   cucaracha cpu exec program.c
-  cucaracha cpu exec --compile-to assembly program.c`,
+  cucaracha cpu exec --build-clang program.c`,
 	Args: cobra.ExactArgs(1),
 	Run:  runExec,
 }
@@ -49,6 +67,7 @@ func init() {
 	execCmd.Flags().BoolVarP(&execTrace, "trace", "t", false, "Trace each instruction execution")
 	execCmd.Flags().StringVar(&execCompileFormat, "compile-to", "object", "Compilation output format for source files: assembly, object")
 	execCmd.Flags().Float64VarP(&execTargetSpeed, "speed", "s", 0, "Target execution speed in Hz (cycles per second). 0 = unlimited")
+	execCmd.Flags().BoolVar(&execBuildClang, "build-clang", false, "Build clang from llvm-project if not found")
 }
 
 func runExec(cmd *cobra.Command, args []string) {
@@ -56,8 +75,9 @@ func runExec(cmd *cobra.Command, args []string) {
 
 	// Load the program using the loader package
 	loadOpts := &loader.Options{
-		Verbose:      execVerbose,
-		OutputFormat: execCompileFormat,
+		Verbose:        execVerbose,
+		OutputFormat:   execCompileFormat,
+		AutoBuildClang: execBuildClang,
 	}
 	loadResult, err := loader.LoadFile(inputPath, loadOpts)
 	if err != nil {
@@ -66,14 +86,23 @@ func runExec(cmd *cobra.Command, args []string) {
 	}
 	defer loadResult.Cleanup()
 
+	// Display any warnings from loading
+	for _, warning := range loadResult.Warnings {
+		execColorWarning.Fprintf(os.Stderr, "WARNING: %s\n", warning)
+	}
+
 	resolved := loadResult.Program
 
 	if execVerbose {
-		fmt.Fprintf(os.Stderr, "Loaded %d instructions from %s\n", len(resolved.Instructions()), loadResult.CompiledPath)
+		fmt.Fprintf(os.Stderr, "Loaded %s instructions from %s\n",
+			execColorValue.Sprintf("%d", len(resolved.Instructions())),
+			execColorFile.Sprint(loadResult.CompiledPath))
 		layout := resolved.MemoryLayout()
 		if layout != nil {
-			fmt.Fprintf(os.Stderr, "Memory layout: base=0x%08X, code=%d bytes, data=%d bytes\n",
-				layout.BaseAddress, layout.CodeSize, layout.DataSize)
+			fmt.Fprintf(os.Stderr, "Memory layout: base=%s, code=%s bytes, data=%s bytes\n",
+				execColorAddr.Sprintf("0x%08X", layout.BaseAddress),
+				execColorValue.Sprintf("%d", layout.CodeSize),
+				execColorValue.Sprintf("%d", layout.DataSize))
 		}
 	}
 
@@ -85,16 +114,21 @@ func runExec(cmd *cobra.Command, args []string) {
 	}
 
 	if execVerbose {
-		fmt.Fprintf(os.Stderr, "Entry point: main at 0x%08X\n", runner.PC())
-		fmt.Fprintf(os.Stderr, "Termination address (LR): 0x%08X\n", interpreter.TerminationAddress)
-		fmt.Fprintf(os.Stderr, "Starting execution at PC=0x%08X\n", runner.PC())
+		fmt.Fprintf(os.Stderr, "Entry point: %s at %s\n",
+			execColorReg.Sprint("main"),
+			execColorAddr.Sprintf("0x%08X", runner.PC()))
+		fmt.Fprintf(os.Stderr, "Termination address (LR): %s\n",
+			execColorAddr.Sprintf("0x%08X", interpreter.TerminationAddress))
+		fmt.Fprintf(os.Stderr, "Starting execution at PC=%s\n",
+			execColorAddr.Sprintf("0x%08X", runner.PC()))
 	}
 
 	// Set target execution speed if specified
 	if execTargetSpeed > 0 {
 		runner.SetTargetSpeed(execTargetSpeed)
 		if execVerbose {
-			fmt.Fprintf(os.Stderr, "Target execution speed: %.2f Hz\n", execTargetSpeed)
+			fmt.Fprintf(os.Stderr, "Target execution speed: %s Hz\n",
+				execColorValue.Sprintf("%.2f", execTargetSpeed))
 		}
 	}
 
@@ -102,7 +136,7 @@ func runExec(cmd *cobra.Command, args []string) {
 	laggingWarningShown := false
 	runner.Debugger().SetEventCallback(func(event interpreter.ExecutionEvent, result *interpreter.ExecutionResult) bool {
 		if event == interpreter.EventLagging && !laggingWarningShown {
-			fmt.Fprintf(os.Stderr, "WARNING: Emulator running slower than target speed (%.2f Hz). Lagging by %d cycles.\n",
+			execColorWarning.Fprintf(os.Stderr, "WARNING: Emulator running slower than target speed (%.2f Hz). Lagging by %d cycles.\n",
 				execTargetSpeed, result.LagCycles)
 			laggingWarningShown = true
 		}
@@ -124,28 +158,45 @@ func runExec(cmd *cobra.Command, args []string) {
 	state := runner.State()
 	if execVerbose {
 		if normalExit {
-			fmt.Fprintf(os.Stderr, "\n=== Execution completed (returned from main) ===\n")
+			execColorSuccess.Fprintf(os.Stderr, "\n=== Execution completed (returned from main) ===\n")
 		} else {
-			fmt.Fprintf(os.Stderr, "\n=== Execution %s ===\n", result.StopReason.String())
+			execColorHeader.Fprintf(os.Stderr, "\n=== Execution %s ===\n", result.StopReason.String())
 		}
-		fmt.Fprintf(os.Stderr, "Steps executed: %d\n", result.StepsExecuted)
-		fmt.Fprintf(os.Stderr, "Cycles executed: %d\n", result.CyclesExecuted)
+		fmt.Fprintf(os.Stderr, "%s %s\n",
+			execColorLabel.Sprint("Steps executed:"),
+			execColorValue.Sprintf("%d", result.StepsExecuted))
+		fmt.Fprintf(os.Stderr, "%s %s\n",
+			execColorLabel.Sprint("Cycles executed:"),
+			execColorValue.Sprintf("%d", result.CyclesExecuted))
 		if result.Lagging {
-			fmt.Fprintf(os.Stderr, "Lagging: yes (%d cycles behind)\n", result.LagCycles)
+			execColorWarning.Fprintf(os.Stderr, "Lagging: yes (%d cycles behind)\n", result.LagCycles)
 		}
-		fmt.Fprintf(os.Stderr, "Final PC: 0x%08X\n", state.PC)
-		fmt.Fprintf(os.Stderr, "Registers:\n")
+		fmt.Fprintf(os.Stderr, "%s %s\n",
+			execColorLabel.Sprint("Final PC:"),
+			execColorAddr.Sprintf("0x%08X", state.PC))
+		execColorHeader.Fprintln(os.Stderr, "Registers:")
 		for i := 0; i < 10; i++ {
-			fmt.Fprintf(os.Stderr, "  r%d = %d (0x%08X)\n", i, state.Registers[16+i], state.Registers[16+i])
+			fmt.Fprintf(os.Stderr, "  %s = %s (%s)\n",
+				execColorReg.Sprintf("r%d", i),
+				execColorValue.Sprintf("%d", state.Registers[16+i]),
+				execColorAddr.Sprintf("0x%08X", state.Registers[16+i]))
 		}
-		fmt.Fprintf(os.Stderr, "  sp = %d (0x%08X)\n", *state.SP, *state.SP)
-		fmt.Fprintf(os.Stderr, "  lr = %d (0x%08X)\n", *state.LR, *state.LR)
+		fmt.Fprintf(os.Stderr, "  %s = %s (%s)\n",
+			execColorReg.Sprint("sp"),
+			execColorValue.Sprintf("%d", *state.SP),
+			execColorAddr.Sprintf("0x%08X", *state.SP))
+		fmt.Fprintf(os.Stderr, "  %s = %s (%s)\n",
+			execColorReg.Sprint("lr"),
+			execColorValue.Sprintf("%d", *state.LR),
+			execColorAddr.Sprintf("0x%08X", *state.LR))
 	}
 
 	// Return value is in r0 (register index 16)
 	returnValue := runner.ReturnValue()
 	if execVerbose {
-		fmt.Fprintf(os.Stderr, "\nReturn value (r0): %d\n", returnValue)
+		fmt.Fprintf(os.Stderr, "\nReturn value (%s): %s\n",
+			execColorReg.Sprint("r0"),
+			execColorSuccess.Sprintf("%d", returnValue))
 	} else {
 		fmt.Printf("%d\n", returnValue)
 	}
@@ -156,7 +207,7 @@ func runExec(cmd *cobra.Command, args []string) {
 	}
 
 	if result.Error != nil && !state.Halted {
-		fmt.Fprintf(os.Stderr, "Execution error: %v\n", result.Error)
+		execColorError.Fprintf(os.Stderr, "Execution error: %v\n", result.Error)
 		os.Exit(5)
 	}
 }
@@ -201,7 +252,7 @@ func executeWithTrace(runner *interpreter.Runner, maxSteps int) *interpreter.Exe
 		},
 		func(event interpreter.ExecutionEvent, result *interpreter.ExecutionResult) bool {
 			if event == interpreter.EventLagging && !laggingWarningShown {
-				fmt.Fprintf(os.Stderr, "WARNING: Emulator running slower than target speed (%.2f Hz). Lagging by %d cycles.\n",
+				execColorWarning.Fprintf(os.Stderr, "WARNING: Emulator running slower than target speed (%.2f Hz). Lagging by %d cycles.\n",
 					execTargetSpeed, result.LagCycles)
 				laggingWarningShown = true
 			}
