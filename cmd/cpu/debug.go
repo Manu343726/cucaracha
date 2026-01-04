@@ -395,7 +395,7 @@ func (ui *cliUI) ShowStack(sp uint32, data []byte, frames []debugger.StackFrame)
 }
 
 // ShowBacktrace displays the call stack (function frames)
-func (ui *cliUI) ShowBacktrace(frames []debugger.StackFrame) {
+func (ui *cliUI) ShowBacktrace(frames []debugger.StackFrame, selectedFrame int) {
 	if len(frames) == 0 {
 		fmt.Println("No call stack information available")
 		return
@@ -417,11 +417,50 @@ func (ui *cliUI) ShowBacktrace(frames []debugger.StackFrame) {
 			}
 		}
 
-		fmt.Printf("  #%d  %s %s%s\n",
+		// Show marker for selected frame
+		marker := "  "
+		if i == selectedFrame {
+			marker = colorPC.Sprint("=>")
+		}
+
+		fmt.Printf("%s#%d  %s %s%s\n",
+			marker,
 			i,
 			colorFunc.Sprint(funcName),
 			colorAddr.Sprintf("[0x%08X]", frame.Address),
 			colorSourceFile.Sprint(location))
+	}
+}
+
+// ShowFrameInfo displays information about a single frame (for up/down commands)
+func (ui *cliUI) ShowFrameInfo(frame debugger.StackFrame, frameNum int, sourceLine string) {
+	funcName := frame.Function
+	if funcName == "" {
+		funcName = "??"
+	}
+
+	// Build location string
+	location := ""
+	if frame.File != "" {
+		if frame.Line > 0 {
+			location = fmt.Sprintf(" at %s:%d", frame.File, frame.Line)
+		} else {
+			location = fmt.Sprintf(" at %s", frame.File)
+		}
+	}
+
+	// Print colored frame info
+	fmt.Printf("#%d  %s %s%s\n",
+		frameNum,
+		colorFunc.Sprint(funcName),
+		colorAddr.Sprintf("[0x%08X]", frame.Address),
+		colorSourceFile.Sprint(location))
+
+	// Print source line if available
+	if sourceLine != "" && frame.Line > 0 {
+		fmt.Printf("%s %s\n",
+			colorSourceLine.Sprintf("%4d", frame.Line),
+			colorSource.Sprint(strings.TrimRight(sourceLine, "\r\n")))
 	}
 }
 

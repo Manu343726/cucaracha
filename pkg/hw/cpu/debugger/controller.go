@@ -662,7 +662,7 @@ func (c *Controller) CmdStack() {
 // CmdBacktrace shows the call stack (function frames)
 func (c *Controller) CmdBacktrace() {
 	frames := c.backend.GetCallStack()
-	c.ui.ShowBacktrace(frames)
+	c.ui.ShowBacktrace(frames, c.selectedFrame)
 }
 
 // CmdMemory shows memory contents
@@ -833,33 +833,16 @@ func (c *Controller) showSelectedFrame(frames []StackFrame) {
 	}
 
 	frame := frames[c.selectedFrame]
-	funcName := frame.Function
-	if funcName == "" {
-		funcName = "??"
-	}
 
-	// Show frame info
+	// Get source line if available
+	var srcText string
 	if frame.File != "" && frame.Line > 0 {
-		c.ui.ShowMessage(LevelInfo, "#%d  %s at %s:%d [0x%08X]",
-			c.selectedFrame, funcName, frame.File, frame.Line, frame.Address)
-	} else if frame.File != "" {
-		c.ui.ShowMessage(LevelInfo, "#%d  %s at %s [0x%08X]",
-			c.selectedFrame, funcName, frame.File, frame.Address)
-	} else {
-		c.ui.ShowMessage(LevelInfo, "#%d  %s [0x%08X]",
-			c.selectedFrame, funcName, frame.Address)
-	}
-
-	// Show source at this location if available
-	if frame.File != "" && frame.Line > 0 {
-		debugInfo := c.backend.DebugInfo()
-		if debugInfo != nil {
-			srcText := debugInfo.GetSourceLine(frame.File, frame.Line)
-			if srcText != "" {
-				c.ui.ShowMessage(LevelInfo, "%d\t%s", frame.Line, srcText)
-			}
+		if debugInfo := c.backend.DebugInfo(); debugInfo != nil {
+			srcText = debugInfo.GetSourceLine(frame.File, frame.Line)
 		}
 	}
+
+	c.ui.ShowFrameInfo(frame, c.selectedFrame, srcText)
 }
 
 // CmdEval evaluates an expression

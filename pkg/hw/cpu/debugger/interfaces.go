@@ -211,7 +211,11 @@ type DebuggerUI interface {
 	ShowStack(sp uint32, data []byte, frames []StackFrame)
 
 	// ShowBacktrace displays the call stack (function frames)
-	ShowBacktrace(frames []StackFrame)
+	// selectedFrame indicates which frame is currently selected (-1 if none)
+	ShowBacktrace(frames []StackFrame, selectedFrame int)
+
+	// ShowFrameInfo displays information about a single frame (for up/down commands)
+	ShowFrameInfo(frame StackFrame, frameNum int, sourceLine string)
 
 	// ShowSource displays source code
 	ShowSource(location *mc.SourceLocation, lines []SourceLine, currentLine int)
