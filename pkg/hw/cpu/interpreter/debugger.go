@@ -4,6 +4,7 @@ package interpreter
 
 import (
 	"fmt"
+	"runtime"
 	"sort"
 	"sync/atomic"
 
@@ -249,6 +250,11 @@ func (d *Debugger) SetEventCallback(callback EventCallback) {
 	d.eventCallback = callback
 }
 
+// HasEventCallback returns true if an event callback is set (for debugging)
+func (d *Debugger) HasEventCallback() bool {
+	return d.eventCallback != nil
+}
+
 // LastResult returns the result of the last execution operation
 func (d *Debugger) LastResult() *ExecutionResult {
 	return d.lastResult
@@ -492,6 +498,12 @@ func (d *Debugger) Run(maxSteps int) *ExecutionResult {
 	d.ClearInterrupt()
 
 	for {
+		// Yield to allow signal handlers and other goroutines to run
+		// This is important for Ctrl+C handling on Windows
+		if result.StepsExecuted%100 == 0 {
+			runtime.Gosched()
+		}
+
 		// Check for interrupt (Ctrl+C)
 		if d.IsInterrupted() {
 			result.StopReason = StopInterrupt
@@ -564,6 +576,17 @@ func (d *Debugger) Run(maxSteps int) *ExecutionResult {
 			d.fireEvent(EventWatchpoint, result)
 			break
 		}
+
+		// Report normal step execution
+		stepResult := &ExecutionResult{
+			StopReason:      StopNone,
+			StepsExecuted:   1,
+			LastPC:          result.LastPC,
+			LastInstruction: result.LastInstruction,
+			LastOperands:    result.LastOperands,
+		}
+
+		d.fireEvent(EventStep, stepResult)
 	}
 
 	d.lastResult = result

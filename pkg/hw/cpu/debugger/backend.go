@@ -84,6 +84,30 @@ func (b *Backend) GetExecutionDelay() int {
 	return b.runner.Debugger().GetExecutionDelay()
 }
 
+// ExecutionCallback is called during execution on each step.
+// Return true to continue execution, false to stop.
+type ExecutionCallback func(event interpreter.ExecutionEvent, stepsExecuted int, pc uint32) bool
+
+// SetExecutionCallback sets a callback to be invoked during execution.
+// The callback receives the event type, steps executed so far, and current PC.
+// It should return true to continue execution, false to stop.
+// Pass nil to clear the callback.
+func (b *Backend) SetExecutionCallback(callback ExecutionCallback) {
+	if callback == nil {
+		b.runner.Debugger().SetEventCallback(nil)
+		return
+	}
+
+	b.runner.Debugger().SetEventCallback(func(event interpreter.ExecutionEvent, result *interpreter.ExecutionResult) bool {
+		return callback(event, result.StepsExecuted, result.LastPC)
+	})
+}
+
+// HasExecutionCallback returns true if an execution callback is set (for debugging)
+func (b *Backend) HasExecutionCallback() bool {
+	return b.runner.Debugger().HasEventCallback()
+}
+
 // IsTerminated returns true if the program has terminated.
 func (b *Backend) IsTerminated() bool {
 	if b.lastResult == nil {

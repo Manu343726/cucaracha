@@ -2943,22 +2943,6 @@ func interactiveExecutionView(c *debugger.Controller) {
 	})
 	defer unregisterResize()
 
-	// Track execution state
-	execState := &execViewState{
-		followPC:    true,
-		disasmAddr:  c.Backend().GetState().PC,
-		codeStart:   layout.CodeStart,
-		codeEnd:     layout.CodeStart + layout.CodeSize,
-		memSize:     uint32(len(c.Backend().Runner().State().Memory)),
-		statusMsg:   "Ready. Press ? for help.",
-		inputMode:   false,
-		inputBuffer: "",
-		inputPrompt: "",
-	}
-
-	// Initial render
-	renderExecutionView(c, execState)
-
 	// Input handling goroutine
 	buf := make([]byte, 16)
 	inputChan := make(chan []byte, 1)
@@ -2979,6 +2963,23 @@ func interactiveExecutionView(c *debugger.Controller) {
 			}
 		}
 	}()
+
+	// Track execution state (after inputChan is created so we can include it)
+	execState := &execViewState{
+		followPC:    true,
+		disasmAddr:  c.Backend().GetState().PC,
+		codeStart:   layout.CodeStart,
+		codeEnd:     layout.CodeStart + layout.CodeSize,
+		memSize:     uint32(len(c.Backend().Runner().State().Memory)),
+		statusMsg:   "Ready. Press ? for help.",
+		inputMode:   false,
+		inputBuffer: "",
+		inputPrompt: "",
+		inputChan:   inputChan,
+	}
+
+	// Initial render
+	renderExecutionView(c, execState)
 
 	cleanup := func() {
 		close(done)
@@ -3034,11 +3035,12 @@ type execViewState struct {
 	codeStart   uint32
 	codeEnd     uint32
 	memSize     uint32
-	statusMsg   string // Status message to display
-	inputMode   bool   // Whether we're in input mode
-	inputBuffer string // Current input buffer
-	inputPrompt string // Input prompt text
-	inputAction string // What to do with the input ("break", "delete", etc.)
+	statusMsg   string      // Status message to display
+	inputMode   bool        // Whether we're in input mode
+	inputBuffer string      // Current input buffer
+	inputPrompt string      // Input prompt text
+	inputAction string      // What to do with the input ("break", "delete", etc.)
+	inputChan   chan []byte // Channel for keyboard input (for Ctrl+C detection during run)
 }
 
 // execViewAction represents the action to take after key handling
@@ -3376,17 +3378,73 @@ func stepSourceLineQuiet(c *debugger.Controller, count int) debugger.ExecutionRe
 	return lastResult
 }
 
-// execContinue runs until breakpoint/termination
+// execContinue runs until breakpoint/termination with UI updates
 func execContinue(c *debugger.Controller, state *execViewState) {
-	state.statusMsg = "Running..."
-	result := c.Backend().Continue()
-	updateStateAfterExec(c, state, result, "continue")
+	execRunWithUpdates(c, state, false)
 }
 
-// execRun runs until termination
+// execRun runs until termination with UI updates
 func execRun(c *debugger.Controller, state *execViewState) {
-	state.statusMsg = "Running..."
-	result := c.Backend().Run()
+	execRunWithUpdates(c, state, true)
+}
+
+// execRunWithUpdates runs execution with periodic UI updates using debugger events
+// If runToTermination is true, only stops at termination (ignores breakpoints after first)
+func execRunWithUpdates(c *debugger.Controller, state *execViewState, runToTermination bool) {
+	// Set up event callback to update UI during execution
+	state.statusMsg = "Running... (Ctrl+C to stop)"
+
+	c.Backend().SetExecutionCallback(func(event interpreter.ExecutionEvent, stepsExecuted int, pc uint32) bool {
+		// Only update on step events
+		if event != interpreter.EventStep {
+			return true
+		}
+
+		// Check for Ctrl+C from input channel (in raw mode, Ctrl+C is byte 0x03)
+		if state.inputChan != nil {
+			select {
+			case key := <-state.inputChan:
+				if len(key) == 1 && key[0] == 0x03 { // Ctrl+C
+					c.Backend().Interrupt()
+					return false // Stop execution
+				}
+			default:
+				// No input available, continue
+			}
+		}
+
+		// Update state
+		if state.followPC {
+			state.disasmAddr = pc
+		}
+
+		// Update status with step count
+		state.statusMsg = fmt.Sprintf("Running... (%d steps, Ctrl+C to stop)", stepsExecuted)
+
+		// Render UI
+		renderExecutionView(c, state)
+
+		return true // Continue execution
+	})
+
+	// Debug: verify callback was set
+	if !c.Backend().HasExecutionCallback() {
+		state.statusMsg = "ERROR: Callback not set!"
+		renderExecutionView(c, state)
+	}
+
+	// Run execution (the callback will be invoked during execution)
+	var result debugger.ExecutionResult
+	if runToTermination {
+		result = c.Backend().Run()
+	} else {
+		result = c.Backend().Continue()
+	}
+
+	// Clear callback
+	c.Backend().SetExecutionCallback(nil)
+
+	// Update final state
 	updateStateAfterExec(c, state, result, "run")
 }
 
