@@ -36,6 +36,9 @@ type InstructionDescriptor struct {
 	Operands []*OperandDescriptor
 	// Instruction description (for documentation and debugging)
 	Description string
+	// Cycles is the number of CPU cycles this instruction takes to execute.
+	// Used for accurate timing simulation. Defaults to 1 if not specified.
+	Cycles int
 
 	// Execute is the function that implements the instruction behavior
 	Execute ExecuteFunc
@@ -72,6 +75,15 @@ func (d *InstructionDescriptor) String() string {
 	}
 
 	return builder.String()
+}
+
+// GetCycles returns the number of CPU cycles this instruction takes.
+// Returns 1 if Cycles is not explicitly set (the default).
+func (d *InstructionDescriptor) GetCycles() int {
+	if d.Cycles <= 0 {
+		return 1
+	}
+	return d.Cycles
 }
 
 // Returns full documentation for the instruction

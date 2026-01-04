@@ -136,6 +136,10 @@ func (ui *cliUI) OnEvent(event debugger.EventData) {
 	case debugger.EventError:
 		colorError.Printf("Error: %v\n", event.Error)
 
+	case debugger.EventLagging:
+		colorWarning.Printf("WARNING: Emulator running slower than target speed (%.2f Hz). Lagging by %d cycles.\n",
+			event.TargetSpeedHz, event.LagCycles)
+
 	case debugger.EventSourceLocationChanged:
 		if event.SourceLocation != nil && event.SourceLocation.IsValid() {
 			fmt.Printf("%s %s\n",

@@ -151,7 +151,7 @@ func TestInterpreter_Step_Halted(t *testing.T) {
 	interp := NewInterpreter(1024)
 	interp.State().Halted = true
 
-	err := interp.Step()
+	_, err := interp.Step()
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "halted")
 }
@@ -164,7 +164,7 @@ func TestInterpreter_Nop(t *testing.T) {
 	err := interp.LoadProgram(program, 0)
 	require.NoError(t, err)
 
-	err = interp.Step()
+	_, err = interp.Step()
 	require.NoError(t, err)
 
 	// PC should advance by 4
@@ -179,7 +179,7 @@ func TestInterpreter_MovImm16L(t *testing.T) {
 	err := interp.LoadProgram(program, 0)
 	require.NoError(t, err)
 
-	err = interp.Step()
+	_, err = interp.Step()
 	require.NoError(t, err)
 
 	assert.Equal(t, uint32(0x1234), interp.State().Registers[regIdx("r0")])
@@ -622,4 +622,110 @@ func TestRegisterName(t *testing.T) {
 	assert.Equal(t, "sp", RegisterName(regIdx("sp")))
 	assert.Equal(t, "cpsr", RegisterName(regIdx("cpsr")))
 	assert.Equal(t, "lr", RegisterName(regIdx("lr")))
+}
+
+func TestInterpreter_TargetSpeed(t *testing.T) {
+	interp := NewInterpreter(4096)
+
+	// Default should be unlimited (0)
+	assert.Equal(t, float64(0), interp.GetTargetSpeed())
+
+	// Set target speed
+	interp.SetTargetSpeed(1000)
+	assert.Equal(t, float64(1000), interp.GetTargetSpeed())
+
+	// Reset to unlimited
+	interp.SetTargetSpeed(0)
+	assert.Equal(t, float64(0), interp.GetTargetSpeed())
+
+	// Negative values should be treated as 0
+	interp.SetTargetSpeed(-100)
+	assert.Equal(t, float64(0), interp.GetTargetSpeed())
+}
+
+func TestInterpreter_ExecutionDelayBackwardCompat(t *testing.T) {
+	interp := NewInterpreter(4096)
+
+	// Test backward compatibility with SetExecutionDelay
+	interp.SetExecutionDelay(100) // 100ms delay = 10 Hz
+	// The conversion is approximate
+	assert.InDelta(t, float64(10), interp.GetTargetSpeed(), 0.1)
+
+	// GetExecutionDelay should return approximate ms
+	delay := interp.GetExecutionDelay()
+	assert.InDelta(t, 100, delay, 1)
+
+	// 0 delay means unlimited
+	interp.SetExecutionDelay(0)
+	assert.Equal(t, float64(0), interp.GetTargetSpeed())
+	assert.Equal(t, 0, interp.GetExecutionDelay())
+}
+
+func TestInterpreter_StepReturnsCycles(t *testing.T) {
+	interp := NewInterpreter(4096)
+
+	program := mc.NewProgram().
+		Add(mc.Nop()).
+		Add(mc.MovImm16L(0x1234, "r0")).
+		Add(mc.Add("r0", "r1", "r2"))
+
+	err := interp.LoadProgram(program, 0)
+	require.NoError(t, err)
+
+	// Execute NOP - should return 1 cycle (default)
+	result, err := interp.Step()
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, 1, result.Cycles)
+	assert.NotNil(t, result.Instruction)
+	assert.Equal(t, "NOP", result.Instruction.OpCode.Mnemonic)
+
+	// Execute MOVIMM16L - should return 1 cycle (default)
+	result, err = interp.Step()
+	require.NoError(t, err)
+	assert.Equal(t, 1, result.Cycles)
+
+	// Execute ADD - should return 1 cycle (default)
+	result, err = interp.Step()
+	require.NoError(t, err)
+	assert.Equal(t, 1, result.Cycles)
+}
+
+func TestDebugger_TargetSpeed(t *testing.T) {
+	interp := NewInterpreter(4096)
+	dbg := NewDebugger(interp)
+
+	// Default should be unlimited (0)
+	assert.Equal(t, float64(0), dbg.GetTargetSpeed())
+
+	// Set target speed
+	dbg.SetTargetSpeed(1000)
+	assert.Equal(t, float64(1000), dbg.GetTargetSpeed())
+
+	// Should also be reflected in interpreter
+	assert.Equal(t, float64(1000), interp.GetTargetSpeed())
+}
+
+func TestDebugger_ExecutionResultCycles(t *testing.T) {
+	interp := NewInterpreter(4096)
+	dbg := NewDebugger(interp)
+
+	program := mc.NewProgram().
+		Add(mc.Nop()).
+		Add(mc.Nop()).
+		Add(mc.Nop())
+
+	err := interp.LoadProgram(program, 0)
+	require.NoError(t, err)
+
+	// Run 3 NOPs
+	result := dbg.Run(3)
+
+	assert.Equal(t, 3, result.StepsExecuted)
+	assert.Equal(t, int64(3), result.CyclesExecuted) // 3 NOPs * 1 cycle each
+}
+
+func TestDebugger_LaggingEventType(t *testing.T) {
+	// Verify the EventLagging constant exists and has expected string
+	assert.Equal(t, "lagging", EventLagging.String())
 }

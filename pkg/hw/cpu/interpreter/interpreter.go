@@ -89,9 +89,12 @@ func (s *CPUState) SetPC(pc uint32) {
 // Interpreter executes Cucaracha machine code using the instruction descriptors
 type Interpreter struct {
 	state *CPUState
-	// Execution delay for slow-motion mode (in milliseconds)
-	// 0 means no delay (full speed)
-	executionDelayMs int
+	// Target execution speed in Hz (cycles per second)
+	// 0 means unlimited (full speed, no timing simulation)
+	targetSpeedHz float64
+	// Track timing for speed control
+	cycleAccumulator int64     // Accumulated cycles since last timing reset
+	timingStartTime  time.Time // When timing measurement started
 }
 
 // NewInterpreter creates a new interpreter with the given memory size
@@ -101,18 +104,51 @@ func NewInterpreter(memorySize uint32) *Interpreter {
 	}
 }
 
-// SetExecutionDelay sets the delay between instruction executions in milliseconds.
-// Use 0 for full speed, higher values for slower execution (slow-motion mode).
-func (i *Interpreter) SetExecutionDelay(delayMs int) {
-	if delayMs < 0 {
-		delayMs = 0
+// SetTargetSpeed sets the target execution speed in Hz (cycles per second).
+// Use 0 for unlimited speed (no timing simulation).
+// For example, 1000 Hz means 1000 cycles per second.
+func (i *Interpreter) SetTargetSpeed(hz float64) {
+	if hz < 0 {
+		hz = 0
 	}
-	i.executionDelayMs = delayMs
+	i.targetSpeedHz = hz
+	i.ResetTiming()
 }
 
-// GetExecutionDelay returns the current execution delay in milliseconds.
+// GetTargetSpeed returns the current target execution speed in Hz.
+func (i *Interpreter) GetTargetSpeed() float64 {
+	return i.targetSpeedHz
+}
+
+// ResetTiming resets the timing accumulator for speed control.
+// Should be called when starting a new execution run.
+func (i *Interpreter) ResetTiming() {
+	i.cycleAccumulator = 0
+	i.timingStartTime = time.Now()
+}
+
+// SetExecutionDelay is deprecated. Use SetTargetSpeed instead.
+// This method converts the delay to an approximate Hz value for backward compatibility.
+// Use 0 for full speed.
+func (i *Interpreter) SetExecutionDelay(delayMs int) {
+	if delayMs <= 0 {
+		i.SetTargetSpeed(0) // Unlimited speed
+	} else {
+		// Convert ms delay to Hz: if delay is N ms per instruction,
+		// that's 1000/N instructions per second
+		hz := 1000.0 / float64(delayMs)
+		i.SetTargetSpeed(hz)
+	}
+}
+
+// GetExecutionDelay is deprecated. Use GetTargetSpeed instead.
+// Returns an approximate delay in ms for backward compatibility.
 func (i *Interpreter) GetExecutionDelay() int {
-	return i.executionDelayMs
+	if i.targetSpeedHz <= 0 {
+		return 0 // Unlimited speed
+	}
+	// Convert Hz to ms: if target is N Hz, delay is 1000/N ms
+	return int(1000.0 / i.targetSpeedHz)
 }
 
 // State returns the current CPU state
@@ -172,15 +208,25 @@ func (i *Interpreter) DecodeInstruction() (*instructions.InstructionDescriptor, 
 	return desc, operands, nil
 }
 
-// Step executes a single instruction
-func (i *Interpreter) Step() error {
+// StepResult contains the result of executing a single instruction
+type StepResult struct {
+	// Cycles is the number of CPU cycles consumed by the instruction
+	Cycles int
+	// Instruction is the executed instruction descriptor
+	Instruction *instructions.InstructionDescriptor
+	// Operands are the decoded operand values
+	Operands []uint32
+}
+
+// Step executes a single instruction and returns the cycle count
+func (i *Interpreter) Step() (*StepResult, error) {
 	if i.state.Halted {
-		return fmt.Errorf("CPU is halted")
+		return nil, fmt.Errorf("CPU is halted")
 	}
 
 	desc, operands, err := i.DecodeInstruction()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// Save current PC for detecting branches
@@ -188,7 +234,7 @@ func (i *Interpreter) Step() error {
 
 	// Execute the instruction
 	if err := i.executeInstruction(desc, operands); err != nil {
-		return fmt.Errorf("error executing %s at 0x%08X: %w", desc.OpCode.Mnemonic, oldPC, err)
+		return nil, fmt.Errorf("error executing %s at 0x%08X: %w", desc.OpCode.Mnemonic, oldPC, err)
 	}
 
 	// Advance PC if not modified by a branch
@@ -196,12 +242,11 @@ func (i *Interpreter) Step() error {
 		i.state.PC += 4 // Instructions are 32 bits
 	}
 
-	// Apply execution delay for slow-motion mode
-	if i.executionDelayMs > 0 {
-		time.Sleep(time.Duration(i.executionDelayMs) * time.Millisecond)
-	}
-
-	return nil
+	return &StepResult{
+		Cycles:      desc.GetCycles(),
+		Instruction: desc,
+		Operands:    operands,
+	}, nil
 }
 
 // executeInstruction executes an instruction using its descriptor's Execute function
@@ -215,7 +260,7 @@ func (i *Interpreter) executeInstruction(desc *instructions.InstructionDescripto
 // Run executes instructions until halted or an error occurs
 func (i *Interpreter) Run() error {
 	for !i.state.Halted {
-		if err := i.Step(); err != nil {
+		if _, err := i.Step(); err != nil {
 			return err
 		}
 	}
@@ -225,7 +270,7 @@ func (i *Interpreter) Run() error {
 // RunN executes at most n instructions
 func (i *Interpreter) RunN(n int) error {
 	for count := 0; count < n && !i.state.Halted; count++ {
-		if err := i.Step(); err != nil {
+		if _, err := i.Step(); err != nil {
 			return err
 		}
 	}

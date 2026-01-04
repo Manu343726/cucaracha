@@ -417,31 +417,57 @@ func (c *Controller) CmdInstructionStep(count int) {
 // CmdContinue continues execution until breakpoint or termination
 func (c *Controller) CmdContinue() {
 	c.resetSelectedFrame() // Reset frame selection on execution
+
+	// Set up callback to handle lagging events during execution
+	laggingWarningShown := false
+	c.backend.SetFullExecutionCallback(func(event interpreter.ExecutionEvent, result *interpreter.ExecutionResult) bool {
+		if event == interpreter.EventLagging && !laggingWarningShown {
+			c.ui.OnEvent(EventData{
+				Event:         EventLagging,
+				LagCycles:     result.LagCycles,
+				TargetSpeedHz: c.backend.GetTargetSpeed(),
+			})
+			laggingWarningShown = true
+		}
+		return true // Continue execution
+	})
+
 	result := c.backend.Continue()
+
+	// Clear callback
+	c.backend.SetFullExecutionCallback(nil)
+
+	// Populate lagging info in final event
+	cyclesExecuted := result.CyclesExecuted
+	lagging := result.Lagging
+	lagCycles := result.LagCycles
 
 	switch result.StopReason {
 	case interpreter.StopTermination:
 		c.ui.OnEvent(EventData{
-			Event:         EventProgramTerminated,
-			ReturnValue:   result.ReturnValue,
-			StepsExecuted: result.StepsExecuted,
+			Event:          EventProgramTerminated,
+			ReturnValue:    result.ReturnValue,
+			StepsExecuted:  result.StepsExecuted,
+			CyclesExecuted: cyclesExecuted,
 		})
 
 	case interpreter.StopBreakpoint:
 		c.ui.OnEvent(EventData{
-			Event:         EventBreakpointHit,
-			Address:       result.LastPC,
-			BreakpointID:  result.BreakpointID,
-			StepsExecuted: result.StepsExecuted,
+			Event:          EventBreakpointHit,
+			Address:        result.LastPC,
+			BreakpointID:   result.BreakpointID,
+			StepsExecuted:  result.StepsExecuted,
+			CyclesExecuted: cyclesExecuted,
 		})
 		c.showCurrentInstruction()
 
 	case interpreter.StopWatchpoint:
 		c.ui.OnEvent(EventData{
-			Event:         EventWatchpointHit,
-			Address:       result.LastPC,
-			WatchpointID:  result.WatchpointID,
-			StepsExecuted: result.StepsExecuted,
+			Event:          EventWatchpointHit,
+			Address:        result.LastPC,
+			WatchpointID:   result.WatchpointID,
+			StepsExecuted:  result.StepsExecuted,
+			CyclesExecuted: cyclesExecuted,
 		})
 		c.showCurrentInstruction()
 
@@ -452,9 +478,10 @@ func (c *Controller) CmdContinue() {
 
 	case interpreter.StopInterrupt:
 		c.ui.OnEvent(EventData{
-			Event:         EventInterrupted,
-			Address:       c.backend.GetState().PC,
-			StepsExecuted: result.StepsExecuted,
+			Event:          EventInterrupted,
+			Address:        c.backend.GetState().PC,
+			StepsExecuted:  result.StepsExecuted,
+			CyclesExecuted: cyclesExecuted,
 		})
 		c.showCurrentInstruction()
 
@@ -463,6 +490,15 @@ func (c *Controller) CmdContinue() {
 			Event:   EventError,
 			Error:   result.Error,
 			Message: result.Error.Error(),
+		})
+	}
+
+	// Report lagging at the end if still lagging
+	if lagging && !laggingWarningShown {
+		c.ui.OnEvent(EventData{
+			Event:         EventLagging,
+			LagCycles:     lagCycles,
+			TargetSpeedHz: c.backend.GetTargetSpeed(),
 		})
 	}
 }
@@ -481,31 +517,56 @@ func (c *Controller) CmdRun() {
 		}
 	}
 
+	// Set up callback to handle lagging events during execution
+	laggingWarningShown := false
+	c.backend.SetFullExecutionCallback(func(event interpreter.ExecutionEvent, result *interpreter.ExecutionResult) bool {
+		if event == interpreter.EventLagging && !laggingWarningShown {
+			c.ui.OnEvent(EventData{
+				Event:         EventLagging,
+				LagCycles:     result.LagCycles,
+				TargetSpeedHz: c.backend.GetTargetSpeed(),
+			})
+			laggingWarningShown = true
+		}
+		return true // Continue execution
+	})
+
 	result := c.backend.Run()
+
+	// Clear callback
+	c.backend.SetFullExecutionCallback(nil)
+
+	// Populate lagging info
+	cyclesExecuted := result.CyclesExecuted
+	lagging := result.Lagging
+	lagCycles := result.LagCycles
 
 	switch result.StopReason {
 	case interpreter.StopTermination:
 		c.ui.OnEvent(EventData{
-			Event:         EventProgramTerminated,
-			ReturnValue:   result.ReturnValue,
-			StepsExecuted: result.StepsExecuted,
+			Event:          EventProgramTerminated,
+			ReturnValue:    result.ReturnValue,
+			StepsExecuted:  result.StepsExecuted,
+			CyclesExecuted: cyclesExecuted,
 		})
 
 	case interpreter.StopBreakpoint:
 		c.ui.OnEvent(EventData{
-			Event:         EventBreakpointHit,
-			Address:       result.LastPC,
-			BreakpointID:  result.BreakpointID,
-			StepsExecuted: result.StepsExecuted,
+			Event:          EventBreakpointHit,
+			Address:        result.LastPC,
+			BreakpointID:   result.BreakpointID,
+			StepsExecuted:  result.StepsExecuted,
+			CyclesExecuted: cyclesExecuted,
 		})
 		c.showCurrentInstruction()
 
 	case interpreter.StopWatchpoint:
 		c.ui.OnEvent(EventData{
-			Event:         EventWatchpointHit,
-			Address:       result.LastPC,
-			WatchpointID:  result.WatchpointID,
-			StepsExecuted: result.StepsExecuted,
+			Event:          EventWatchpointHit,
+			Address:        result.LastPC,
+			WatchpointID:   result.WatchpointID,
+			StepsExecuted:  result.StepsExecuted,
+			CyclesExecuted: cyclesExecuted,
 		})
 		c.showCurrentInstruction()
 
@@ -516,9 +577,10 @@ func (c *Controller) CmdRun() {
 
 	case interpreter.StopInterrupt:
 		c.ui.OnEvent(EventData{
-			Event:         EventInterrupted,
-			Address:       c.backend.GetState().PC,
-			StepsExecuted: result.StepsExecuted,
+			Event:          EventInterrupted,
+			Address:        c.backend.GetState().PC,
+			StepsExecuted:  result.StepsExecuted,
+			CyclesExecuted: cyclesExecuted,
 		})
 		c.showCurrentInstruction()
 
@@ -527,6 +589,15 @@ func (c *Controller) CmdRun() {
 			Event:   EventError,
 			Error:   result.Error,
 			Message: result.Error.Error(),
+		})
+	}
+
+	// Report lagging at the end if still lagging
+	if lagging && !laggingWarningShown {
+		c.ui.OnEvent(EventData{
+			Event:         EventLagging,
+			LagCycles:     lagCycles,
+			TargetSpeedHz: c.backend.GetTargetSpeed(),
 		})
 	}
 }

@@ -16,6 +16,7 @@ var (
 	execMaxSteps      int
 	execTrace         bool
 	execCompileFormat string
+	execTargetSpeed   float64
 )
 
 var execCmd = &cobra.Command{
@@ -47,6 +48,7 @@ func init() {
 	execCmd.Flags().IntVarP(&execMaxSteps, "max-steps", "n", 0, "Maximum number of steps to execute (0 = unlimited)")
 	execCmd.Flags().BoolVarP(&execTrace, "trace", "t", false, "Trace each instruction execution")
 	execCmd.Flags().StringVar(&execCompileFormat, "compile-to", "object", "Compilation output format for source files: assembly, object")
+	execCmd.Flags().Float64VarP(&execTargetSpeed, "speed", "s", 0, "Target execution speed in Hz (cycles per second). 0 = unlimited")
 }
 
 func runExec(cmd *cobra.Command, args []string) {
@@ -88,6 +90,25 @@ func runExec(cmd *cobra.Command, args []string) {
 		fmt.Fprintf(os.Stderr, "Starting execution at PC=0x%08X\n", runner.PC())
 	}
 
+	// Set target execution speed if specified
+	if execTargetSpeed > 0 {
+		runner.SetTargetSpeed(execTargetSpeed)
+		if execVerbose {
+			fmt.Fprintf(os.Stderr, "Target execution speed: %.2f Hz\n", execTargetSpeed)
+		}
+	}
+
+	// Set up lagging warning handler
+	laggingWarningShown := false
+	runner.Debugger().SetEventCallback(func(event interpreter.ExecutionEvent, result *interpreter.ExecutionResult) bool {
+		if event == interpreter.EventLagging && !laggingWarningShown {
+			fmt.Fprintf(os.Stderr, "WARNING: Emulator running slower than target speed (%.2f Hz). Lagging by %d cycles.\n",
+				execTargetSpeed, result.LagCycles)
+			laggingWarningShown = true
+		}
+		return true // Continue execution
+	})
+
 	// Execute the program
 	var result *interpreter.ExecutionResult
 	if execTrace {
@@ -108,6 +129,10 @@ func runExec(cmd *cobra.Command, args []string) {
 			fmt.Fprintf(os.Stderr, "\n=== Execution %s ===\n", result.StopReason.String())
 		}
 		fmt.Fprintf(os.Stderr, "Steps executed: %d\n", result.StepsExecuted)
+		fmt.Fprintf(os.Stderr, "Cycles executed: %d\n", result.CyclesExecuted)
+		if result.Lagging {
+			fmt.Fprintf(os.Stderr, "Lagging: yes (%d cycles behind)\n", result.LagCycles)
+		}
 		fmt.Fprintf(os.Stderr, "Final PC: 0x%08X\n", state.PC)
 		fmt.Fprintf(os.Stderr, "Registers:\n")
 		for i := 0; i < 10; i++ {
@@ -148,28 +173,38 @@ func executeWithTrace(runner *interpreter.Runner, maxSteps int) *interpreter.Exe
 	})
 
 	var lastSourceLoc *mc.SourceLocation
+	laggingWarningShown := false
 
-	return runner.RunWithTrace(maxSteps, func(step int, pc uint32, instrText string, srcLoc *mc.SourceLocation) bool {
-		// Show source location if changed
-		if srcLoc != nil && srcLoc.IsValid() {
-			showSource := lastSourceLoc == nil ||
-				lastSourceLoc.File != srcLoc.File ||
-				lastSourceLoc.Line != srcLoc.Line
-			if showSource {
-				lastSourceLoc = srcLoc
-				srcLine := ""
-				if debugInfo != nil {
-					srcLine = debugInfo.GetSourceLine(srcLoc.File, srcLoc.Line)
-				}
-				line := traceFormatter.FormatSourceLocation(srcLoc, srcLine)
-				if line != "" {
-					fmt.Fprintln(os.Stderr, line)
+	return runner.RunWithTraceAndEvents(maxSteps,
+		func(step int, pc uint32, instrText string, srcLoc *mc.SourceLocation) bool {
+			// Show source location if changed
+			if srcLoc != nil && srcLoc.IsValid() {
+				showSource := lastSourceLoc == nil ||
+					lastSourceLoc.File != srcLoc.File ||
+					lastSourceLoc.Line != srcLoc.Line
+				if showSource {
+					lastSourceLoc = srcLoc
+					srcLine := ""
+					if debugInfo != nil {
+						srcLine = debugInfo.GetSourceLine(srcLoc.File, srcLoc.Line)
+					}
+					line := traceFormatter.FormatSourceLocation(srcLoc, srcLine)
+					if line != "" {
+						fmt.Fprintln(os.Stderr, line)
+					}
 				}
 			}
-		}
 
-		// Print trace line
-		fmt.Fprintln(os.Stderr, traceFormatter.FormatStep(step, pc, instrText, state))
-		return true // Continue execution
-	})
+			// Print trace line
+			fmt.Fprintln(os.Stderr, traceFormatter.FormatStep(step, pc, instrText, state))
+			return true // Continue execution
+		},
+		func(event interpreter.ExecutionEvent, result *interpreter.ExecutionResult) bool {
+			if event == interpreter.EventLagging && !laggingWarningShown {
+				fmt.Fprintf(os.Stderr, "WARNING: Emulator running slower than target speed (%.2f Hz). Lagging by %d cycles.\n",
+					execTargetSpeed, result.LagCycles)
+				laggingWarningShown = true
+			}
+			return true
+		})
 }

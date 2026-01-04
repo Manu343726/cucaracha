@@ -197,6 +197,31 @@ func (r *Runner) Result() *ExecutionResult {
 	return r.result
 }
 
+// SetTargetSpeed sets the target execution speed in Hz (cycles per second).
+// Use 0 for unlimited speed (no timing simulation).
+// For example, 1000 Hz means 1000 cycles per second.
+func (r *Runner) SetTargetSpeed(hz float64) {
+	r.dbg.SetTargetSpeed(hz)
+}
+
+// GetTargetSpeed returns the current target execution speed in Hz.
+func (r *Runner) GetTargetSpeed() float64 {
+	return r.dbg.GetTargetSpeed()
+}
+
+// SetExecutionDelay sets the delay between instruction executions in milliseconds.
+// Use 0 for full speed, higher values for slower execution (slow-motion mode).
+// Deprecated: Use SetTargetSpeed instead for more accurate timing control.
+func (r *Runner) SetExecutionDelay(delayMs int) {
+	r.dbg.SetExecutionDelay(delayMs)
+}
+
+// GetExecutionDelay returns the current execution delay in milliseconds.
+// Deprecated: Use GetTargetSpeed instead.
+func (r *Runner) GetExecutionDelay() int {
+	return r.dbg.GetExecutionDelay()
+}
+
 // ReturnValue returns the program's return value (r0 register).
 func (r *Runner) ReturnValue() int32 {
 	return int32(r.interp.state.Registers[16])
@@ -251,6 +276,13 @@ type TraceCallback func(step int, pc uint32, instrText string, srcLoc *mc.Source
 // The callback is called before each instruction executes.
 // maxSteps limits the number of instructions (0 = unlimited).
 func (r *Runner) RunWithTrace(maxSteps int, callback TraceCallback) *ExecutionResult {
+	return r.RunWithTraceAndEvents(maxSteps, callback, nil)
+}
+
+// RunWithTraceAndEvents executes with per-instruction callbacks for tracing
+// and a separate callback for other events (like lagging warnings).
+// maxSteps limits the number of instructions (0 = unlimited).
+func (r *Runner) RunWithTraceAndEvents(maxSteps int, traceCallback TraceCallback, eventCallback EventCallback) *ExecutionResult {
 	debugInfo := r.DebugInfo()
 	if debugInfo != nil {
 		debugInfo.TryLoadSourceFiles()
@@ -279,9 +311,13 @@ func (r *Runner) RunWithTrace(maxSteps int, callback TraceCallback) *ExecutionRe
 				}
 			}
 
-			cont := callback(stepCount, pc, instrText, srcLoc)
+			cont := traceCallback(stepCount, pc, instrText, srcLoc)
 			stepCount++
 			return cont
+		}
+		// Forward other events to the event callback if provided
+		if eventCallback != nil {
+			return eventCallback(event, result)
 		}
 		return true
 	})

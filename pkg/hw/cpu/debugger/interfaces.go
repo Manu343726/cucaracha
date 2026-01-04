@@ -30,6 +30,8 @@ const (
 	EventSourceLocationChanged
 	// EventInterrupted is fired when execution is interrupted by user (Ctrl+C)
 	EventInterrupted
+	// EventLagging is fired when the emulator can't keep up with target execution speed
+	EventLagging
 )
 
 // String returns the string representation of a DebugEvent
@@ -53,6 +55,8 @@ func (e DebugEvent) String() string {
 		return "source_location_changed"
 	case EventInterrupted:
 		return "interrupted"
+	case EventLagging:
+		return "lagging"
 	default:
 		return "unknown"
 	}
@@ -80,6 +84,12 @@ type EventData struct {
 	SourceText string
 	// StepsExecuted for step events
 	StepsExecuted int
+	// CyclesExecuted for execution events
+	CyclesExecuted int64
+	// LagCycles for lagging events - how many cycles behind schedule
+	LagCycles int64
+	// TargetSpeedHz for lagging events - the target speed that couldn't be maintained
+	TargetSpeedHz float64
 }
 
 // RegisterInfo contains information about a register
@@ -345,13 +355,16 @@ type DebuggerBackend interface {
 
 // ExecutionResult contains the result of an execution operation
 type ExecutionResult struct {
-	StopReason    interpreter.StopReason
-	StepsExecuted int
-	Error         error
-	BreakpointID  int
-	WatchpointID  int
-	LastPC        uint32
-	ReturnValue   uint32
+	StopReason     interpreter.StopReason
+	StepsExecuted  int
+	CyclesExecuted int64
+	Error          error
+	BreakpointID   int
+	WatchpointID   int
+	LastPC         uint32
+	ReturnValue    uint32
+	Lagging        bool
+	LagCycles      int64
 }
 
 // =============================================================================

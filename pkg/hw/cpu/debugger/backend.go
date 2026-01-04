@@ -75,18 +75,37 @@ func (b *Backend) Interrupt() {
 // SetExecutionDelay sets the delay between instruction executions in milliseconds.
 // Use 0 for full speed, higher values for slower execution (slow-motion mode).
 // Predefined speeds: 0=instant, 50=fast, 100=normal, 250=slow, 500=very slow
+// Deprecated: Use SetTargetSpeed for more accurate timing control.
 func (b *Backend) SetExecutionDelay(delayMs int) {
 	b.runner.Debugger().SetExecutionDelay(delayMs)
 }
 
 // GetExecutionDelay returns the current execution delay in milliseconds.
+// Deprecated: Use GetTargetSpeed instead.
 func (b *Backend) GetExecutionDelay() int {
 	return b.runner.Debugger().GetExecutionDelay()
+}
+
+// SetTargetSpeed sets the target execution speed in Hz (cycles per second).
+// Use 0 for unlimited speed (no timing simulation).
+// For example, 1000 Hz means 1000 cycles per second.
+func (b *Backend) SetTargetSpeed(hz float64) {
+	b.runner.SetTargetSpeed(hz)
+}
+
+// GetTargetSpeed returns the current target execution speed in Hz.
+func (b *Backend) GetTargetSpeed() float64 {
+	return b.runner.GetTargetSpeed()
 }
 
 // ExecutionCallback is called during execution on each step.
 // Return true to continue execution, false to stop.
 type ExecutionCallback func(event interpreter.ExecutionEvent, stepsExecuted int, pc uint32) bool
+
+// FullExecutionCallback is called during execution with full result information.
+// Includes lagging info and other timing details.
+// Return true to continue execution, false to stop.
+type FullExecutionCallback func(event interpreter.ExecutionEvent, result *interpreter.ExecutionResult) bool
 
 // SetExecutionCallback sets a callback to be invoked during execution.
 // The callback receives the event type, steps executed so far, and current PC.
@@ -100,6 +119,20 @@ func (b *Backend) SetExecutionCallback(callback ExecutionCallback) {
 
 	b.runner.Debugger().SetEventCallback(func(event interpreter.ExecutionEvent, result *interpreter.ExecutionResult) bool {
 		return callback(event, result.StepsExecuted, result.LastPC)
+	})
+}
+
+// SetFullExecutionCallback sets a callback with full result information.
+// Use this to receive lagging events and detailed timing info.
+// Pass nil to clear the callback.
+func (b *Backend) SetFullExecutionCallback(callback FullExecutionCallback) {
+	if callback == nil {
+		b.runner.Debugger().SetEventCallback(nil)
+		return
+	}
+
+	b.runner.Debugger().SetEventCallback(func(event interpreter.ExecutionEvent, result *interpreter.ExecutionResult) bool {
+		return callback(event, result)
 	})
 }
 
@@ -180,12 +213,15 @@ func (b *Backend) Step(count int) ExecutionResult {
 func (b *Backend) Continue() ExecutionResult {
 	result := b.runner.Debugger().Continue() // Continue takes no arguments
 	execResult := ExecutionResult{
-		StopReason:    result.StopReason,
-		StepsExecuted: result.StepsExecuted,
-		Error:         result.Error,
-		BreakpointID:  result.BreakpointID,
-		WatchpointID:  result.WatchpointID,
-		LastPC:        result.LastPC,
+		StopReason:     result.StopReason,
+		StepsExecuted:  result.StepsExecuted,
+		CyclesExecuted: result.CyclesExecuted,
+		Error:          result.Error,
+		BreakpointID:   result.BreakpointID,
+		WatchpointID:   result.WatchpointID,
+		LastPC:         result.LastPC,
+		Lagging:        result.Lagging,
+		LagCycles:      result.LagCycles,
 	}
 
 	if execResult.StopReason == interpreter.StopTermination {
@@ -199,12 +235,15 @@ func (b *Backend) Continue() ExecutionResult {
 func (b *Backend) Run() ExecutionResult {
 	result := b.runner.Debugger().Run(0) // 0 = no limit
 	execResult := ExecutionResult{
-		StopReason:    result.StopReason,
-		StepsExecuted: result.StepsExecuted,
-		Error:         result.Error,
-		BreakpointID:  result.BreakpointID,
-		WatchpointID:  result.WatchpointID,
-		LastPC:        result.LastPC,
+		StopReason:     result.StopReason,
+		StepsExecuted:  result.StepsExecuted,
+		CyclesExecuted: result.CyclesExecuted,
+		Error:          result.Error,
+		BreakpointID:   result.BreakpointID,
+		WatchpointID:   result.WatchpointID,
+		LastPC:         result.LastPC,
+		Lagging:        result.Lagging,
+		LagCycles:      result.LagCycles,
 	}
 
 	if execResult.StopReason == interpreter.StopTermination {

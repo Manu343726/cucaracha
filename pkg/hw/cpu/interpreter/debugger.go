@@ -7,6 +7,7 @@ import (
 	"runtime"
 	"sort"
 	"sync/atomic"
+	"time"
 
 	"github.com/Manu343726/cucaracha/pkg/hw/cpu/mc/instructions"
 )
@@ -27,6 +28,8 @@ const (
 	EventError
 	// EventTermination is fired when execution reaches a termination address
 	EventTermination
+	// EventLagging is fired when the emulator cannot keep up with the target execution speed
+	EventLagging
 )
 
 // String returns the string representation of an ExecutionEvent
@@ -44,6 +47,8 @@ func (e ExecutionEvent) String() string {
 		return "error"
 	case EventTermination:
 		return "termination"
+	case EventLagging:
+		return "lagging"
 	default:
 		return fmt.Sprintf("unknown(%d)", e)
 	}
@@ -149,6 +154,8 @@ type ExecutionResult struct {
 	StopReason StopReason
 	// StepsExecuted is the number of instructions executed
 	StepsExecuted int
+	// CyclesExecuted is the total number of CPU cycles consumed
+	CyclesExecuted int64
 	// Error contains any error that occurred (nil if none)
 	Error error
 	// BreakpointID is set if stopped at a breakpoint
@@ -161,6 +168,10 @@ type ExecutionResult struct {
 	LastInstruction *instructions.InstructionDescriptor
 	// LastOperands are the operands of the last instruction
 	LastOperands []uint32
+	// Lagging is true if the emulator is running slower than the target speed
+	Lagging bool
+	// LagCycles is the number of cycles the emulator is behind schedule (negative if ahead)
+	LagCycles int64
 }
 
 // EventCallback is called when an execution event occurs
@@ -223,14 +234,28 @@ func (d *Debugger) IsInterrupted() bool {
 	return atomic.LoadInt32(&d.interrupted) != 0
 }
 
+// SetTargetSpeed sets the target execution speed in Hz (cycles per second).
+// Use 0 for unlimited speed (no timing simulation).
+// This delegates to the underlying Interpreter.
+func (d *Debugger) SetTargetSpeed(hz float64) {
+	d.interp.SetTargetSpeed(hz)
+}
+
+// GetTargetSpeed returns the current target execution speed in Hz.
+func (d *Debugger) GetTargetSpeed() float64 {
+	return d.interp.GetTargetSpeed()
+}
+
 // SetExecutionDelay sets the delay between instruction executions in milliseconds.
 // Use 0 for full speed, higher values for slower execution (slow-motion mode).
 // This delegates to the underlying Interpreter.
+// Deprecated: Use SetTargetSpeed instead for more accurate timing control.
 func (d *Debugger) SetExecutionDelay(delayMs int) {
 	d.interp.SetExecutionDelay(delayMs)
 }
 
 // GetExecutionDelay returns the current execution delay in milliseconds.
+// Deprecated: Use GetTargetSpeed instead.
 func (d *Debugger) GetExecutionDelay() int {
 	return d.interp.GetExecutionDelay()
 }
@@ -457,7 +482,7 @@ func (d *Debugger) Step() *ExecutionResult {
 	result.LastOperands = operands
 
 	// Execute the instruction
-	err := d.interp.Step()
+	stepResult, err := d.interp.Step()
 	result.StepsExecuted = 1
 
 	if err != nil {
@@ -466,6 +491,11 @@ func (d *Debugger) Step() *ExecutionResult {
 		d.lastResult = result
 		d.fireEvent(EventError, result)
 		return result
+	}
+
+	// Track cycles
+	if stepResult != nil {
+		result.CyclesExecuted = int64(stepResult.Cycles)
 	}
 
 	// Check watchpoints after execution
@@ -496,6 +526,12 @@ func (d *Debugger) Run(maxSteps int) *ExecutionResult {
 
 	// Clear any previous interrupt before starting
 	d.ClearInterrupt()
+
+	// Reset timing for speed control
+	d.interp.ResetTiming()
+	targetHz := d.interp.GetTargetSpeed()
+	startTime := time.Now()
+	var totalCycles int64
 
 	for {
 		// Yield to allow signal handlers and other goroutines to run
@@ -555,13 +591,49 @@ func (d *Debugger) Run(maxSteps int) *ExecutionResult {
 		result.LastPC = d.interp.state.PC
 
 		// Execute
-		if err := d.interp.Step(); err != nil {
+		stepResult, err := d.interp.Step()
+		if err != nil {
 			result.StopReason = StopError
 			result.Error = err
 			d.fireEvent(EventError, result)
 			break
 		}
 		result.StepsExecuted++
+
+		// Track cycles
+		if stepResult != nil {
+			totalCycles += int64(stepResult.Cycles)
+		}
+		result.CyclesExecuted = totalCycles
+
+		// Apply speed control: compute dynamic delay to match target Hz
+		if targetHz > 0 {
+			elapsed := time.Since(startTime)
+			// Calculate expected time based on cycles executed and target speed
+			// expectedTime = totalCycles / targetHz (in seconds)
+			expectedTime := time.Duration(float64(totalCycles) / targetHz * float64(time.Second))
+
+			if elapsed < expectedTime {
+				// We're running ahead of schedule, sleep to catch up
+				sleepDuration := expectedTime - elapsed
+				time.Sleep(sleepDuration)
+				result.Lagging = false
+				result.LagCycles = 0
+			} else {
+				// We're running behind schedule
+				lagTime := elapsed - expectedTime
+				// Convert lag time back to cycles: lagCycles = lagTime * targetHz
+				result.LagCycles = int64(lagTime.Seconds() * targetHz)
+				result.Lagging = result.LagCycles > 0
+
+				// Fire lagging event if we're behind by more than 10% of target speed
+				// (i.e., if we've fallen behind by more than 0.1 seconds worth of cycles)
+				lagThresholdCycles := int64(targetHz * 0.1) // 10% of one second's worth
+				if result.LagCycles > lagThresholdCycles {
+					d.fireEvent(EventLagging, result)
+				}
+			}
+		}
 
 		// Fire step event and check if we should continue
 		if !d.fireEvent(EventStep, result) {
@@ -576,17 +648,6 @@ func (d *Debugger) Run(maxSteps int) *ExecutionResult {
 			d.fireEvent(EventWatchpoint, result)
 			break
 		}
-
-		// Report normal step execution
-		stepResult := &ExecutionResult{
-			StopReason:      StopNone,
-			StepsExecuted:   1,
-			LastPC:          result.LastPC,
-			LastInstruction: result.LastInstruction,
-			LastOperands:    result.LastOperands,
-		}
-
-		d.fireEvent(EventStep, stepResult)
 	}
 
 	d.lastResult = result
