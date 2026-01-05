@@ -55,12 +55,12 @@ func (d *programDumper) dumpMemoryLayout() error {
 	if layout == nil {
 		fmt.Fprintln(d.w, "(not resolved)")
 	} else {
-		fmt.Fprintf(d.w, "Base Address: 0x%08X\n", layout.BaseAddress)
+		fmt.Fprintf(d.w, "Base Address: 0x%08X\n", layout.CodeBase)
 		fmt.Fprintf(d.w, "Total Size:   %d bytes\n", layout.TotalSize)
 		fmt.Fprintf(d.w, "Code Section: 0x%08X - 0x%08X (%d bytes)\n",
-			layout.CodeStart, layout.CodeStart+layout.CodeSize, layout.CodeSize)
+			layout.CodeBase, layout.CodeBase+layout.CodeSize, layout.CodeSize)
 		fmt.Fprintf(d.w, "Data Section: 0x%08X - 0x%08X (%d bytes)\n",
-			layout.DataStart, layout.DataStart+layout.DataSize, layout.DataSize)
+			layout.DataBase, layout.DataBase+layout.DataSize, layout.DataSize)
 	}
 	fmt.Fprintln(d.w)
 	return nil

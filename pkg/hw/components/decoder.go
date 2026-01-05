@@ -2,6 +2,8 @@ package components
 
 import (
 	"github.com/Manu343726/cucaracha/pkg/hw/component"
+	"github.com/Manu343726/cucaracha/pkg/hw/cpu/mc"
+	"github.com/Manu343726/cucaracha/pkg/hw/cpu/mc/instructions"
 )
 
 func init() {
@@ -67,19 +69,19 @@ func NewInstructionDecoder(name string) *InstructionDecoder {
 		BaseComponent: component.NewBaseComponent(name, "DECODER"),
 	}
 
-	dec.instruction = component.NewInputPort("INSTR", 32)
+	dec.instruction = component.NewInputPort("INSTR", mc.Descriptor.Instructions.InstructionBits())
 	dec.AddInput(dec.instruction)
 
-	dec.opcode = component.NewOutputPort("OPCODE", 5)
+	dec.opcode = component.NewOutputPort("OPCODE", mc.Descriptor.OpCodes.OpCodeBits())
 	dec.AddOutput(dec.opcode)
 
-	dec.op1 = component.NewOutputPort("OP1", 8)
+	dec.op1 = component.NewOutputPort("OP1", mc.Descriptor.RegisterClasses.RegisterBits())
 	dec.AddOutput(dec.op1)
 
-	dec.op2 = component.NewOutputPort("OP2", 8)
+	dec.op2 = component.NewOutputPort("OP2", mc.Descriptor.RegisterClasses.RegisterBits())
 	dec.AddOutput(dec.op2)
 
-	dec.op3 = component.NewOutputPort("OP3", 8)
+	dec.op3 = component.NewOutputPort("OP3", mc.Descriptor.RegisterClasses.RegisterBits())
 	dec.AddOutput(dec.op3)
 
 	dec.imm16 = component.NewOutputPort("IMM16", 16)
@@ -89,41 +91,41 @@ func NewInstructionDecoder(name string) *InstructionDecoder {
 }
 
 // Instruction returns the instruction input port
-func (d *InstructionDecoder) Instruction() *component.StandardPort { return d.instruction }
+func (d *InstructionDecoder) Instruction() component.Port { return d.instruction }
 
 // Opcode returns the opcode output port
-func (d *InstructionDecoder) Opcode() *component.StandardPort { return d.opcode }
+func (d *InstructionDecoder) Opcode() component.Port { return d.opcode }
 
 // Op1 returns the first operand output port
-func (d *InstructionDecoder) Op1() *component.StandardPort { return d.op1 }
+func (d *InstructionDecoder) Op1() component.Port { return d.op1 }
 
 // Op2 returns the second operand output port
-func (d *InstructionDecoder) Op2() *component.StandardPort { return d.op2 }
+func (d *InstructionDecoder) Op2() component.Port { return d.op2 }
 
 // Op3 returns the third operand output port
-func (d *InstructionDecoder) Op3() *component.StandardPort { return d.op3 }
+func (d *InstructionDecoder) Op3() component.Port { return d.op3 }
 
 // Imm16 returns the 16-bit immediate output port
-func (d *InstructionDecoder) Imm16() *component.StandardPort { return d.imm16 }
+func (d *InstructionDecoder) Imm16() component.Port { return d.imm16 }
 
 // GetOpcode returns the decoded opcode value
-func (d *InstructionDecoder) GetOpcode() uint8 {
-	return uint8(d.opcode.GetValue())
+func (d *InstructionDecoder) GetOpcode() instructions.OpCode {
+	return instructions.OpCode(d.opcode.GetValue())
 }
 
 // GetOp1 returns the first operand value
-func (d *InstructionDecoder) GetOp1() uint8 {
-	return uint8(d.op1.GetValue())
+func (d *InstructionDecoder) GetOp1() uint64 {
+	return d.op1.GetValue()
 }
 
 // GetOp2 returns the second operand value
-func (d *InstructionDecoder) GetOp2() uint8 {
-	return uint8(d.op2.GetValue())
+func (d *InstructionDecoder) GetOp2() uint64 {
+	return d.op2.GetValue()
 }
 
 // GetOp3 returns the third operand value
-func (d *InstructionDecoder) GetOp3() uint8 {
-	return uint8(d.op3.GetValue())
+func (d *InstructionDecoder) GetOp3() uint64 {
+	return d.op3.GetValue()
 }
 
 // GetImm16 returns the 16-bit immediate value
@@ -139,18 +141,33 @@ func (d *InstructionDecoder) Compute() error {
 
 	instr := uint32(d.instruction.GetValue())
 
-	// Extract fields
-	opcode := instr & OpcodeMask
-	op1 := (instr >> 5) & 0xFF
-	op2 := (instr >> 13) & 0xFF
-	op3 := (instr >> 21) & 0xFF
-	imm16 := (instr >> 5) & 0xFFFF
+	instruction, err := mc.Descriptor.Instructions.Decode(instr)
+	if err != nil {
+		return err
+	}
 
-	d.opcode.SetValue(uint64(opcode))
-	d.op1.SetValue(uint64(op1))
-	d.op2.SetValue(uint64(op2))
-	d.op3.SetValue(uint64(op3))
-	d.imm16.SetValue(uint64(imm16))
+	d.opcode.SetValue(instruction.Descriptor.OpCode.BinaryRepresentation)
+
+	totalImmediatesFound := 0
+
+	for i, operand := range instruction.OperandValues {
+		if operand.Kind() == instructions.OperandKind_Register {
+			// Extract just the register index, not the full encoding with class bits
+			// The hardware register bank uses simple indices, not the ISA-level encoding
+			regIndex := uint64(operand.Register().Index)
+			switch i - totalImmediatesFound {
+			case 0:
+				d.op1.SetValue(regIndex)
+			case 1:
+				d.op2.SetValue(regIndex)
+			case 2:
+				d.op3.SetValue(regIndex)
+			}
+		} else if operand.Kind() == instructions.OperandKind_Immediate {
+			d.imm16.SetValue(operand.Encode())
+			totalImmediatesFound++
+		}
+	}
 
 	return nil
 }

@@ -104,3 +104,17 @@ func (d *InstructionsDescriptor) Decode(binaryRepresentation uint32) (*Instructi
 
 	return raw.Decode()
 }
+
+// Encode an instruction
+func (d *InstructionsDescriptor) Encode(instr *Instruction) (uint32, error) {
+	var result uint32 = 0
+	view := utils.CreateBitView(&result)
+	view.Write(uint32(instr.Descriptor.OpCode.BinaryRepresentation), instr.Descriptor.OpCode.EncodingPosition(), instr.Descriptor.OpCode.EncodingBits())
+
+	for i, operand := range instr.OperandValues {
+		operandDesc := instr.Descriptor.Operands[i]
+		view.Write(uint32(operand.Encode()), operandDesc.EncodingPosition, operandDesc.EncodingBits)
+	}
+
+	return result, nil
+}

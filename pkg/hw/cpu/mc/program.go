@@ -279,3 +279,33 @@ func Asl(src1, src2, dst string) *instructions.Instruction {
 func Asr(src1, src2, dst string) *instructions.Instruction {
 	return Instr(instructions.OpCode_ASR).NamedR(src1).NamedR(src2).NamedR(dst).MustBuild()
 }
+
+// Hlt creates a HLT instruction (halts the CPU)
+func Hlt() *instructions.Instruction {
+	return Instr(instructions.OpCode_HLT).MustBuild()
+}
+
+// Ei creates an EI instruction (enable interrupts)
+func Ei() *instructions.Instruction {
+	return Instr(instructions.OpCode_EI).MustBuild()
+}
+
+// Di creates a DI instruction (disable interrupts)
+func Di() *instructions.Instruction {
+	return Instr(instructions.OpCode_DI).MustBuild()
+}
+
+// Int creates an INT instruction (interrupt with vector number)
+func Int(vector string) *instructions.Instruction {
+	return Instr(instructions.OpCode_INT).NamedR(vector).MustBuild()
+}
+
+// Reti creates a RETI instruction (return from interrupt)
+func Reti() *instructions.Instruction {
+	return Instr(instructions.OpCode_RETI).MustBuild()
+}
+
+// Sig creates a SIG instruction (send signal to peripheral/component)
+func Sig(signalNum, targetID string) *instructions.Instruction {
+	return Instr(instructions.OpCode_SIG).NamedR(signalNum).NamedR(targetID).MustBuild()
+}

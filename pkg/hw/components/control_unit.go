@@ -2,6 +2,7 @@ package components
 
 import (
 	"github.com/Manu343726/cucaracha/pkg/hw/component"
+	"github.com/Manu343726/cucaracha/pkg/hw/cpu/mc/instructions"
 )
 
 func init() {
@@ -211,28 +212,6 @@ func (cu *ControlUnit) clearSignals() {
 	cu.branch.Set(Low)
 }
 
-// Cucaracha opcodes (matching mc/instructions/opcode.go)
-const (
-	OP_NOP        = 0
-	OP_MOV_IMM16H = 1
-	OP_MOV_IMM16L = 2
-	OP_MOV        = 3
-	OP_LD         = 4
-	OP_ST         = 5
-	OP_ADD        = 6
-	OP_SUB        = 7
-	OP_MUL        = 8
-	OP_DIV        = 9
-	OP_MOD        = 10
-	OP_CMP        = 11
-	OP_JMP        = 12
-	OP_CJMP       = 13
-	OP_LSL        = 14
-	OP_LSR        = 15
-	OP_ASL        = 16
-	OP_ASR        = 17
-)
-
 // Clock advances the control unit FSM
 func (cu *ControlUnit) Clock() error {
 	if !cu.IsEnabled() || cu.halted {
@@ -241,7 +220,7 @@ func (cu *ControlUnit) Clock() error {
 
 	cu.clearSignals()
 
-	opcode := uint8(cu.opcode.GetValue())
+	opcode := instructions.OpCode(cu.opcode.GetValue())
 
 	switch cu.currentState {
 	case State_Fetch:
@@ -273,7 +252,7 @@ func (cu *ControlUnit) Clock() error {
 	case State_WriteBack:
 		// Write result to register
 		cu.regWrite.Set(High)
-		if opcode == OP_LD {
+		if opcode == instructions.OpCode_LD {
 			cu.memToReg.Set(High)
 		}
 		cu.pcInc.Set(High)
@@ -288,11 +267,11 @@ func (cu *ControlUnit) Clock() error {
 }
 
 // decodeNextState determines the next state after decode
-func (cu *ControlUnit) decodeNextState(opcode uint8) CPUState {
+func (cu *ControlUnit) decodeNextState(opcode instructions.OpCode) CPUState {
 	switch opcode {
-	case OP_LD:
+	case instructions.OpCode_LD:
 		return State_Execute // Calculate address first
-	case OP_ST:
+	case instructions.OpCode_ST:
 		return State_Execute // Calculate address first
 	default:
 		return State_Execute // All instructions go through execute
@@ -300,15 +279,15 @@ func (cu *ControlUnit) decodeNextState(opcode uint8) CPUState {
 }
 
 // executeNextState determines the next state after execute
-func (cu *ControlUnit) executeNextState(opcode uint8) CPUState {
+func (cu *ControlUnit) executeNextState(opcode instructions.OpCode) CPUState {
 	switch opcode {
-	case OP_NOP:
+	case instructions.OpCode_NOP:
 		return State_Fetch // NOP completes after execute
-	case OP_LD:
+	case instructions.OpCode_LD:
 		return State_MemRead
-	case OP_ST:
+	case instructions.OpCode_ST:
 		return State_MemWrite
-	case OP_JMP, OP_CJMP:
+	case instructions.OpCode_JMP, instructions.OpCode_CJMP:
 		return State_Fetch // Branch completes in execute
 	default:
 		return State_WriteBack
@@ -316,53 +295,53 @@ func (cu *ControlUnit) executeNextState(opcode uint8) CPUState {
 }
 
 // generateExecuteSignals generates control signals for the execute state
-func (cu *ControlUnit) generateExecuteSignals(opcode uint8) {
+func (cu *ControlUnit) generateExecuteSignals(opcode instructions.OpCode) {
 	switch opcode {
-	case OP_NOP:
+	case instructions.OpCode_NOP:
 		cu.pcInc.Set(High)
 
-	case OP_MOV_IMM16H, OP_MOV_IMM16L:
+	case instructions.OpCode_MOV_IMM16H, instructions.OpCode_MOV_IMM16L:
 		cu.aluSrcB.Set(High)                 // Use immediate
 		cu.aluOp.SetValue(uint64(ALUOp_NOP)) // Pass through
 
-	case OP_MOV:
+	case instructions.OpCode_MOV:
 		cu.aluOp.SetValue(uint64(ALUOp_NOP))
 
-	case OP_ADD:
+	case instructions.OpCode_ADD:
 		cu.aluOp.SetValue(uint64(ALUOp_ADD))
 
-	case OP_SUB:
+	case instructions.OpCode_SUB:
 		cu.aluOp.SetValue(uint64(ALUOp_SUB))
 
-	case OP_MUL:
+	case instructions.OpCode_MUL:
 		cu.aluOp.SetValue(uint64(ALUOp_MUL))
 
-	case OP_DIV:
+	case instructions.OpCode_DIV:
 		cu.aluOp.SetValue(uint64(ALUOp_DIV))
 
-	case OP_MOD:
+	case instructions.OpCode_MOD:
 		cu.aluOp.SetValue(uint64(ALUOp_MOD))
 
-	case OP_CMP:
+	case instructions.OpCode_CMP:
 		cu.aluOp.SetValue(uint64(ALUOp_CMP))
 
-	case OP_LSL:
+	case instructions.OpCode_LSL:
 		cu.aluOp.SetValue(uint64(ALUOp_LSL))
 
-	case OP_LSR:
+	case instructions.OpCode_LSR:
 		cu.aluOp.SetValue(uint64(ALUOp_LSR))
 
-	case OP_ASL:
+	case instructions.OpCode_ASL:
 		cu.aluOp.SetValue(uint64(ALUOp_ASL))
 
-	case OP_ASR:
+	case instructions.OpCode_ASR:
 		cu.aluOp.SetValue(uint64(ALUOp_ASR))
 
-	case OP_JMP:
+	case instructions.OpCode_JMP:
 		cu.pcLoad.Set(High)
 		cu.branch.Set(High)
 
-	case OP_CJMP:
+	case instructions.OpCode_CJMP:
 		// Check condition
 		flags := uint32(cu.flags.GetValue())
 		cond := uint8(cu.cond.GetValue())
@@ -373,11 +352,11 @@ func (cu *ControlUnit) generateExecuteSignals(opcode uint8) {
 			cu.pcInc.Set(High)
 		}
 
-	case OP_LD:
+	case instructions.OpCode_LD:
 		// Address calculation (pass through register value)
 		cu.aluOp.SetValue(uint64(ALUOp_NOP))
 
-	case OP_ST:
+	case instructions.OpCode_ST:
 		// Address calculation
 		cu.aluOp.SetValue(uint64(ALUOp_NOP))
 	}

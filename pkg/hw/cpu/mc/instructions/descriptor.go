@@ -27,6 +27,12 @@ var Opcodes OpCodesDescriptor = NewOpCodesDescriptor(
 		OpCode_LSR:        "LSR",
 		OpCode_ASL:        "ASL",
 		OpCode_ASR:        "ASR",
+		OpCode_HLT:        "HLT",
+		OpCode_EI:         "EI",
+		OpCode_DI:         "DI",
+		OpCode_INT:        "INT",
+		OpCode_RETI:       "RETI",
+		OpCode_SIG:        "SIG",
 	},
 )
 
@@ -50,6 +56,12 @@ var Instructions InstructionsDescriptor = NewInstructionsDescriptor([]*Instructi
 	Lsr(),
 	Asr(),
 	Asl(),
+	Hlt(),
+	Ei(),
+	Di(),
+	Int(),
+	Reti(),
+	Sig(),
 })
 
 func Nop() *InstructionDescriptor {
@@ -57,10 +69,6 @@ func Nop() *InstructionDescriptor {
 		OpCode:      Opcodes.Descriptor(OpCode_NOP),
 		Description: "No operation. All internal state except from the program counter stays the same afer the execution of the instruction. Takes only 1 CPU cicle",
 		Operands:    nil,
-		Execute: func(ctx ExecuteContext, operands []uint32) error {
-			// Do nothing
-			return nil
-		},
 	}
 }
 
@@ -83,12 +91,6 @@ func Mov() *InstructionDescriptor {
 					Role:         OperandRole_Destination,
 					Description:  "destination register",
 				}),
-		},
-		Execute: func(ctx ExecuteContext, operands []uint32) error {
-			src := operands[0]
-			dst := operands[1]
-			ctx.SetRegister(dst, ctx.GetRegister(src))
-			return nil
 		},
 		LLVM_PatternTemplate: "",
 	}
@@ -126,13 +128,6 @@ func MovImm16H() *InstructionDescriptor {
 					LLVM_HideFromAsm: true, // Don't show in assembly, it's always the same as dst
 				}),
 		},
-		Execute: func(ctx ExecuteContext, operands []uint32) error {
-			// Operands: [0]=imm, [1]=dst, [2]=src (tied to dst, not encoded)
-			imm := operands[0] & 0xFFFF
-			dst := operands[1]
-			ctx.SetRegister(dst, (ctx.GetRegister(dst)&0xFFFF)|(imm<<16))
-			return nil
-		},
 		LLVM_Constraints: "$src = $dst",
 	}
 }
@@ -157,13 +152,6 @@ func MovImm16L() *InstructionDescriptor {
 					Description:     "destination register",
 					LLVM_CustomName: "dst",
 				}),
-		},
-		Execute: func(ctx ExecuteContext, operands []uint32) error {
-			// dst = imm (lower 16 bits, zeroes upper bits)
-			imm := operands[0] & 0xFFFF
-			dst := operands[1]
-			ctx.SetRegister(dst, imm)
-			return nil
 		},
 		LLVM_PatternTemplate: "(set $dst, $imm)",
 	}
@@ -191,16 +179,6 @@ func Ld() *InstructionDescriptor {
 					LLVM_CustomName: "dst",
 				}),
 		},
-		Execute: func(ctx ExecuteContext, operands []uint32) error {
-			addr := ctx.GetRegister(operands[0])
-			dst := operands[1]
-			value, err := ctx.ReadMemory32(addr)
-			if err != nil {
-				return err
-			}
-			ctx.SetRegister(dst, value)
-			return nil
-		},
 		LLVM_PatternTemplate:  "", // No pattern - PseudoLD handles load patterns and expands to this
 		LLVM_InstructionFlags: LLVMInstructionFlags_MayLoad,
 	}
@@ -227,11 +205,6 @@ func St() *InstructionDescriptor {
 					Description:     "Register containing the memory address to write to",
 					LLVM_CustomName: "addr",
 				}),
-		},
-		Execute: func(ctx ExecuteContext, operands []uint32) error {
-			src := operands[0]
-			addr := ctx.GetRegister(operands[1])
-			return ctx.WriteMemory32(addr, ctx.GetRegister(src))
 		},
 		LLVM_PatternTemplate:  "", // No pattern - PseudoST handles store patterns and expands to this
 		LLVM_InstructionFlags: LLVMInstructionFlags_MayStore,
@@ -268,16 +241,6 @@ func Cmp() *InstructionDescriptor {
 					LLVM_CustomName: "dst",
 				}),
 		},
-		Execute: func(ctx ExecuteContext, operands []uint32) error {
-			lhs := ctx.GetRegister(operands[0])
-			rhs := ctx.GetRegister(operands[1])
-			dst := operands[2]
-			cpsr := ComputeCPSR(lhs, rhs)
-			ctx.SetRegister(dst, uint32(cpsr))
-			// Also write to the implicit cpsr register (index 2) for CJMP to read
-			ctx.SetRegister(2, uint32(cpsr))
-			return nil
-		},
 		LLVM_PatternTemplate: "(set $dst, (cucaracha_cmp $lhs, $rhs))",
 	}
 }
@@ -304,13 +267,6 @@ func Jmp() *InstructionDescriptor {
 					LLVM_CustomName: "link",
 				},
 			),
-		},
-		Execute: func(ctx ExecuteContext, operands []uint32) error {
-			target := ctx.GetRegister(operands[0])
-			link := operands[1]
-			ctx.SetRegister(link, ctx.GetPC()+4)
-			ctx.SetPC(target)
-			return nil
 		},
 		LLVM_PatternTemplate:  "", // No pattern - needs custom lowering due to link register output
 		LLVM_InstructionFlags: LLVMInstructionFlags_IsBranch | LLVMInstructionFlags_IsBarrier | LLVMInstructionFlags_IsTerminator | LLVMInstructionFlags_IsIndirectBranch,
@@ -347,21 +303,6 @@ func CJmp() *InstructionDescriptor {
 					LLVM_CustomName: "link",
 				}),
 		},
-		Execute: func(ctx ExecuteContext, operands []uint32) error {
-			condCode := ctx.GetRegister(operands[0])
-			target := ctx.GetRegister(operands[1])
-			link := operands[2]
-			// CJMP reads CPSR implicitly from the cpsr register (index 2)
-			// The mask register contains a condition code (0-14) that is evaluated
-			// using the proper condition code semantics (e.g., GT = Z=0 AND N=V)
-			cpsr := ctx.GetRegister(2) // cpsr register is at index 2
-			condition := TestCondition(cpsr, ConditionCode(condCode))
-			if condition {
-				ctx.SetRegister(link, ctx.GetPC()+4)
-				ctx.SetPC(target)
-			}
-			return nil
-		},
 		LLVM_PatternTemplate:  "", // No pattern - PseudoBRCOND matches cucaracha_brcond and expands to this
 		LLVM_InstructionFlags: LLVMInstructionFlags_IsBranch | LLVMInstructionFlags_IsTerminator,
 	}
@@ -395,13 +336,6 @@ func binaryInstruction(opcode OpCode, description string, LLVM_DagNode string, o
 					Role:         OperandRole_Destination,
 					Description:  "destination register",
 				}),
-		},
-		Execute: func(ctx ExecuteContext, operands []uint32) error {
-			src1 := ctx.GetRegister(operands[0])
-			src2 := ctx.GetRegister(operands[1])
-			dst := operands[2]
-			ctx.SetRegister(dst, op(src1, src2))
-			return nil
 		},
 		LLVM_PatternTemplate: fmt.Sprintf("(set $dst, (%v $src1, $src2))", LLVM_DagNode),
 	}
@@ -459,4 +393,75 @@ func Asl() *InstructionDescriptor {
 	return binaryInstruction(OpCode_ASL, "Arithmetic shift left", "shl", func(a, b uint32) uint32 {
 		return a << (b & 0x1F)
 	})
+}
+
+// Hlt halts CPU execution
+func Hlt() *InstructionDescriptor {
+	return &InstructionDescriptor{
+		OpCode:      Opcodes.Descriptor(OpCode_HLT),
+		Description: "Halts CPU execution. The CPU will stop executing instructions until reset.",
+		Operands:    nil,
+	}
+}
+
+// Ei enables interrupts
+func Ei() *InstructionDescriptor {
+	return &InstructionDescriptor{
+		OpCode:      Opcodes.Descriptor(OpCode_EI),
+		Description: "Enables interrupts. After this instruction, the CPU will respond to interrupt requests.",
+		Operands:    nil,
+	}
+}
+
+// Di disables interrupts
+func Di() *InstructionDescriptor {
+	return &InstructionDescriptor{
+		OpCode:      Opcodes.Descriptor(OpCode_DI),
+		Description: "Disables interrupts. After this instruction, the CPU will ignore interrupt requests.",
+		Operands:    nil,
+	}
+}
+
+// Triggers an interrupt
+func Int() *InstructionDescriptor {
+	return &InstructionDescriptor{
+		OpCode:      Opcodes.Descriptor(OpCode_INT),
+		Description: "Triggers an interrupt with the specified vector number.",
+		Operands: []*OperandDescriptor{
+			{
+				EncodingBits: 8,
+				Role:         OperandRole_Source,
+				Description:  "interrupt vector number (0-255)",
+			},
+		},
+	}
+}
+
+// Reti returns from an interrupt handler
+func Reti() *InstructionDescriptor {
+	return &InstructionDescriptor{
+		OpCode:      Opcodes.Descriptor(OpCode_RETI),
+		Description: "Returns from an interrupt handler, restoring saved state and re-enabling interrupts.",
+		Operands:    nil,
+	}
+}
+
+// Sends a signal from the CPU to the outside world
+func Sig() *InstructionDescriptor {
+	return &InstructionDescriptor{
+		OpCode:      Opcodes.Descriptor(OpCode_SIG),
+		Description: "Sends a signal to an external peripheral or system component",
+		Operands: []*OperandDescriptor{
+			{
+				EncodingBits: 8,
+				Role:         OperandRole_Source,
+				Description:  "Signal number",
+			},
+			{
+				EncodingBits: 8,
+				Role:         OperandRole_Source,
+				Description:  "Target peripheral or component ID",
+			},
+		},
+	}
 }

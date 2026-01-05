@@ -41,6 +41,19 @@ const (
 	// Arithmetic shift right: shift first register right by second register amount (sign-extend), save to third
 	OpCode_ASR
 
+	// Halt CPU execution
+	OpCode_HLT
+	// Enable interrupts
+	OpCode_EI
+	// Disable interrupts
+	OpCode_DI
+	// Trigger an interrupt
+	OpCode_INT
+	// Return from interrupt
+	OpCode_RETI
+	// Send a signal to a peripheral or another system component
+	OpCode_SIG
+
 	// Total opcodes implemented
 	TOTAL_OPCODES
 )

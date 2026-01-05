@@ -1,24 +1,11 @@
 package mc
 
 import (
-	"github.com/Manu343726/cucaracha/pkg/hw/cpu/mc/instructions"
-)
+	"fmt"
 
-// MemoryLayout contains the resolved memory layout information for a program
-type MemoryLayout struct {
-	// BaseAddress is the starting address of the program in memory
-	BaseAddress uint32
-	// TotalSize is the total size of the program in bytes (code + data)
-	TotalSize uint32
-	// CodeSize is the size of the code section in bytes
-	CodeSize uint32
-	// DataSize is the size of the data section in bytes
-	DataSize uint32
-	// CodeStart is the starting address of the code section
-	CodeStart uint32
-	// DataStart is the starting address of the data section
-	DataStart uint32
-}
+	"github.com/Manu343726/cucaracha/pkg/hw/cpu/mc/instructions"
+	"github.com/Manu343726/cucaracha/pkg/hw/memory"
+)
 
 // GlobalType is an enum for global symbol types
 type GlobalType int
@@ -36,6 +23,18 @@ type Global struct {
 	Size        int
 	InitialData []byte
 	Type        GlobalType
+}
+
+// Returns the memory range occupied by the global, or nil if address is not resolved
+func (g *Global) Range() *memory.Range {
+	if g.Address == nil {
+		return nil
+	}
+
+	return &memory.Range{
+		Start: *g.Address,
+		Size:  uint32(g.Size),
+	}
 }
 
 // InstructionRange represents a contiguous range of instructions
@@ -143,7 +142,7 @@ type ProgramFile interface {
 	Labels() []Label
 
 	// MemoryLayout returns the memory layout information, or nil if not resolved
-	MemoryLayout() *MemoryLayout
+	MemoryLayout() *memory.MemoryLayout
 
 	// DebugInfo returns debug information (source locations, variables), or nil if not available
 	DebugInfo() *DebugInfo
@@ -159,7 +158,7 @@ type ProgramFileContents struct {
 	InstructionsValue []Instruction
 	GlobalsValue      []Global
 	LabelsValue       []Label
-	MemoryLayoutValue *MemoryLayout
+	MemoryLayoutValue *memory.MemoryLayout
 	DebugInfoValue    *DebugInfo
 }
 
@@ -194,7 +193,7 @@ func (p *ProgramFileContents) Labels() []Label {
 }
 
 // MemoryLayout returns the memory layout information, or nil if not resolved
-func (p *ProgramFileContents) MemoryLayout() *MemoryLayout {
+func (p *ProgramFileContents) MemoryLayout() *memory.MemoryLayout {
 	return p.MemoryLayoutValue
 }
 
@@ -209,7 +208,7 @@ func (p *ProgramFileContents) DebugInfo() *DebugInfo {
 // 3. Instruction resolution - decodes/encodes instructions (Text <-> Raw <-> Instruction)
 //
 // Returns a new fully resolved ProgramFile, or an error if any resolution step fails.
-func Resolve(pf ProgramFile, memoryConfig MemoryResolverConfig) (ProgramFile, error) {
+func Resolve(pf ProgramFile, memoryLayout *memory.MemoryLayout) (ProgramFile, error) {
 	// Step 1: Resolve symbols
 	symbolResolved, err := ResolveSymbols(pf)
 	if err != nil {
@@ -217,7 +216,7 @@ func Resolve(pf ProgramFile, memoryConfig MemoryResolverConfig) (ProgramFile, er
 	}
 
 	// Step 2: Resolve memory addresses
-	memoryResolved, err := ResolveMemory(symbolResolved, memoryConfig)
+	memoryResolved, err := ResolveMemory(symbolResolved, memoryLayout)
 	if err != nil {
 		return nil, err
 	}
@@ -230,4 +229,97 @@ func Resolve(pf ProgramFile, memoryConfig MemoryResolverConfig) (ProgramFile, er
 	}
 
 	return instructionResolved, nil
+}
+
+// Returns the program entry point address, or an error if not found
+//
+// The entry point is defined as the address of the first instruction
+// of the "main" function.
+//
+// Note that this function requires the ProgramFile to have resolved memory addresses.
+// Also the result only will be correct if the program file was resolved with the same
+// memory layout as the runtime where the entry point will be used.
+func ProgramEntryPoint(p ProgramFile) (uint32, error) {
+	mainFunc, exists := p.Functions()["main"]
+	if !exists {
+		return 0, fmt.Errorf("entry point 'main' function not found")
+	}
+
+	if len(mainFunc.InstructionRanges) == 0 {
+		return 0, fmt.Errorf("entry point 'main' function has no instructions")
+	}
+
+	firstRange := mainFunc.InstructionRanges[0]
+	if firstRange.Count == 0 {
+		return 0, fmt.Errorf("entry point 'main' function has no instructions")
+	}
+
+	firstInstr := p.Instructions()[firstRange.Start]
+	if firstInstr.Address == nil {
+		return 0, fmt.Errorf("entry point 'main' function instruction has no resolved address")
+	}
+
+	return *firstInstr.Address, nil
+}
+
+// Returns the program instruction at the given memory address
+//
+// Note that this function requires the ProgramFile to have resolved memory addresses.
+// Also the result only will be correct if the program file was resolved with the same
+// memory layout as the runtime where the address comes from.
+func InstructionAtAddress(pf ProgramFile, addr uint32) (*Instruction, error) {
+	if pf.MemoryLayout() == nil {
+		return nil, fmt.Errorf("program file memory addresses are not resolved")
+	}
+
+	if !pf.MemoryLayout().Code().ContainsAddress(addr) {
+		return nil, fmt.Errorf("address 0x%X is outside of code segment", addr)
+	}
+
+	relativeAddr := addr - pf.MemoryLayout().CodeBase
+	if relativeAddr%4 != 0 {
+		return nil, fmt.Errorf("address 0x%X is not aligned to instruction size", addr)
+	}
+
+	index := relativeAddr / 4
+	instructions := pf.Instructions()
+	if index >= uint32(len(instructions)) {
+		panic("calculated instruction index out of bounds")
+	}
+
+	if instructions[index].Address == nil {
+		panic("instruction at calculated index has no resolved address")
+	}
+
+	if *instructions[index].Address != addr {
+		panic("instruction address mismatch at calculated index")
+	}
+
+	return &instructions[index], nil
+}
+
+// Returns the global variable at the given memory address
+//
+// Note that this function requires the ProgramFile to have resolved memory addresses.
+// Also the result only will be correct if the program file was resolved with the same
+// memory layout as the runtime where the address comes from.
+func GlobalAtAddress(pf ProgramFile, addr uint32) (*Global, error) {
+	if pf.MemoryLayout() == nil {
+		return nil, fmt.Errorf("program file memory addresses are not resolved")
+	}
+
+	if !pf.MemoryLayout().Data().ContainsAddress(addr) {
+		return nil, fmt.Errorf("address 0x%X is outside of data segment", addr)
+	}
+
+	globals := pf.Globals()
+
+	for i := range globals {
+		g := &globals[i]
+		if g.Address != nil && *g.Address == addr {
+			return g, nil
+		}
+	}
+
+	return nil, fmt.Errorf("no global found at address 0x%X", addr)
 }

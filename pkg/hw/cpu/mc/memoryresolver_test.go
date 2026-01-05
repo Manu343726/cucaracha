@@ -3,6 +3,7 @@ package mc
 import (
 	"testing"
 
+	"github.com/Manu343726/cucaracha/pkg/hw/memory"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -43,8 +44,8 @@ func TestResolveMemory_EmptyProgram(t *testing.T) {
 		LabelsValue:       []Label{},
 	}
 
-	config := DefaultMemoryResolverConfig()
-	config.BaseAddress = 0x1000
+	config := &memory.MemoryLayout{}
+	config.CodeBase = 0x1000
 
 	resolved, err := ResolveMemory(pf, config)
 	require.NoError(t, err)
@@ -52,10 +53,7 @@ func TestResolveMemory_EmptyProgram(t *testing.T) {
 
 	layout := resolved.MemoryLayout()
 	require.NotNil(t, layout)
-	assert.Equal(t, uint32(0x1000), layout.BaseAddress)
-	assert.Equal(t, uint32(0), layout.TotalSize)
-	assert.Equal(t, uint32(0), layout.CodeSize)
-	assert.Equal(t, uint32(0), layout.DataSize)
+	assert.Equal(t, *config, *layout)
 }
 
 func TestResolveMemory_InstructionsOnly(t *testing.T) {

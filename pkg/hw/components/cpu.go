@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/Manu343726/cucaracha/pkg/hw/component"
+	"github.com/Manu343726/cucaracha/pkg/hw/cpu/mc/instructions"
 )
 
 func init() {
@@ -23,7 +24,10 @@ func registerCPUComponents() {
 		Factory(func(name string, params map[string]interface{}) (component.Component, error) {
 			memSize := getIntParam(params, "memorySize", 65536)
 			numRegs := getIntParam(params, "numRegisters", 256)
-			return NewCPU(name, memSize, numRegs), nil
+			cpu := NewCPU(name, memSize, numRegs)
+			ram := NewRAM("Memory", memSize)
+			cpu.AttachMemory(ram)
+			return cpu, nil
 		}).
 		Build())
 }
@@ -43,7 +47,13 @@ type CPU struct {
 	controlUnit *ControlUnit
 	alu         *ALU
 	registers   *RegisterBank
-	memory      *RAM
+	memory      Memory
+
+	// External memory interface (bus-like signals)
+	memDataPort    *component.StandardPort
+	memAddressPort *component.StandardPort
+	memReadWrite   *component.Pin
+	memReady       *component.Pin
 
 	// Internal buses/connections
 	aluResult uint32
@@ -72,7 +82,20 @@ func NewCPU(name string, memorySize, numRegisters int) *CPU {
 	cpu.controlUnit = NewControlUnit("ControlUnit")
 	cpu.alu = NewALU("ALU")
 	cpu.registers = NewRegisterBank("Registers", numRegisters, 32)
-	cpu.memory = NewRAM("Memory", memorySize)
+
+	// Memory interface ports (bidirectional data + address/control pins)
+	cpu.memDataPort = component.NewPort("MEM_DATA", 32)
+	_ = cpu.AddInput(cpu.memDataPort)
+	_ = cpu.AddOutput(cpu.memDataPort)
+
+	cpu.memAddressPort = component.NewOutputPort("MEM_ADDR", 32)
+	_ = cpu.AddOutput(cpu.memAddressPort)
+
+	cpu.memReadWrite = component.NewOutputPin("MEM_RW")
+	_ = cpu.AddOutput(cpu.memReadWrite)
+
+	cpu.memReady = component.NewInputPin("MEM_READY")
+	_ = cpu.AddInput(cpu.memReady)
 
 	return cpu
 }
@@ -84,7 +107,21 @@ func (cpu *CPU) Decoder() *InstructionDecoder { return cpu.decoder }
 func (cpu *CPU) ControlUnit() *ControlUnit    { return cpu.controlUnit }
 func (cpu *CPU) ALU() *ALU                    { return cpu.alu }
 func (cpu *CPU) Registers() *RegisterBank     { return cpu.registers }
-func (cpu *CPU) Memory() *RAM                 { return cpu.memory }
+func (cpu *CPU) Memory() Memory               { return cpu.memory }
+
+// External memory bus ports (for wiring to an external memory component)
+func (cpu *CPU) MemDataPort() *component.StandardPort    { return cpu.memDataPort }
+func (cpu *CPU) MemAddressPort() *component.StandardPort { return cpu.memAddressPort }
+func (cpu *CPU) MemReadWritePin() *component.Pin         { return cpu.memReadWrite }
+func (cpu *CPU) MemReadyPin() *component.Pin             { return cpu.memReady }
+
+// AttachMemory connects an external memory device to the CPU.
+func (cpu *CPU) AttachMemory(memory Memory) {
+	cpu.memory = memory
+	if memory != nil {
+		cpu.memorySize = memory.Size()
+	}
+}
 
 // Cycles returns the number of clock cycles executed
 func (cpu *CPU) Cycles() uint64 { return cpu.cycles }
@@ -96,12 +133,12 @@ func (cpu *CPU) IsHalted() bool { return cpu.controlUnit.IsHalted() }
 func (cpu *CPU) Halt() { cpu.controlUnit.Halt() }
 
 // GetRegister returns the value of a register by index
-func (cpu *CPU) GetRegister(idx int) uint32 {
+func (cpu *CPU) GetRegister(idx uint32) uint32 {
 	return uint32(cpu.registers.Get(idx))
 }
 
 // SetRegister sets the value of a register by index
-func (cpu *CPU) SetRegister(idx int, value uint32) {
+func (cpu *CPU) SetRegister(idx uint32, value uint32) {
 	cpu.registers.Set(idx, uint64(value))
 }
 
@@ -117,30 +154,46 @@ func (cpu *CPU) SetPC(value uint32) {
 
 // ReadMemory reads a 32-bit word from memory
 func (cpu *CPU) ReadMemory(addr uint32) uint32 {
+	if cpu.memory == nil {
+		return 0
+	}
+	_ = cpu.memAddressPort.SetValue(uint64(addr))
+	_ = cpu.memReadWrite.Set(component.Low)
 	if int(addr+3) >= cpu.memorySize {
 		return 0
 	}
 	// Read 4 bytes little-endian
-	return uint32(cpu.memory.ReadByte(int(addr))) |
-		uint32(cpu.memory.ReadByte(int(addr+1)))<<8 |
-		uint32(cpu.memory.ReadByte(int(addr+2)))<<16 |
-		uint32(cpu.memory.ReadByte(int(addr+3)))<<24
+	value := uint32(cpu.memory.ReadByte(addr)) |
+		uint32(cpu.memory.ReadByte(addr+1))<<8 |
+		uint32(cpu.memory.ReadByte(addr+2))<<16 |
+		uint32(cpu.memory.ReadByte(addr+3))<<24
+	_ = cpu.memDataPort.SetValue(uint64(value))
+	return value
 }
 
 // WriteMemory writes a 32-bit word to memory
 func (cpu *CPU) WriteMemory(addr uint32, value uint32) {
+	if cpu.memory == nil {
+		return
+	}
+	_ = cpu.memAddressPort.SetValue(uint64(addr))
+	_ = cpu.memDataPort.SetValue(uint64(value))
+	_ = cpu.memReadWrite.Set(component.High)
 	if int(addr+3) >= cpu.memorySize {
 		return
 	}
 	// Write 4 bytes little-endian
-	cpu.memory.WriteByte(int(addr), byte(value))
-	cpu.memory.WriteByte(int(addr+1), byte(value>>8))
-	cpu.memory.WriteByte(int(addr+2), byte(value>>16))
-	cpu.memory.WriteByte(int(addr+3), byte(value>>24))
+	cpu.memory.WriteByte(addr, byte(value))
+	cpu.memory.WriteByte(addr+1, byte(value>>8))
+	cpu.memory.WriteByte(addr+2, byte(value>>16))
+	cpu.memory.WriteByte(addr+3, byte(value>>24))
 }
 
 // LoadProgram loads a program (slice of 32-bit instructions) into memory
 func (cpu *CPU) LoadProgram(program []uint32, startAddr uint32) error {
+	if cpu.memory == nil {
+		return fmt.Errorf("no memory attached to CPU")
+	}
 	for i, instr := range program {
 		addr := startAddr + uint32(i*4)
 		if int(addr+3) >= cpu.memorySize {
@@ -154,11 +207,14 @@ func (cpu *CPU) LoadProgram(program []uint32, startAddr uint32) error {
 
 // LoadBinary loads raw binary data into memory
 func (cpu *CPU) LoadBinary(data []byte, startAddr uint32) error {
+	if cpu.memory == nil {
+		return fmt.Errorf("no memory attached to CPU")
+	}
 	if int(startAddr)+len(data) > cpu.memorySize {
 		return fmt.Errorf("data too large for memory")
 	}
 	for i, b := range data {
-		cpu.memory.WriteByte(int(startAddr)+i, b)
+		cpu.memory.WriteByte(startAddr+uint32(i), b)
 	}
 	cpu.SetPC(startAddr)
 	return nil
@@ -265,6 +321,106 @@ func (cpu *CPU) doDecode() {
 	cpu.controlUnit.Opcode().SetValue(uint64(cpu.decoder.GetOpcode()))
 }
 
+func (cpu *CPU) executeNOP(opcode instructions.OpCode, op1, op2, op3 uint64, imm16 uint16) {
+	// NOP - just increment PC (NOP goes directly to Fetch, skipping WriteBack)
+	cpu.pc.Increment()
+}
+
+func (cpu *CPU) executeMOVImm16L(opcode instructions.OpCode, op1, op2, op3 uint64, imm16 uint16) {
+	// MOVIMM16L: operands are (imm16, dst)
+	// imm16 is passed separately, dst is in op1 (first register operand)
+	dst := uint32(op1)
+	cpu.registers.Set(dst, uint64(imm16))
+}
+
+func (cpu *CPU) executeMOVImm16H(opcode instructions.OpCode, op1, op2, op3 uint64, imm16 uint16) {
+	// MOVIMM16H: operands are (imm16, dst, src) where src is tied to dst
+	// imm16 is passed separately, dst is in op1, src is in op2
+	dst := uint32(op1)
+	current := cpu.registers.Get(dst)
+	cpu.registers.Set(dst, (current&0xFFFF)|(uint64(imm16)<<16))
+}
+
+func (cpu *CPU) executeMOV(opcode instructions.OpCode, op1, op2, op3 uint64, imm16 uint16) {
+	src := uint32(op1)
+	dst := uint32(op2)
+	cpu.registers.Set(dst, cpu.registers.Get(src))
+}
+
+func (cpu *CPU) executeALUOp(opcode instructions.OpCode, op1, op2, op3 uint64, imm16 uint16) {
+	// ALU ops: operands are (src1, src2, dst)
+	// op1 = src1, op2 = src2, op3 = dst
+	src1 := uint32(op1)
+	src2 := uint32(op2)
+	srcVal1 := uint32(cpu.registers.Get(src1))
+	srcVal2 := uint32(cpu.registers.Get(src2))
+	cpu.alu.SetOperands(srcVal1, srcVal2)
+	cpu.alu.SetOperation(opcodeToALUOp(opcode))
+	cpu.alu.Compute()
+	cpu.aluResult = cpu.alu.Result()
+}
+
+func (cpu *CPU) executeCMP(opcode instructions.OpCode, op1, op2, op3 uint64, imm16 uint16) {
+	// CMP: operands are (lhs, rhs, dst)
+	// op1 = lhs, op2 = rhs, op3 = dst
+	src1 := uint32(op1)
+	src2 := uint32(op2)
+	dst := uint32(op3)
+	srcVal1 := uint32(cpu.registers.Get(src1))
+	srcVal2 := uint32(cpu.registers.Get(src2))
+	cpu.alu.SetOperands(srcVal1, srcVal2)
+	cpu.alu.SetOperation(ALUOp_CMP)
+	cpu.alu.Compute()
+	// Store flags to destination register
+	flags := cpu.alu.GetFlags()
+	cpu.registers.Set(dst, uint64(flags))
+	// Also write to implicit CPSR register (index 2) for CJMP to read
+	cpu.registers.Set(2, uint64(flags))
+}
+
+func (cpu *CPU) executeLD(opcode instructions.OpCode, op1, op2, op3 uint64, imm16 uint16) {
+	addrReg := uint32(op1)
+	addr := uint32(cpu.registers.Get(addrReg))
+	cpu.aluResult = addr // Store address for mem read stage
+}
+
+func (cpu *CPU) executeST(opcode instructions.OpCode, op1, op2, op3 uint64, imm16 uint16) {
+	// op1 = src register (value), op2 = addr register
+	addrReg := uint32(op2)
+	addr := uint32(cpu.registers.Get(addrReg))
+	cpu.aluResult = addr // Store address for mem write stage
+}
+
+func (cpu *CPU) executeJMP(opcode instructions.OpCode, op1, op2, op3 uint64, imm16 uint16) {
+	targetReg := uint32(op1)
+	linkReg := uint32(op2)
+	target := uint32(cpu.registers.Get(targetReg))
+	link := linkReg
+	cpu.registers.Set(link, uint64(cpu.pc.Value()+4))
+	cpu.pc.Load(target)
+}
+
+func (cpu *CPU) executeCJMP(opcode instructions.OpCode, op1, op2, op3 uint64, imm16 uint16) {
+	condReg := uint32(op1)
+	targetReg := uint32(op2)
+	linkReg := uint32(op3)
+	cond := uint8(cpu.registers.Get(condReg))
+	target := uint32(cpu.registers.Get(targetReg))
+	link := linkReg
+	// Use ALU flags stored in cpsr register (index 2)
+	flags := uint32(cpu.registers.Get(2))
+	cpu.controlUnit.Flags().SetValue(uint64(flags))
+	cpu.controlUnit.Cond().SetValue(uint64(cond))
+
+	if cpu.controlUnit.testCondition(flags, cond) {
+		cpu.registers.Set(link, uint64(cpu.pc.Value()+4))
+		cpu.pc.Load(target)
+	} else {
+		// Condition not met - increment PC to next instruction
+		cpu.pc.Increment()
+	}
+}
+
 // doExecute executes the instruction
 func (cpu *CPU) doExecute() {
 	opcode := cpu.decoder.GetOpcode()
@@ -274,86 +430,26 @@ func (cpu *CPU) doExecute() {
 	imm16 := cpu.decoder.GetImm16()
 
 	switch opcode {
-	case OP_NOP:
-		cpu.pc.Increment()
-
-	case OP_MOV_IMM16L:
-		// Load lower 16 bits of immediate into register
-		// Format: imm16 (bits 5-20), dst (bits 21-28) => dst is op3
-		dst := op3
-		cpu.registers.Set(int(dst), uint64(imm16))
-
-	case OP_MOV_IMM16H:
-		// Load upper 16 bits of immediate into register (preserve low 16)
-		// Format: imm16 (bits 5-20), dst (bits 21-28) => dst is op3
-		dst := op3
-		current := cpu.registers.Get(int(dst))
-		cpu.registers.Set(int(dst), (current&0xFFFF)|(uint64(imm16)<<16))
-
-	case OP_MOV:
-		// Copy register to register
-		src := op1
-		dst := op2
-		cpu.registers.Set(int(dst), cpu.registers.Get(int(src)))
-
-	case OP_ADD, OP_SUB, OP_MUL, OP_DIV, OP_MOD, OP_LSL, OP_LSR, OP_ASL, OP_ASR:
-		// Binary ALU operations
-		src1 := uint32(cpu.registers.Get(int(op1)))
-		src2 := uint32(cpu.registers.Get(int(op2)))
-		cpu.alu.SetOperands(src1, src2)
-		cpu.alu.SetOperation(opcodeToALUOp(opcode))
-		cpu.alu.Compute()
-		cpu.aluResult = cpu.alu.Result()
-
-	case OP_CMP:
-		// Compare (set flags only)
-		src1 := uint32(cpu.registers.Get(int(op1)))
-		src2 := uint32(cpu.registers.Get(int(op2)))
-		cpu.alu.SetOperands(src1, src2)
-		cpu.alu.SetOperation(ALUOp_CMP)
-		cpu.alu.Compute()
-		// Store flags to destination register
-		dst := op3
-		flags := cpu.alu.GetFlags()
-		cpu.registers.Set(int(dst), uint64(flags))
-		// Also write to implicit CPSR register (index 2) for CJMP to read
-		cpu.registers.Set(2, uint64(flags))
-
-	case OP_LD:
-		// Load: address is in src register
-		addr := uint32(cpu.registers.Get(int(op1)))
-		cpu.aluResult = addr // Store address for mem read stage
-
-	case OP_ST:
-		// Store: value in src, address in addr register
-		cpu.aluResult = uint32(cpu.registers.Get(int(op2))) // Address
-
-	case OP_JMP:
-		// Unconditional jump
-		target := uint32(cpu.registers.Get(int(op1)))
-		link := op2
-		cpu.registers.Set(int(link), uint64(cpu.pc.Value()+4))
-		cpu.pc.Load(target)
-		return // Don't increment PC
-
-	case OP_CJMP:
-		// Conditional jump
-		condReg := uint32(cpu.registers.Get(int(op1)))
-		target := uint32(cpu.registers.Get(int(op2)))
-		link := op3
-		// Use ALU flags stored in cpsr register (index 2)
-		flags := uint32(cpu.registers.Get(2))
-		cpu.controlUnit.Flags().SetValue(uint64(flags))
-		cpu.controlUnit.Cond().SetValue(uint64(condReg))
-
-		if cpu.controlUnit.testCondition(flags, uint8(condReg)) {
-			cpu.registers.Set(int(link), uint64(cpu.pc.Value()+4))
-			cpu.pc.Load(target)
-		} else {
-			// Condition not met - increment PC to next instruction
-			cpu.pc.Increment()
-		}
-		return // Don't fall through to default PC increment
+	case instructions.OpCode_NOP:
+		cpu.executeNOP(opcode, op1, op2, op3, imm16)
+	case instructions.OpCode_MOV_IMM16L:
+		cpu.executeMOVImm16L(opcode, op1, op2, op3, imm16)
+	case instructions.OpCode_MOV_IMM16H:
+		cpu.executeMOVImm16H(opcode, op1, op2, op3, imm16)
+	case instructions.OpCode_MOV:
+		cpu.executeMOV(opcode, op1, op2, op3, imm16)
+	case instructions.OpCode_ADD, instructions.OpCode_SUB, instructions.OpCode_MUL, instructions.OpCode_DIV, instructions.OpCode_MOD, instructions.OpCode_LSL, instructions.OpCode_LSR, instructions.OpCode_ASL, instructions.OpCode_ASR:
+		cpu.executeALUOp(opcode, op1, op2, op3, imm16)
+	case instructions.OpCode_CMP:
+		cpu.executeCMP(opcode, op1, op2, op3, imm16)
+	case instructions.OpCode_LD:
+		cpu.executeLD(opcode, op1, op2, op3, imm16)
+	case instructions.OpCode_ST:
+		cpu.executeST(opcode, op1, op2, op3, imm16)
+	case instructions.OpCode_JMP:
+		cpu.executeJMP(opcode, op1, op2, op3, imm16)
+	case instructions.OpCode_CJMP:
+		cpu.executeCJMP(opcode, op1, op2, op3, imm16)
 	}
 }
 
@@ -366,9 +462,9 @@ func (cpu *CPU) doMemRead() {
 // doMemWrite writes data to memory
 func (cpu *CPU) doMemWrite() {
 	opcode := cpu.decoder.GetOpcode()
-	if opcode == OP_ST {
+	if opcode == instructions.OpCode_ST {
 		op1 := cpu.decoder.GetOp1()
-		value := uint32(cpu.registers.Get(int(op1)))
+		value := uint32(cpu.registers.Get(uint32(op1)))
 		addr := cpu.aluResult
 		cpu.WriteMemory(addr, value)
 	}
@@ -382,40 +478,40 @@ func (cpu *CPU) doWriteBack() {
 	op2 := cpu.decoder.GetOp2()
 
 	switch opcode {
-	case OP_LD:
+	case instructions.OpCode_LD:
 		// Write memory data to destination register
-		cpu.registers.Set(int(op2), uint64(cpu.memData))
+		cpu.registers.Set(uint32(op2), uint64(cpu.memData))
 
-	case OP_ADD, OP_SUB, OP_MUL, OP_DIV, OP_MOD, OP_LSL, OP_LSR, OP_ASL, OP_ASR:
+	case instructions.OpCode_ADD, instructions.OpCode_SUB, instructions.OpCode_MUL, instructions.OpCode_DIV, instructions.OpCode_MOD, instructions.OpCode_LSL, instructions.OpCode_LSR, instructions.OpCode_ASL, instructions.OpCode_ASR:
 		// Write ALU result to destination register
-		cpu.registers.Set(int(op3), uint64(cpu.aluResult))
+		cpu.registers.Set(uint32(op3), uint64(cpu.aluResult))
 	}
 
 	cpu.pc.Increment()
 }
 
 // opcodeToALUOp converts instruction opcode to ALU operation
-func opcodeToALUOp(opcode uint8) ALUOp {
+func opcodeToALUOp(opcode instructions.OpCode) ALUOp {
 	switch opcode {
-	case OP_ADD:
+	case instructions.OpCode_ADD:
 		return ALUOp_ADD
-	case OP_SUB:
+	case instructions.OpCode_SUB:
 		return ALUOp_SUB
-	case OP_MUL:
+	case instructions.OpCode_MUL:
 		return ALUOp_MUL
-	case OP_DIV:
+	case instructions.OpCode_DIV:
 		return ALUOp_DIV
-	case OP_MOD:
+	case instructions.OpCode_MOD:
 		return ALUOp_MOD
-	case OP_LSL:
+	case instructions.OpCode_LSL:
 		return ALUOp_LSL
-	case OP_LSR:
+	case instructions.OpCode_LSR:
 		return ALUOp_LSR
-	case OP_ASL:
+	case instructions.OpCode_ASL:
 		return ALUOp_ASL
-	case OP_ASR:
+	case instructions.OpCode_ASR:
 		return ALUOp_ASR
-	case OP_CMP:
+	case instructions.OpCode_CMP:
 		return ALUOp_CMP
 	default:
 		return ALUOp_NOP
@@ -430,24 +526,14 @@ func (cpu *CPU) Reset() {
 	cpu.controlUnit.Reset()
 	cpu.alu.Reset()
 	cpu.registers.Reset()
-	cpu.memory.Reset()
+	if cpu.memory != nil {
+		cpu.memory.Reset()
+	}
+	cpu.memDataPort.Reset()
+	cpu.memAddressPort.Reset()
+	cpu.memReadWrite.Reset()
+	cpu.memReady.Reset()
 	cpu.cycles = 0
 	cpu.aluResult = 0
 	cpu.memData = 0
-}
-
-// EncodeInstruction encodes an instruction from opcode and operands
-// This is a helper for testing
-func EncodeInstruction(opcode uint8, op1, op2, op3 uint8) uint32 {
-	return uint32(opcode) |
-		uint32(op1)<<5 |
-		uint32(op2)<<13 |
-		uint32(op3)<<21
-}
-
-// EncodeImmInstruction encodes an instruction with 16-bit immediate
-func EncodeImmInstruction(opcode uint8, imm16 uint16, dst uint8) uint32 {
-	return uint32(opcode) |
-		uint32(imm16)<<5 |
-		uint32(dst)<<21
 }

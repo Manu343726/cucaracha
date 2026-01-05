@@ -214,29 +214,29 @@ func TestInstructionDecoder(t *testing.T) {
 
 	t.Run("Decode opcode", func(t *testing.T) {
 		dec := NewInstructionDecoder("Decoder")
-		// Instruction with opcode 6 (ADD)
-		instr := EncodeInstruction(6, 0, 0, 0)
+		// Instruction with opcode 6 (ADD) - ADD r3, r1, r2
+		instr := EncodeInstruction(OP_ADD, GPR(1), GPR(2), GPR(3))
 		dec.Decode(instr)
-		assert.Equal(t, uint8(6), dec.GetOpcode())
+		assert.Equal(t, OP_ADD, dec.GetOpcode())
 	})
 
 	t.Run("Decode operands", func(t *testing.T) {
 		dec := NewInstructionDecoder("Decoder")
-		// ADD r3, r1, r2 (opcode=6, op1=1, op2=2, op3=3)
-		instr := EncodeInstruction(6, 1, 2, 3)
+		// ADD r3, r1, r2 (operands are src1, src2, dst)
+		instr := EncodeInstruction(OP_ADD, GPR(1), GPR(2), GPR(3))
 		dec.Decode(instr)
-		assert.Equal(t, uint8(6), dec.GetOpcode())
-		assert.Equal(t, uint8(1), dec.GetOp1())
-		assert.Equal(t, uint8(2), dec.GetOp2())
-		assert.Equal(t, uint8(3), dec.GetOp3())
+		assert.Equal(t, OP_ADD, dec.GetOpcode())
+		assert.Equal(t, uint64(1), dec.GetOp1()) // r1 index
+		assert.Equal(t, uint64(2), dec.GetOp2()) // r2 index
+		assert.Equal(t, uint64(3), dec.GetOp3()) // r3 index
 	})
 
 	t.Run("Decode immediate", func(t *testing.T) {
 		dec := NewInstructionDecoder("Decoder")
-		// MOVIMM16L with immediate 0x1234
-		instr := EncodeImmInstruction(2, 0x1234, 5)
+		// MOVIMM16L with immediate 0x1234 to r5
+		instr := EncodeImmInstruction(OP_MOV_IMM16L, 0x1234, 5)
 		dec.Decode(instr)
-		assert.Equal(t, uint8(2), dec.GetOpcode())
+		assert.Equal(t, OP_MOV_IMM16L, dec.GetOpcode())
 		assert.Equal(t, uint16(0x1234), dec.GetImm16())
 	})
 

@@ -1,94 +1,101 @@
 // Package cpu provides the Cucaracha CPU abstraction and implementations.
 package cpu
 
-// CPU is the core interface that abstracts a Cucaracha processor.
-// It can be implemented by both software emulators and hardware-simulated CPUs.
+import (
+	"fmt"
+
+	"github.com/Manu343726/cucaracha/pkg/hw/cpu/mc"
+	"github.com/Manu343726/cucaracha/pkg/hw/cpu/mc/instructions"
+	"github.com/Manu343726/cucaracha/pkg/hw/memory"
+)
+
+// Contains statistics about interruptions during a CPU step
+type InterruptionStatistics struct {
+	GeneratedInterrupts []uint32
+	HandledInterrupts   []uint32
+	FinishedInterrupts  []uint32
+}
+
+// Returns information about the execution of a CPU step
+type StepInfo struct {
+	// Number of  cycles used during the last step
+	CyclesUsed int
+	// Details about interruptions during the last step
+	InterruptionDetails InterruptionStatistics
+	// Whether the CPU is halted after the last step
+	Halted bool
+}
+
+// CPU defines the minimal contract for a Cucaracha CPU implementation.
 type CPU interface {
-	// Register operations
-	GetRegister(idx int) uint32
-	SetRegister(idx int, value uint32)
+	// Provides access to CPU registers and their manipulation
+	Registers() Registers
+	// Provides access to interruption handling features of the CPU
+	Interrupts() Interrupts
 
-	// Program counter operations
-	GetPC() uint32
-	SetPC(value uint32)
+	// Executes a single CPU step, returning information about the execution
+	Step() (*StepInfo, error)
 
-	// Stack pointer operations (convenience methods for SP register)
-	GetSP() uint32
-	SetSP(value uint32)
-
-	// Link register operations (convenience methods for LR register)
-	GetLR() uint32
-	SetLR(value uint32)
-
-	// Memory operations
-	ReadMemory(addr uint32) uint32
-	WriteMemory(addr uint32, value uint32)
-	ReadByte(addr uint32) byte
-	WriteByte(addr uint32, value byte)
-
-	// Memory size
-	MemorySize() int
-
-	// Program loading
-	LoadBinary(data []byte, startAddr uint32) error
-	LoadProgram(program []uint32, startAddr uint32) error
-
-	// Execution
-	Step() error  // Execute one instruction
-	Run() error   // Run until halted
-	RunN(n int) error // Run at most n instructions
-
-	// State
+	// Checks whether the CPU is currently halted
 	IsHalted() bool
-	Halt()
-	Reset()
 
-	// Cycles executed
-	Cycles() uint64
+	// Halts the CPU execution
+	Halt() error
+
+	// Resets the CPU to its initial state
+	Reset() error
 }
 
-// DebuggableCPU extends CPU with debugging capabilities.
-// This interface is used by the debugger to implement breakpoints,
-// watchpoints, and execution control.
-type DebuggableCPU interface {
-	CPU
+// Decodes the instruction at the given address in memory
+func DecodeInstruction(ram memory.Memory, addr uint32) (*instructions.Instruction, error) {
+	instructionData, err := memory.ReadUint32(ram, addr)
+	if err != nil {
+		return nil, fmt.Errorf("error decoding instruction at address 0x%X: error reading memory: %w", addr, err)
+	}
 
-	// DecodeInstruction decodes the instruction at the given address
-	DecodeInstruction(addr uint32) (mnemonic string, operands string, err error)
+	instr, err := mc.Descriptor.Instructions.Decode(instructionData)
+	if err != nil {
+		return nil, fmt.Errorf("error decoding instruction at address 0x%X: %w", addr, err)
+	}
 
-	// GetFlags returns the CPU flags register
-	GetFlags() uint32
-	SetFlags(flags uint32)
+	return instr, nil
 }
 
-// CPUFactory creates CPU instances
-type CPUFactory func(memorySize int) CPU
+// Decodes the instruction currently pointed to by the PC register
+func DecodeCurrentInstruction(cpu CPU, ram memory.Memory) (*instructions.Instruction, error) {
+	pc, err := ReadPC(cpu.Registers())
+	if err != nil {
+		return nil, fmt.Errorf("error decoding current CPU instruction: error reading PC register: %w", err)
+	}
 
-// Standard register indices used by Cucaracha ISA
-const (
-	// Control registers (0-15)
-	RegPC   = 0  // Program Counter
-	RegSP   = 1  // Stack Pointer
-	RegCPSR = 2  // Current Program Status Register (flags)
-	RegLR   = 3  // Link Register
+	return DecodeInstruction(ram, pc)
+}
 
-	// General purpose registers start at index 16
-	RegR0 = 16
-	RegR1 = 17
-	RegR2 = 18
-	RegR3 = 19
-	RegR4 = 20
-	RegR5 = 21
-	RegR6 = 22
-	RegR7 = 23
-	RegR8 = 24
-	RegR9 = 25
-)
+func LoadProgram(cpu CPU, ram memory.Memory, layout memory.MemoryLayout, program *mc.Program) error {
+	if err := cpu.Reset(); err != nil {
+		return fmt.Errorf("failed to reset CPU before loading program: %w", err)
+	}
 
-// Flag bits in CPSR
-const (
-	FlagN = 1 << 3 // Negative
-	FlagZ = 1 << 2 // Zero
-	FlagC = 1 << 1 // Carry
-	FlagV = 1 << 0 // Overflow
-)
+	binary, err := program.Encode()
+	if err != nil {
+		return fmt.Errorf("failed to encode program: %w", err)
+	}
+
+	if uint32(len(binary))+layout.CodeBase > uint32(ram.Size()) {
+		return fmt.Errorf("program too large to fit in memory at address 0x%X", layout.CodeBase)
+	}
+
+	for offset, b := range binary {
+		err := ram.WriteByte(layout.CodeBase+uint32(offset), b)
+		if err != nil {
+			return fmt.Errorf("failed to write program to memory at address 0x%X: %w", layout.CodeBase+uint32(offset), err)
+		}
+	}
+
+	err = WritePC(cpu.Registers(), layout.CodeBase)
+	if err != nil {
+		return fmt.Errorf("failed to set PC to program start address 0x%X: %w", layout.CodeBase, err)
+	}
+
+	return nil
+}

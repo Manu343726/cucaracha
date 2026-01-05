@@ -20,6 +20,9 @@ type RegisterDescriptor struct {
 
 	// Description details (for documentation/debugging)
 	Details string
+
+	// Recommended string format for displaying the register value
+	RecommendedStringFormat string
 }
 
 // Returns the register name

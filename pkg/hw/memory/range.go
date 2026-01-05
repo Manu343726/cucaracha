@@ -1,0 +1,78 @@
+package memory
+
+import "fmt"
+
+// Contains addressing information of a continuous memory segment
+type Range struct {
+	// Start address of the memory region
+	Start uint32
+	// Size of the memory region in bytes
+	Size uint32
+	// Access flags for the memory region
+	Flags Flags
+}
+
+// Returns the end address of the memory region.
+func (r Range) End() uint32 {
+	return r.Start + r.Size
+}
+
+func (r Range) String() string {
+	return fmt.Sprintf("[0x%08X - 0x%08X, Size: %db, Flags: %s]", r.Start, r.End(), r.Size, r.Flags.String())
+}
+
+// Checks if this memory range overlaps with another.
+func (r Range) Overlaps(other Range) bool {
+	return r.Start < other.End() && other.Start < r.End()
+}
+
+// Checks if any of the provided memory ranges overlap.
+func RangesOverlap(ranges []Range) bool {
+	for i := 0; i < len(ranges); i++ {
+		for j := i + 1; j < len(ranges); j++ {
+			if ranges[i].Overlaps(ranges[j]) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// Checks if the given address is within the memory range.
+func (r Range) ContainsAddress(addr uint32) bool {
+	return addr >= r.Start && addr < r.End()
+}
+
+// Checks if the given memory range is fully contained within this memory range.
+func (r Range) ContainsRange(other Range) bool {
+	return other.Start >= r.Start && other.End() <= r.End()
+}
+
+// Returns a range within the current range, given an offset and size.
+func (r Range) SubRange(offset uint32, size uint32) Range {
+	return Range{
+		Start: r.Start + offset,
+		Size:  size,
+		Flags: r.Flags,
+	}
+}
+
+// Checks whether a second range is right at the end of this range.
+func (r Range) IsAdjacentTo(other Range) bool {
+	return r.End() == other.Start || other.End() == r.Start
+}
+
+// Checks if the provided list of ranges are all contiguous (i.e., each range is adjacent to the next).
+func ContiguousRanges(ranges []Range) bool {
+	if len(ranges) == 0 {
+		return true
+	}
+
+	for i := 1; i < len(ranges); i++ {
+		if !ranges[i-1].IsAdjacentTo(ranges[i]) {
+			return false
+		}
+	}
+
+	return true
+}

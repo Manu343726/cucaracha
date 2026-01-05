@@ -34,18 +34,20 @@ func StateRegisters() *RegisterClassDescriptor {
 // General purpuse 32 bit integer registers descriptor
 func GeneralPurposeInt32(count int) *RegisterClassDescriptor {
 	return NewRegisterClassDescriptor(&RegisterClassDescriptor{
-		Class:              RegisterClass_GeneralPurposeInteger,
-		Description:        "General purpose word-sized 32 bit integer registers",
-		ValueType:          types.ValueType_Int32,
-		RegisterNamePrefix: "r",
+		Class:                   RegisterClass_GeneralPurposeInteger,
+		Description:             "General purpose word-sized 32 bit integer registers",
+		ValueType:               types.ValueType_Int32,
+		RegisterNamePrefix:      "r",
+		RecommendedStringFormat: "%d",
 	}, MakeRegisters(count))
 }
 
 // Program counter descriptor
 func Pc() *RegisterDescriptor {
 	return &RegisterDescriptor{
-		CustomName:  "pc",
-		Description: "Program Counter",
+		CustomName:              "pc",
+		Description:             "Program Counter",
+		RecommendedStringFormat: "0x%x",
 	}
 }
 
@@ -56,24 +58,27 @@ func Sp() *RegisterDescriptor {
 		Description: "Stack Pointer. Points to the current position of the top of the stack",
 		Details: `Cucaracha stack grows downwards (stack starts at address 0xffffffff).
 				sp points to the lowest address currently used as stack memory. This is also the top of the current stack frame.`,
+		RecommendedStringFormat: "0x%x",
 	}
 }
 
 // CPU state register descriptor
 func Cpsr() *RegisterDescriptor {
 	return &RegisterDescriptor{
-		CustomName:  "cpsr",
-		Description: "CPU state register. Stores CPU state such as comparison flag, carry flag, etc",
-		Details:     "TODO",
+		CustomName:              "cpsr",
+		Description:             "CPU state register. Stores CPU state such as comparison flag, carry flag, etc",
+		Details:                 "Each bit in the cpsr register represents a different CPU state flag. See Flag definitions in the documentation for more details.",
+		RecommendedStringFormat: "%b",
 	}
 }
 
 // Link register descriptor
 func Lr() *RegisterDescriptor {
 	return &RegisterDescriptor{
-		CustomName:  "lr",
-		Description: "Link register. Stores the return adress of a call",
-		Details:     "TODO",
+		CustomName:              "lr",
+		Description:             "Link register. Stores the return adress of a call",
+		Details:                 "Used in jump instructions to store the PC value before the jump, so that it can be restored when returning from a function call.",
+		RecommendedStringFormat: "0x%x",
 	}
 }
 

@@ -15,7 +15,7 @@ type OperandValue struct {
 }
 
 // Returns the kind of operand this value refers to
-func (v *OperandValue) Kind() OperandKind {
+func (v OperandValue) Kind() OperandKind {
 	if v.register != nil {
 		return OperandKind_Register
 	} else if v.immediate != nil {
@@ -26,7 +26,7 @@ func (v *OperandValue) Kind() OperandKind {
 }
 
 // Returns the value type of the operand value
-func (v *OperandValue) ValueType() types.ValueType {
+func (v OperandValue) ValueType() types.ValueType {
 	if v.register != nil {
 		return v.register.ValueType()
 	} else if v.immediate != nil {
@@ -37,7 +37,7 @@ func (v *OperandValue) ValueType() types.ValueType {
 }
 
 // Returns the string representation of the operand value
-func (v *OperandValue) String() string {
+func (v OperandValue) String() string {
 	if v.register != nil {
 		return v.register.Name()
 	} else if v.immediate != nil {
@@ -47,7 +47,7 @@ func (v *OperandValue) String() string {
 	panic("unreachable")
 }
 
-func (v *OperandValue) Immediate() types.Value {
+func (v OperandValue) Immediate() types.Value {
 	if v.immediate != nil {
 		return *v.immediate
 	}
@@ -55,7 +55,7 @@ func (v *OperandValue) Immediate() types.Value {
 	panic("operand value is not an immediate")
 }
 
-func (v *OperandValue) Register() *registers.RegisterDescriptor {
+func (v OperandValue) Register() *registers.RegisterDescriptor {
 	if v.register != nil {
 		return v.register
 	}

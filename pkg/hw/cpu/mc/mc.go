@@ -20,6 +20,8 @@ type MachineCodeDescriptor struct {
 	RegisterMetaClasses []*registers.RegisterMetaClass
 	// Information about condition codes
 	ConditionCodes *instructions.ConditionCodesTemplateData
+	// Fast lookup of ISA registers (filled automatically from descriptors at initialization)
+	Registers FastRegisterLookup
 
 	Name string
 }
@@ -63,6 +65,51 @@ func (d *MachineCodeDescriptor) DocString() string {
 	return d.Documentation(0)
 }
 
+// Stores references to the standard registers for fast lookup
+type FastRegisterLookup struct {
+	LR   *registers.RegisterDescriptor
+	SP   *registers.RegisterDescriptor
+	PC   *registers.RegisterDescriptor
+	CPSR *registers.RegisterDescriptor
+	R    []*registers.RegisterDescriptor
+}
+
+func NewFastRegisterLookup() FastRegisterLookup {
+	SP, err := registers.RegisterClasses.RegisterByName("sp")
+	if err != nil {
+		panic("failed to initialize fast register lookup: " + err.Error())
+	}
+	LR, err := registers.RegisterClasses.RegisterByName("lr")
+	if err != nil {
+		panic("failed to initialize fast register lookup: " + err.Error())
+	}
+	PC, err := registers.RegisterClasses.RegisterByName("pc")
+	if err != nil {
+		panic("failed to initialize fast register lookup: " + err.Error())
+	}
+	CPSR, err := registers.RegisterClasses.RegisterByName("cpsr")
+	if err != nil {
+		panic("failed to initialize fast register lookup: " + err.Error())
+	}
+
+	R := make([]*registers.RegisterDescriptor, registers.RegisterClasses.Class(registers.RegisterClass_GeneralPurposeInteger).TotalRegisters())
+	for i := 0; i < registers.RegisterClasses.Class(registers.RegisterClass_GeneralPurposeInteger).TotalRegisters(); i++ {
+		reg, err := registers.RegisterClasses.Register(registers.RegisterClass_GeneralPurposeInteger, i)
+		if err != nil {
+			panic("failed to initialize fast register lookup: " + err.Error())
+		}
+		R[i] = reg
+	}
+
+	return FastRegisterLookup{
+		SP:   SP,
+		LR:   LR,
+		PC:   PC,
+		CPSR: CPSR,
+		R:    R,
+	}
+}
+
 func makeMachineFunctionDescriptor() MachineCodeDescriptor {
 	conditionCodes := instructions.GetConditionCodesTemplateData()
 	return MachineCodeDescriptor{
@@ -71,6 +118,8 @@ func makeMachineFunctionDescriptor() MachineCodeDescriptor {
 		RegisterClasses:     &registers.RegisterClasses,
 		RegisterMetaClasses: registers.RegisterMetaClasses,
 		ConditionCodes:      &conditionCodes,
+		Registers:           NewFastRegisterLookup(),
+		Name:                "Cucaracha MC",
 	}
 }
 

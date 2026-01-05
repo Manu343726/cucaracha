@@ -2,33 +2,52 @@
 package utils
 
 import (
+	"io"
 	"regexp"
 	"strings"
 
 	"github.com/fatih/color"
 )
 
-// C syntax highlighting colors
-var (
-	// Keywords
-	cKeywordColor = color.New(color.FgMagenta, color.Bold)
-	// Types
-	cTypeColor = color.New(color.FgCyan)
-	// Strings and characters
-	cStringColor = color.New(color.FgGreen)
-	// Numbers
-	cNumberColor = color.New(color.FgYellow)
-	// Comments
-	cCommentColor = color.New(color.FgHiBlack)
-	// Preprocessor directives
-	cPreprocessorColor = color.New(color.FgBlue)
-	// Operators
-	cOperatorColor = color.New(color.FgRed)
-	// Function calls
-	cFunctionColor = color.New(color.FgHiYellow)
-	// Default text
-	cDefaultColor = color.New(color.FgWhite)
-)
+type CSyntaxHighlightPalette struct {
+	Keyword      *color.Color
+	Type         *color.Color
+	String       *color.Color
+	Number       *color.Color
+	Comment      *color.Color
+	Preprocessor *color.Color
+	Operator     *color.Color
+	Function     *color.Color
+	Default      *color.Color
+}
+
+func DefaultCSyntaxHighlightPalette() *CSyntaxHighlightPalette {
+	return &CSyntaxHighlightPalette{
+		Keyword:      color.New(color.FgMagenta, color.Bold),
+		Type:         color.New(color.FgCyan),
+		String:       color.New(color.FgGreen),
+		Number:       color.New(color.FgYellow),
+		Comment:      color.New(color.FgHiBlack),
+		Preprocessor: color.New(color.FgBlue),
+		Operator:     color.New(color.FgRed),
+		Function:     color.New(color.FgHiYellow),
+		Default:      color.New(color.FgWhite),
+	}
+}
+
+func MonokaiCSyntaxHighlightPalette() *CSyntaxHighlightPalette {
+	return &CSyntaxHighlightPalette{
+		Keyword:      color.New(color.FgHiMagenta, color.Bold),
+		Type:         color.New(color.FgHiCyan),
+		String:       color.New(color.FgHiGreen),
+		Number:       color.New(color.FgHiYellow),
+		Comment:      color.New(color.FgHiBlack),
+		Preprocessor: color.New(color.FgHiBlue),
+		Operator:     color.New(color.FgHiRed),
+		Function:     color.New(color.FgYellow),
+		Default:      color.New(color.FgWhite),
+	}
+}
 
 // C language keywords
 var cKeywords = map[string]bool{
@@ -83,9 +102,9 @@ type token struct {
 }
 
 // HighlightCCode applies syntax highlighting to C source code and returns the colored string
-func HighlightCCode(code string) string {
+func HighlightCCode(output io.Writer, code string, palette *CSyntaxHighlightPalette) {
 	if code == "" {
-		return ""
+		return
 	}
 
 	// Build a list of tokens with their positions
@@ -96,7 +115,7 @@ func HighlightCCode(code string) string {
 	for _, match := range stringMatches {
 		tokens = append(tokens, token{
 			text:  code[match[0]:match[1]],
-			color: cStringColor,
+			color: palette.String,
 			start: match[0],
 			end:   match[1],
 		})
@@ -108,7 +127,7 @@ func HighlightCCode(code string) string {
 		if !overlapsAny(match[0], match[1], tokens) {
 			tokens = append(tokens, token{
 				text:  code[match[0]:match[1]],
-				color: cStringColor,
+				color: palette.String,
 				start: match[0],
 				end:   match[1],
 			})
@@ -121,7 +140,7 @@ func HighlightCCode(code string) string {
 		if !overlapsAny(match[0], match[1], tokens) {
 			tokens = append(tokens, token{
 				text:  code[match[0]:match[1]],
-				color: cCommentColor,
+				color: palette.Comment,
 				start: match[0],
 				end:   match[1],
 			})
@@ -135,7 +154,7 @@ func HighlightCCode(code string) string {
 			if !overlapsAny(match[0], match[1], tokens) {
 				tokens = append(tokens, token{
 					text:  code[match[0]:match[1]],
-					color: cPreprocessorColor,
+					color: palette.Preprocessor,
 					start: match[0],
 					end:   match[1],
 				})
@@ -149,7 +168,7 @@ func HighlightCCode(code string) string {
 		if !overlapsAny(match[0], match[1], tokens) {
 			tokens = append(tokens, token{
 				text:  code[match[0]:match[1]],
-				color: cNumberColor,
+				color: palette.Number,
 				start: match[0],
 				end:   match[1],
 			})
@@ -167,7 +186,7 @@ func HighlightCCode(code string) string {
 				if !overlapsAny(match[2], match[3], tokens) {
 					tokens = append(tokens, token{
 						text:  funcName,
-						color: cFunctionColor,
+						color: palette.Function,
 						start: match[2],
 						end:   match[3],
 					})
@@ -183,9 +202,9 @@ func HighlightCCode(code string) string {
 			word := code[match[0]:match[1]]
 			var c *color.Color
 			if cKeywords[word] {
-				c = cKeywordColor
+				c = palette.Keyword
 			} else if cTypes[word] {
-				c = cTypeColor
+				c = palette.Type
 			}
 			if c != nil {
 				tokens = append(tokens, token{
@@ -204,7 +223,7 @@ func HighlightCCode(code string) string {
 		if !overlapsAny(match[0], match[1], tokens) {
 			tokens = append(tokens, token{
 				text:  code[match[0]:match[1]],
-				color: cOperatorColor,
+				color: palette.Operator,
 				start: match[0],
 				end:   match[1],
 			})
@@ -212,7 +231,7 @@ func HighlightCCode(code string) string {
 	}
 
 	// Build the final highlighted string
-	return buildHighlightedString(code, tokens)
+	buildHighlightedString(output, code, tokens)
 }
 
 // overlapsAny checks if a range overlaps with any existing token
@@ -226,33 +245,31 @@ func overlapsAny(start, end int, tokens []token) bool {
 }
 
 // buildHighlightedString constructs the final string with color codes
-func buildHighlightedString(code string, tokens []token) string {
+func buildHighlightedString(output io.Writer, code string, tokens []token) {
 	if len(tokens) == 0 {
-		return code
+		io.WriteString(output, code)
+		return
 	}
 
 	// Sort tokens by start position
 	sortTokens(tokens)
 
-	var result strings.Builder
 	pos := 0
 
 	for _, t := range tokens {
 		// Add unhighlighted text before this token
 		if t.start > pos {
-			result.WriteString(code[pos:t.start])
+			io.WriteString(output, code[pos:t.start])
 		}
 		// Add highlighted token
-		result.WriteString(t.color.Sprint(t.text))
+		t.color.Fprint(output, t.text)
 		pos = t.end
 	}
 
 	// Add remaining unhighlighted text
 	if pos < len(code) {
-		result.WriteString(code[pos:])
+		io.WriteString(output, code[pos:])
 	}
-
-	return result.String()
 }
 
 // sortTokens sorts tokens by start position (simple insertion sort for small arrays)
@@ -266,9 +283,4 @@ func sortTokens(tokens []token) {
 		}
 		tokens[j+1] = key
 	}
-}
-
-// PrintHighlightedCCode prints C code with syntax highlighting to stdout
-func PrintHighlightedCCode(code string) {
-	print(HighlightCCode(code))
 }

@@ -7,6 +7,7 @@ import (
 	"github.com/Manu343726/cucaracha/pkg/hw/cpu/interpreter"
 	"github.com/Manu343726/cucaracha/pkg/hw/cpu/loader"
 	"github.com/Manu343726/cucaracha/pkg/hw/cpu/mc"
+	"github.com/Manu343726/cucaracha/pkg/hw/cpu/sysconfig"
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 )
@@ -32,6 +33,7 @@ var (
 	execCompileFormat string
 	execTargetSpeed   float64
 	execBuildClang    bool
+	execSystemConfig  string
 )
 
 var execCmd = &cobra.Command{
@@ -50,28 +52,57 @@ with the Cucaracha target before execution.
 If --build-clang is specified and llvm-project is found but clang hasn't
 been built yet, it will automatically build clang from source.
 
+System Configuration:
+  Use --system to specify a YAML file describing the system hardware:
+  - Memory layout (total size, code/data/stack/heap sizes)
+  - Peripherals (UART, GPIO, timers, etc.)
+  - Interrupt configuration
+
 Example:
   cucaracha cpu exec program.cucaracha
   cucaracha cpu exec program.o
   cucaracha cpu exec program.c
-  cucaracha cpu exec --build-clang program.c`,
+  cucaracha cpu exec --build-clang program.c
+  cucaracha cpu exec --system sysconfig.yaml program.c`,
 	Args: cobra.ExactArgs(1),
 	Run:  runExec,
 }
 
 func init() {
 	CpuCmd.AddCommand(execCmd)
-	execCmd.Flags().Uint32VarP(&execMemorySize, "memory", "m", 0x20000, "Memory size in bytes (default: 128KB to accommodate code at 0x10000)")
+	execCmd.Flags().Uint32VarP(&execMemorySize, "memory", "m", 0x20000, "Memory size in bytes (default: 128KB)")
 	execCmd.Flags().BoolVarP(&execVerbose, "verbose", "v", false, "Print execution details")
 	execCmd.Flags().IntVarP(&execMaxSteps, "max-steps", "n", 0, "Maximum number of steps to execute (0 = unlimited)")
 	execCmd.Flags().BoolVarP(&execTrace, "trace", "t", false, "Trace each instruction execution")
 	execCmd.Flags().StringVar(&execCompileFormat, "compile-to", "object", "Compilation output format for source files: assembly, object")
 	execCmd.Flags().Float64VarP(&execTargetSpeed, "speed", "s", 0, "Target execution speed in Hz (cycles per second). 0 = unlimited")
 	execCmd.Flags().BoolVar(&execBuildClang, "build-clang", false, "Build clang from llvm-project if not found")
+	execCmd.Flags().StringVar(&execSystemConfig, "system", "", "System configuration YAML file describing hardware setup")
 }
 
 func runExec(cmd *cobra.Command, args []string) {
 	inputPath := args[0]
+
+	// Load system configuration if specified
+	var sysConfig *sysconfig.SystemConfig
+	if execSystemConfig != "" {
+		var err error
+		sysConfig, err = sysconfig.LoadFile(execSystemConfig)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error loading system configuration: %v\n", err)
+			os.Exit(1)
+		}
+
+		if err := sysConfig.Validate(); err != nil {
+			fmt.Fprintf(os.Stderr, "Invalid system configuration: %v\n", err)
+			os.Exit(1)
+		}
+
+		if execVerbose {
+			execColorHeader.Fprintln(os.Stderr, "=== System Configuration ===")
+			fmt.Fprint(os.Stderr, sysConfig.String())
+		}
+	}
 
 	// Load the program using the loader package
 	loadOpts := &loader.Options{
@@ -106,8 +137,36 @@ func runExec(cmd *cobra.Command, args []string) {
 		}
 	}
 
-	// Create a runner and load the program
-	runner := interpreter.NewRunner(execMemorySize)
+	// Determine memory size
+	memorySize := execMemorySize
+	if sysConfig != nil {
+		memorySize = sysConfig.TotalMemorySize()
+		if execVerbose {
+			fmt.Fprintf(os.Stderr, "Using memory size from system config: %s bytes\n",
+				execColorValue.Sprintf("%d", memorySize))
+		}
+	}
+
+	// Create a runner with the appropriate memory configuration
+	var runner *interpreter.Runner
+	if sysConfig != nil {
+		// Use system configuration to set up the runner
+		allocation, err := sysConfig.Allocate()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error allocating memory: %v\n", err)
+			os.Exit(2)
+		}
+
+		if execVerbose {
+			execColorHeader.Fprintln(os.Stderr, "=== Memory Allocation ===")
+			fmt.Fprintln(os.Stderr, allocation.Summary)
+		}
+
+		runner = interpreter.NewRunnerWithLayout(memorySize, &allocation.Layout)
+	} else {
+		runner = interpreter.NewRunner(memorySize)
+	}
+
 	if err := runner.LoadProgram(resolved); err != nil {
 		fmt.Fprintf(os.Stderr, "Error loading program into interpreter: %v\n", err)
 		os.Exit(2)

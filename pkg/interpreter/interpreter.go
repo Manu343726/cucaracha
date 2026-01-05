@@ -1,0 +1,223 @@
+// Package interpreter provides an automatic interpreter for Cucaracha machine code
+// based on the instruction descriptors.
+package interpreter
+
+import (
+	"fmt"
+	"time"
+
+	"github.com/Manu343726/cucaracha/pkg/hw/cpu"
+	"github.com/Manu343726/cucaracha/pkg/hw/memory"
+	"github.com/Manu343726/cucaracha/pkg/hw/peripheral"
+	"github.com/Manu343726/cucaracha/pkg/system"
+)
+
+// --- Interpreter ---
+
+// Executes Cucaracha machine code using the instruction descriptors.
+// It supports peripherals and interrupts.
+type Interpreter struct {
+	state *CPUState
+
+	// Target execution speed in Hz (cycles per second)
+	// 0 means unlimited (full speed, no timing simulation)
+	targetSpeedHz float64
+	// Track timing for speed control
+	cycleAccumulator int64     // Accumulated cycles since last timing reset
+	timingStartTime  time.Time // When timing measurement started
+}
+
+// Creates a new interpreter with the given system configuration.
+func NewInterpreter(system *system.SystemDescriptor) (*Interpreter, error) {
+	state, err := NewCPUState(system)
+	if err != nil {
+		return nil, fmt.Errorf("failed to setup CPU state: %w", err)
+	}
+	interp := &Interpreter{
+		state: state,
+	}
+	return interp, nil
+}
+
+// Sets the target execution speed in Hz (cycles per second).
+// Use 0 for unlimited speed (no timing simulation).
+func (i *Interpreter) SetTargetSpeed(hz float64) {
+	if hz < 0 {
+		hz = 0
+	}
+	i.targetSpeedHz = hz
+	i.ResetTiming()
+}
+
+// Returns the current target execution speed in Hz.
+func (i *Interpreter) GetTargetSpeed() float64 {
+	return i.targetSpeedHz
+}
+
+// ResetTiming resets the timing accumulator for speed control.
+func (i *Interpreter) ResetTiming() {
+	i.cycleAccumulator = 0
+	i.timingStartTime = time.Now()
+}
+
+// Deprecated. Use SetTargetSpeed instead.
+func (i *Interpreter) SetExecutionDelay(delayMs int) {
+	if delayMs <= 0 {
+		i.SetTargetSpeed(0)
+	} else {
+		hz := 1000.0 / float64(delayMs)
+		i.SetTargetSpeed(hz)
+	}
+}
+
+// Deprecated. Use GetTargetSpeed instead.
+func (i *Interpreter) GetExecutionDelay() int {
+	if i.targetSpeedHz <= 0 {
+		return 0
+	}
+	return int(1000.0 / i.targetSpeedHz)
+}
+
+func (i *Interpreter) Registers() cpu.Registers {
+	return i.state.Registers
+}
+
+func (i *Interpreter) Interrupts() cpu.Interrupts {
+	return i.state.IntController
+}
+
+func (i *Interpreter) Ram() memory.Memory {
+	return i.state.Ram
+}
+
+// Executes a single instruction, handling interrupts and peripherals.
+func (i *Interpreter) Step() (*cpu.StepInfo, error) {
+	// Check for pending interrupts before executing
+	if err := i.checkInterrupts(); err != nil {
+		return nil, err
+	}
+
+	if i.state.Halted {
+		return nil, fmt.Errorf("CPU is halted")
+	}
+
+	instruction, err := cpu.DecodeCurrentInstruction(i, i.Ram())
+	if err != nil {
+		return nil, err
+	}
+
+	// Save current PC for detecting branches
+	oldPC, err := cpu.ReadPC(i.Registers())
+	if err != nil {
+		return nil, fmt.Errorf("failed to read PC: %w", err)
+	}
+
+	// Execute the instruction
+	if err := ExecuteInstruction(i, instruction); err != nil {
+		return nil, err
+	}
+
+	// Advance PC one instruction if it wasn't changed by the instruction itself (e.g., JMP)
+	if err := cpu.AdvancePCIfEqual(i.Registers(), oldPC, 1); err != nil {
+		return nil, fmt.Errorf("failed to advance PC: %w", err)
+	}
+
+	// Clock peripherals
+	env := peripheral.Environment{
+		MemoryLayout: i.state.MemoryLayout,
+		RAM:          i.state.Ram,
+	}
+
+	if err := i.state.Peripherals.Clock(env); err != nil {
+		return nil, fmt.Errorf("peripheral clock error: %w", err)
+	}
+
+	// Poll interrupt sources after each instruction
+	i.state.IntController.Poll()
+
+	return &cpu.StepInfo{
+		CyclesUsed: instruction.Descriptor.Cycles,
+		Halted:     i.IsHalted(),
+	}, nil
+}
+
+// checkInterrupts checks for and handles any pending interrupts.
+func (i *Interpreter) checkInterrupts() error {
+	if !i.state.IntController.HasPendingInterrupt() {
+		return nil
+	}
+
+	vector := i.state.IntController.GetNextInterrupt()
+	if vector < 0 {
+		return nil
+	}
+
+	pc, err := cpu.ReadPC(i.state.Registers)
+	if err != nil {
+		return fmt.Errorf("failed to read PC during interrupt: %w", err)
+	}
+
+	// Save current state
+	if err := i.state.SaveState(pc); err != nil {
+		return fmt.Errorf("failed to save interrupt state: %w", err)
+	}
+
+	// Disable interrupts while servicing
+	i.state.DisableInterrupts()
+
+	// Get handler address from vector table
+	handlerAddrLoc := i.state.IntController.BeginService(vector)
+	handlerAddr, err := memory.ReadUint32(i.state.Ram, handlerAddrLoc)
+	if err != nil {
+		return fmt.Errorf("failed to read interrupt handler address: %w", err)
+	}
+
+	// Jump to interrupt handler
+	if err := cpu.WritePC(i.state.Registers, handlerAddr); err != nil {
+		return fmt.Errorf("failed to write PC during interrupt: %w", err)
+	}
+
+	return nil
+}
+
+// ReturnFromInterrupt restores state and returns from an interrupt handler.
+func (i *Interpreter) ReturnFromInterrupt() error {
+	// Mark interrupt as complete
+	i.state.IntController.EndService()
+
+	// Restore saved state
+	pc, err := i.state.RestoreState()
+	if err != nil {
+		return err
+	}
+
+	if err := cpu.WritePC(i.state.Registers, pc); err != nil {
+		return fmt.Errorf("failed to write PC during interrupt return: %w", err)
+	}
+
+	return nil
+}
+
+// SoftwareInterrupt triggers a software interrupt with the given vector.
+func (i *Interpreter) SoftwareInterrupt(vector uint8) error {
+	i.state.IntController.SetPending(vector)
+	return nil
+}
+
+// Reset resets the CPU state including memory, registers, and interrupt state.
+func (i *Interpreter) Reset() error {
+	i.state.Reset()
+	i.ResetTiming()
+	return nil
+}
+
+// Sets the CPU to a halted state.
+func (i *Interpreter) Halt() error {
+	i.state.Halted = true
+	return nil
+}
+
+// Returns true if the CPU is currently halted.
+func (i *Interpreter) IsHalted() bool {
+	return i.state.Halted
+}

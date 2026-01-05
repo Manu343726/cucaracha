@@ -3,29 +3,9 @@ package mc
 import (
 	"errors"
 	"fmt"
+
+	"github.com/Manu343726/cucaracha/pkg/hw/memory"
 )
-
-// MemoryResolverConfig contains configuration for memory resolution
-type MemoryResolverConfig struct {
-	// BaseAddress is the starting address for the program
-	BaseAddress uint32
-	// MaxSize is the maximum allowed size for the program (0 = unlimited)
-	MaxSize uint32
-	// DataAlignment is the alignment for the data section (default: 4)
-	DataAlignment uint32
-	// InstructionSize is the size of each instruction in bytes (default: 4)
-	InstructionSize uint32
-}
-
-// DefaultMemoryResolverConfig returns a config with sensible defaults
-func DefaultMemoryResolverConfig() MemoryResolverConfig {
-	return MemoryResolverConfig{
-		BaseAddress:     0,
-		MaxSize:         0, // unlimited
-		DataAlignment:   4,
-		InstructionSize: 4,
-	}
-}
 
 var (
 	ErrProgramTooLarge        = errors.New("program exceeds maximum size")
@@ -35,31 +15,20 @@ var (
 )
 
 // ResolveMemory assigns memory addresses to all instructions and globals in a ProgramFile.
-// It returns a new ProgramFile with all addresses resolved and a MemoryLayout.
-//
-// The memory layout is:
-//   - Code section starts at BaseAddress
-//   - Data section follows the code section (aligned to DataAlignment)
-//   - Symbol references are updated with the resolved addresses
-func ResolveMemory(pf ProgramFile, config MemoryResolverConfig) (ProgramFile, error) {
-	if config.InstructionSize == 0 {
-		config.InstructionSize = 4
-	}
-	if config.DataAlignment == 0 {
-		config.DataAlignment = 4
-	}
-
+// It returns a new ProgramFile with all addresses resolved
+func ResolveMemory(pf ProgramFile, memoryLayout *memory.MemoryLayout) (ProgramFile, error) {
 	srcInstructions := pf.Instructions()
 	srcGlobals := pf.Globals()
 	srcFunctions := pf.Functions()
 	srcLabels := pf.Labels()
 
 	// Calculate code size
-	codeSize := uint32(len(srcInstructions)) * config.InstructionSize
-	codeStart := config.BaseAddress
+	codeSize := uint32(len(srcInstructions)) * 4
+	codeStart := memoryLayout.CodeBase
 
-	// Calculate data section start (aligned)
-	dataStart := alignAddress(codeStart+codeSize, config.DataAlignment)
+	if codeSize >= memoryLayout.CodeSize {
+		return nil, fmt.Errorf("%w: code size %d exceeds allocated code section size %d", ErrProgramTooLarge, codeSize, memoryLayout.CodeSize)
+	}
 
 	// Calculate data size
 	var dataSize uint32 = 0
@@ -67,17 +36,14 @@ func ResolveMemory(pf ProgramFile, config MemoryResolverConfig) (ProgramFile, er
 		dataSize += uint32(g.Size)
 	}
 
-	totalSize := (dataStart - config.BaseAddress) + dataSize
-
-	// Check size limit
-	if config.MaxSize > 0 && totalSize > config.MaxSize {
-		return nil, fmt.Errorf("%w: program size %d exceeds max %d", ErrProgramTooLarge, totalSize, config.MaxSize)
+	if memoryLayout.DataBase+dataSize > memoryLayout.Data().End() {
+		return nil, fmt.Errorf("%w: data size %d exceeds allocated data section size %d", ErrProgramTooLarge, dataSize, memoryLayout.Data().Size)
 	}
 
 	// Create resolved instructions with addresses
 	resolvedInstructions := make([]Instruction, len(srcInstructions))
 	for i, inst := range srcInstructions {
-		addr := codeStart + uint32(i)*config.InstructionSize
+		addr := codeStart + uint32(i)*4
 		resolvedInstructions[i] = Instruction{
 			LineNumber:  inst.LineNumber,
 			Address:     &addr,
@@ -92,8 +58,7 @@ func ResolveMemory(pf ProgramFile, config MemoryResolverConfig) (ProgramFile, er
 
 	// Create resolved globals with addresses
 	resolvedGlobals := make([]Global, len(srcGlobals))
-	globalAddresses := make(map[string]uint32)
-	currentDataAddr := dataStart
+	currentDataAddr := memoryLayout.DataBase
 	for i, g := range srcGlobals {
 		addr := currentDataAddr
 		resolvedGlobals[i] = Global{
@@ -103,34 +68,21 @@ func ResolveMemory(pf ProgramFile, config MemoryResolverConfig) (ProgramFile, er
 			InitialData: g.InitialData,
 			Type:        g.Type,
 		}
-		globalAddresses[g.Name] = addr
 		currentDataAddr += uint32(g.Size)
 	}
 
 	// Create resolved functions (copy, addresses derived from instruction addresses)
 	resolvedFunctions := make(map[string]Function, len(srcFunctions))
-	functionAddresses := make(map[string]uint32)
 	for name, fn := range srcFunctions {
 		resolvedFunctions[name] = fn
-		// Function address is the address of its first instruction
-		if len(fn.InstructionRanges) > 0 && fn.InstructionRanges[0].Count > 0 {
-			startIdx := fn.InstructionRanges[0].Start
-			if startIdx >= 0 && startIdx < len(resolvedInstructions) {
-				functionAddresses[name] = *resolvedInstructions[startIdx].Address
-			}
-		}
 	}
 
 	// Create resolved labels with addresses (derived from instruction addresses)
 	resolvedLabels := make([]Label, len(srcLabels))
-	labelAddresses := make(map[string]uint32)
 	for i, lbl := range srcLabels {
 		resolvedLabels[i] = Label{
 			Name:             lbl.Name,
 			InstructionIndex: lbl.InstructionIndex,
-		}
-		if lbl.InstructionIndex >= 0 && lbl.InstructionIndex < len(resolvedInstructions) {
-			labelAddresses[lbl.Name] = *resolvedInstructions[lbl.InstructionIndex].Address
 		}
 	}
 
@@ -193,15 +145,6 @@ func ResolveMemory(pf ProgramFile, config MemoryResolverConfig) (ProgramFile, er
 		}
 	}
 
-	layout := &MemoryLayout{
-		BaseAddress: config.BaseAddress,
-		TotalSize:   totalSize,
-		CodeSize:    codeSize,
-		DataSize:    dataSize,
-		CodeStart:   codeStart,
-		DataStart:   dataStart,
-	}
-
 	// Remap debug info addresses to match the relocated code
 	debugInfo := pf.DebugInfo()
 	if debugInfo != nil {
@@ -215,7 +158,6 @@ func ResolveMemory(pf ProgramFile, config MemoryResolverConfig) (ProgramFile, er
 		InstructionsValue: resolvedInstructions,
 		GlobalsValue:      resolvedGlobals,
 		LabelsValue:       resolvedLabels,
-		MemoryLayoutValue: layout,
 		DebugInfoValue:    debugInfo,
 	}, nil
 }

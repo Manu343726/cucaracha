@@ -3,6 +3,7 @@ package mc
 import (
 	"testing"
 
+	"github.com/Manu343726/cucaracha/pkg/hw/memory"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -17,14 +18,14 @@ type mockProgramFile struct {
 	labels       []Label
 }
 
-func (m *mockProgramFile) FileName() string               { return m.fileName }
-func (m *mockProgramFile) SourceFile() string             { return m.sourceFile }
-func (m *mockProgramFile) Functions() map[string]Function { return m.functions }
-func (m *mockProgramFile) Instructions() []Instruction    { return m.instructions }
-func (m *mockProgramFile) Globals() []Global              { return m.globals }
-func (m *mockProgramFile) Labels() []Label                { return m.labels }
-func (m *mockProgramFile) MemoryLayout() *MemoryLayout    { return nil }
-func (m *mockProgramFile) DebugInfo() *DebugInfo          { return nil }
+func (m *mockProgramFile) FileName() string                   { return m.fileName }
+func (m *mockProgramFile) SourceFile() string                 { return m.sourceFile }
+func (m *mockProgramFile) Functions() map[string]Function     { return m.functions }
+func (m *mockProgramFile) Instructions() []Instruction        { return m.instructions }
+func (m *mockProgramFile) Globals() []Global                  { return m.globals }
+func (m *mockProgramFile) Labels() []Label                    { return m.labels }
+func (m *mockProgramFile) MemoryLayout() *memory.MemoryLayout { return nil }
+func (m *mockProgramFile) DebugInfo() *DebugInfo              { return nil }
 
 func TestResolveSymbols_ResolvesAllSymbolTypes(t *testing.T) {
 	// Create a program with functions, globals, and labels

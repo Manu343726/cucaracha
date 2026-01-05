@@ -18,6 +18,7 @@ import (
 	"github.com/Manu343726/cucaracha/pkg/hw/cpu/loader"
 	"github.com/Manu343726/cucaracha/pkg/hw/cpu/mc"
 	"github.com/Manu343726/cucaracha/pkg/hw/cpu/mc/instructions"
+	"github.com/Manu343726/cucaracha/pkg/hw/cpu/sysconfig"
 	"github.com/Manu343726/cucaracha/pkg/utils"
 	"github.com/fatih/color"
 	"github.com/peterh/liner"
@@ -723,6 +724,7 @@ var (
 	debugMemorySize    uint32
 	debugVerbose       bool
 	debugCompileFormat string
+	debugSystemConfig  string
 )
 
 var debugCmd = &cobra.Command{
@@ -756,7 +758,10 @@ Commands:
   eval, e <expr>     - Evaluate expression
   exec, ex           - Interactive execution view (combined panels)
   help, h            - Show help
-  quit, q            - Exit debugger`,
+  quit, q            - Exit debugger
+
+System Configuration:
+  Use --system to specify a YAML file describing the system hardware.`,
 	Args: cobra.ExactArgs(1),
 	Run:  runDebug,
 }
@@ -766,6 +771,7 @@ func init() {
 	debugCmd.Flags().Uint32VarP(&debugMemorySize, "memory", "m", 0x20000, "Memory size in bytes (default: 128KB)")
 	debugCmd.Flags().BoolVarP(&debugVerbose, "verbose", "v", false, "Print verbose output")
 	debugCmd.Flags().StringVar(&debugCompileFormat, "compile-to", "object", "Compilation output format: assembly, object")
+	debugCmd.Flags().StringVar(&debugSystemConfig, "system", "", "System configuration YAML file describing hardware setup")
 }
 
 // =============================================================================
@@ -774,6 +780,25 @@ func init() {
 
 func runDebug(cmd *cobra.Command, args []string) {
 	inputPath := args[0]
+
+	// Load system configuration if specified
+	var sysConfig *sysconfig.SystemConfig
+	if debugSystemConfig != "" {
+		var err error
+		sysConfig, err = sysconfig.LoadFile(debugSystemConfig)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error loading system configuration: %v\n", err)
+			os.Exit(1)
+		}
+
+		if err := sysConfig.Validate(); err != nil {
+			fmt.Fprintf(os.Stderr, "Invalid system configuration: %v\n", err)
+			os.Exit(1)
+		}
+
+		colorHeader.Println("=== System Configuration ===")
+		fmt.Print(sysConfig.String())
+	}
 
 	// Load the program
 	loadOpts := &loader.Options{
@@ -799,8 +824,25 @@ func runDebug(cmd *cobra.Command, args []string) {
 	resolved := loadResult.Program
 	fmt.Printf("Loaded %d instructions from %s\n", len(resolved.Instructions()), loadResult.CompiledPath)
 
-	// Create backend
-	backend := debugger.NewBackend(debugMemorySize)
+	// Determine memory size and create backend
+	var backend *debugger.Backend
+	if sysConfig != nil {
+		allocation, err := sysConfig.Allocate()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error allocating memory: %v\n", err)
+			os.Exit(2)
+		}
+
+		if debugVerbose {
+			colorHeader.Println("=== Memory Allocation ===")
+			fmt.Println(allocation.Summary)
+		}
+
+		backend = debugger.NewBackendWithLayout(sysConfig.TotalMemorySize(), &allocation.Layout)
+	} else {
+		backend = debugger.NewBackend(debugMemorySize)
+	}
+
 	if err := backend.LoadProgram(resolved); err != nil {
 		fmt.Fprintf(os.Stderr, "Error loading program: %v\n", err)
 		os.Exit(2)
@@ -1080,7 +1122,7 @@ func executeCommand(c *debugger.Controller, line string) {
 	case "stack":
 		// Interactive stack view - restricted to stack region (SP to end of memory)
 		state := c.Backend().GetState()
-		memSize := uint32(len(c.Backend().Runner().State().Memory))
+		memSize := uint32(c.Backend().Runner().State().MemorySize())
 		bounds := &MemoryViewBounds{
 			MinAddr: state.SP,
 			MaxAddr: memSize - 4,
@@ -1296,7 +1338,7 @@ func interactiveMemoryView(c *debugger.Controller, startAddr uint32) {
 // interactiveMemoryViewWithBounds displays memory with keyboard navigation, optionally restricted to bounds
 func interactiveMemoryViewWithBounds(c *debugger.Controller, startAddr uint32, bounds *MemoryViewBounds) {
 	// Get memory size for bounds checking
-	memSize := uint32(len(c.Backend().Runner().State().Memory))
+	memSize := uint32(c.Backend().Runner().State().MemorySize())
 	if memSize == 0 {
 		c.UI().ShowMessage(debugger.LevelError, "No memory available")
 		return
@@ -2979,7 +3021,7 @@ func interactiveExecutionView(c *debugger.Controller) {
 		disasmAddr:  c.Backend().GetState().PC,
 		codeStart:   layout.CodeStart,
 		codeEnd:     layout.CodeStart + layout.CodeSize,
-		memSize:     uint32(len(c.Backend().Runner().State().Memory)),
+		memSize:     uint32(c.Backend().Runner().State().MemorySize()),
 		statusMsg:   "Ready. Press ? for help.",
 		inputMode:   false,
 		inputBuffer: "",

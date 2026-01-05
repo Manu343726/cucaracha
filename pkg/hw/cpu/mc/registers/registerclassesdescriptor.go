@@ -34,6 +34,13 @@ func (d *RegisterClassesDescriptor) RegisterBits() int {
 	return d.RegisterClassBits() + utils.Max(utils.Map(d.AllClasses(), func(class *RegisterClassDescriptor) int { return class.RegisterBits() }))
 }
 
+// Returns the total number of registers across all classes
+func (d *RegisterClassesDescriptor) TotalRegisters() int {
+	return utils.Reduce(d.AllClasses(), func(class *RegisterClassDescriptor, total int) int {
+		return total + class.TotalRegisters()
+	})
+}
+
 var ErrInvalidRegisterClass = errors.New("invalid register class")
 
 // Returns a register class given its binary representation

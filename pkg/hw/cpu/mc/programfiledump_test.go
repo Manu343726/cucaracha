@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/Manu343726/cucaracha/pkg/hw/cpu/mc/instructions"
+	"github.com/Manu343726/cucaracha/pkg/hw/memory"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -242,13 +243,12 @@ func TestDumpProgramFile_WithResolvedMemory(t *testing.T) {
 			},
 		},
 		LabelsValue: []Label{},
-		MemoryLayoutValue: &MemoryLayout{
-			BaseAddress: 0x1000,
-			TotalSize:   0x1010,
-			CodeSize:    12,
-			DataSize:    4,
-			CodeStart:   0x1000,
-			DataStart:   0x2000,
+		MemoryLayoutValue: &memory.MemoryLayout{
+			TotalSize: 0x1010,
+			CodeSize:  12,
+			DataSize:  4,
+			CodeBase:  0x1000,
+			DataBase:  0x2000,
 		},
 	}
 
@@ -749,13 +749,12 @@ func TestDumpProgramFile_CompleteProgram(t *testing.T) {
 		},
 		GlobalsValue: []Global{globalData},
 		LabelsValue:  []Label{label},
-		MemoryLayoutValue: &MemoryLayout{
-			BaseAddress: 0x1000,
-			TotalSize:   0x1004,
-			CodeSize:    16,
-			DataSize:    4,
-			CodeStart:   0x1000,
-			DataStart:   0x2000,
+		MemoryLayoutValue: &memory.MemoryLayout{
+			TotalSize: 0x1004,
+			CodeSize:  16,
+			DataSize:  4,
+			CodeBase:  0x1000,
+			DataBase:  0x2000,
 		},
 	}
 

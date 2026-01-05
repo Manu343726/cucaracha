@@ -65,19 +65,19 @@ type Value struct {
 	valueType ValueType
 }
 
-func (v *Value) Type() ValueType {
+func (v Value) Type() ValueType {
 	return v.valueType
 }
 
-func (v *Value) Int32() int32 {
+func (v Value) Int32() int32 {
 	return v.value.(int32)
 }
 
-func (v *Value) String() string {
+func (v Value) String() string {
 	return fmt.Sprint(v.value)
 }
 
-func (v *Value) Encode() uint64 {
+func (v Value) Encode() uint64 {
 	switch v.valueType {
 	case ValueType_Int32:
 		return utils.BitCast[uint64](v.Int32())

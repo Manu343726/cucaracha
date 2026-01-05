@@ -15,6 +15,9 @@ type RegisterClassDescriptor struct {
 	ValueType          types.ValueType
 	RegisterNamePrefix string
 
+	// Recommended string format for displaying registers of this class
+	RecommendedStringFormat string
+
 	registers []*RegisterDescriptor
 }
 
@@ -58,9 +61,15 @@ func (d *RegisterClassDescriptor) Encode() uint64 {
 // Initializes a register class descriptor with the given registers
 func NewRegisterClassDescriptor(descriptor *RegisterClassDescriptor, registers []*RegisterDescriptor) *RegisterClassDescriptor {
 	descriptor.registers = registers
-	// Set the Index for each register based on its position in the array
 	for i, reg := range registers {
+		// Set the Index for each register based on its position in the array
 		reg.Index = i
+
+		if reg.RecommendedStringFormat == "" {
+			reg.RecommendedStringFormat = descriptor.RecommendedStringFormat
+		}
+
+		reg.Class = descriptor
 	}
 	return descriptor
 }
