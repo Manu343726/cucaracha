@@ -4,8 +4,10 @@ package interpreter
 
 import (
 	"fmt"
+	"log/slog"
 	"time"
 
+	"github.com/Manu343726/cucaracha/pkg/contract"
 	"github.com/Manu343726/cucaracha/pkg/hw/cpu"
 	"github.com/Manu343726/cucaracha/pkg/hw/memory"
 	"github.com/Manu343726/cucaracha/pkg/hw/peripheral"
@@ -17,6 +19,8 @@ import (
 // Executes Cucaracha machine code using the instruction descriptors.
 // It supports peripherals and interrupts.
 type Interpreter struct {
+	contract.Base
+
 	state *CPUState
 
 	// Target execution speed in Hz (cycles per second)
@@ -34,9 +38,37 @@ func NewInterpreter(system *system.SystemDescriptor) (*Interpreter, error) {
 		return nil, fmt.Errorf("failed to setup CPU state: %w", err)
 	}
 	interp := &Interpreter{
+		Base:  contract.NewBase(log().Child("interpreter")),
 		state: state,
 	}
 	return interp, nil
+}
+
+func (i *Interpreter) SetBreakpoint(addr uint32) error {
+	i.Log().Debug("SetBreakpoint", slog.Uint64("addr", uint64(addr)))
+
+	// TODO: Implement breakpoint logic
+	return nil
+}
+
+func (i *Interpreter) ClearBreakpoint(addr uint32) error {
+	i.Log().Debug("ClearBreakpoint", slog.Uint64("addr", uint64(addr)))
+
+	// TODO: Implement breakpoint logic
+	return nil
+}
+
+func (i *Interpreter) SetWatchpoint(r memory.Range) error {
+	i.Log().Debug("SetWatchpoint", slog.Uint64("start", uint64(r.Start)), slog.Uint64("Size", uint64(r.Size)))
+	// TODO: Implement watchpoint logic
+	return nil
+}
+
+func (i *Interpreter) ClearWatchpoint(r memory.Range) error {
+	i.Log().Debug("ClearWatchpoint", slog.Uint64("start", uint64(r.Start)), slog.Uint64("Size", uint64(r.Size)))
+
+	// TODO: Implement watchpoint logic
+	return nil
 }
 
 // Sets the target execution speed in Hz (cycles per second).
@@ -86,30 +118,45 @@ func (i *Interpreter) Interrupts() cpu.Interrupts {
 	return i.state.IntController
 }
 
-func (i *Interpreter) Ram() memory.Memory {
+func (i *Interpreter) Memory() memory.Memory {
 	return i.state.Ram
+}
+
+func (i *Interpreter) MemoryLayout() memory.MemoryLayout {
+	return i.state.MemoryLayout
+}
+
+func (i *Interpreter) CPU() cpu.CPU {
+	return i
+}
+
+func (i *Interpreter) Peripherals() map[string]peripheral.Peripheral {
+	return i.state.Peripherals.byName
 }
 
 // Executes a single instruction, handling interrupts and peripherals.
 func (i *Interpreter) Step() (*cpu.StepInfo, error) {
+	log := i.Log().Child("Step")
+
 	// Check for pending interrupts before executing
 	if err := i.checkInterrupts(); err != nil {
-		return nil, err
+		return nil, log.Errorf("Interrupt handling failed: %v", err)
 	}
 
 	if i.state.Halted {
-		return nil, fmt.Errorf("CPU is halted")
+		log.Debug("CPU is halted")
+		return nil, log.Errorf("CPU is halted")
 	}
 
-	instruction, err := cpu.DecodeCurrentInstruction(i, i.Ram())
+	instruction, err := cpu.DecodeCurrentInstruction(i.Registers(), i.Memory())
 	if err != nil {
-		return nil, err
+		return nil, log.Errorf("failed to decode instruction: %v", err)
 	}
 
 	// Save current PC for detecting branches
 	oldPC, err := cpu.ReadPC(i.Registers())
 	if err != nil {
-		return nil, fmt.Errorf("failed to read PC: %w", err)
+		return nil, log.Errorf("failed to read PC: %v", err)
 	}
 
 	// Execute the instruction
@@ -119,7 +166,7 @@ func (i *Interpreter) Step() (*cpu.StepInfo, error) {
 
 	// Advance PC one instruction if it wasn't changed by the instruction itself (e.g., JMP)
 	if err := cpu.AdvancePCIfEqual(i.Registers(), oldPC, 1); err != nil {
-		return nil, fmt.Errorf("failed to advance PC: %w", err)
+		return nil, log.Errorf("failed to advance PC: %w", err)
 	}
 
 	// Clock peripherals
@@ -129,16 +176,19 @@ func (i *Interpreter) Step() (*cpu.StepInfo, error) {
 	}
 
 	if err := i.state.Peripherals.Clock(env); err != nil {
-		return nil, fmt.Errorf("peripheral clock error: %w", err)
+		return nil, log.Errorf("peripheral clock error: %v", err)
 	}
 
 	// Poll interrupt sources after each instruction
 	i.state.IntController.Poll()
 
-	return &cpu.StepInfo{
+	info := &cpu.StepInfo{
 		CyclesUsed: instruction.Descriptor.Cycles,
 		Halted:     i.IsHalted(),
-	}, nil
+	}
+
+	log.Debug("finished", slog.Uint64("cycles", uint64(info.CyclesUsed)), slog.Bool("halted", info.Halted))
+	return info, nil
 }
 
 // checkInterrupts checks for and handles any pending interrupts.

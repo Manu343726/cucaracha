@@ -1,0 +1,17 @@
+# Session: Load and inspect a simple program
+# Test: Load program, verify entry point, check initial state
+
+# Expected:
+#  Result: success
+#  Output: system loaded
+loadsystem default
+
+# Expected:
+#  Result: success
+#  Output: runtime loaded
+loadruntime interpreter
+
+# Expected:
+#  Result: success
+#  Output: programs/program.c loaded
+loadprogram programs/program.c

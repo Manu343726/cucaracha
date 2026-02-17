@@ -111,7 +111,7 @@ func Allocate(req MemoryRequirements) (*AllocationResult, error) {
 	})
 
 	// Assign addresses and build peripheral info
-	for i, p := range sortedPeripherals {
+	for _, p := range sortedPeripherals {
 		alignment := peripheralAlignment(p)
 		alignedAddr := memory.NextAlignedAddress(currentAddr, alignment)
 
@@ -139,7 +139,7 @@ func Allocate(req MemoryRequirements) (*AllocationResult, error) {
 			return nil, fmt.Errorf("peripheral %q (size %d) doesn't fit in remaining peripheral space", p.Name, p.Size)
 		}
 
-		peripheralAddrs[i] = alignedAddr
+		peripheralAddrs = append(peripheralAddrs, alignedAddr)
 		currentAddr = alignedAddr + p.Size
 		p.BaseAddress = alignedAddr
 	}
@@ -166,8 +166,8 @@ func Allocate(req MemoryRequirements) (*AllocationResult, error) {
 
 	if len(peripheralAddrs) > 0 {
 		summary += "\n  Peripheral Addresses:"
-		for name, addr := range peripheralAddrs {
-			summary += fmt.Sprintf("\n    %s: 0x%08X", name, addr)
+		for i, addr := range peripheralAddrs {
+			summary += fmt.Sprintf("\n    %s: 0x%08X", sortedPeripherals[i].Name, addr)
 		}
 	}
 

@@ -1,0 +1,21 @@
+version: 1
+name: "Default Cucaracha System"
+description: "Default system configuration for the Cucaracha debugger"
+
+memory:
+  total: 65536
+  code_size: 16384
+  data_size: 4096
+  stack_size: 8192
+  heap_size: 8192
+
+interrupts:
+  vectors: 32
+  vector_size: 4
+
+peripherals:
+  - type: terminal
+    params:
+      name: uart0
+      size: 256
+      interrupt_vector: 16

@@ -113,7 +113,7 @@ type PeripheralConfig struct {
 	Type string `yaml:"type"`
 
 	// Parameters for creating the peripheral.
-	Params peripheral.PeripheralParams
+	Params peripheral.PeripheralParams `yaml:"params"`
 }
 
 // Loads a system configuration from a YAML file.
@@ -210,6 +210,7 @@ func (c *SystemConfig) memoryRequirements() (*MemoryRequirements, error) {
 	}
 
 	req := MemoryRequirements{
+		TotalSize:           c.Memory.Total,
 		CodeInstructions:    instructions,
 		DataSize:            c.Memory.DataSize,
 		HeapSize:            c.Memory.HeapSize,

@@ -5,7 +5,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/Manu343726/cucaracha/pkg/hw/cpu/llvm"
+	"github.com/Manu343726/cucaracha/pkg/llvm"
 	"github.com/spf13/cobra"
 )
 

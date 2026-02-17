@@ -13,20 +13,22 @@ import (
 
 // Shows the memory layout of an encoded system descriptor
 type EncodedSystemDescriptorMemoryLayout struct {
-	Header                memory.Range
-	CodeMemoryRange       memory.Range
-	DataMemoryRange       memory.Range
-	HeapMemoryRange       memory.Range
-	StackMemoryRange      memory.Range
-	PeripheralMemoryRange memory.Range
-	VectorTable           memory.Range
-	Peripherals           memory.Range
+	Header                 memory.Range // Range within the encoded descriptor where the header is stored
+	VectorTableMemoryRange memory.Range // Range within the encoded descriptor where the vector table runtime memory region is stored
+	CodeMemoryRange        memory.Range // Range within the encoded descriptor where the code runtime memory region is stored
+	DataMemoryRange        memory.Range // Range within the encoded descriptor where the data runtime memory region is stored
+	HeapMemoryRange        memory.Range // Range within the encoded descriptor where the heap runtime memory region is stored
+	StackMemoryRange       memory.Range // Range within the encoded descriptor where the stack runtime memory region is stored
+	PeripheralMemoryRange  memory.Range // Range within the encoded descriptor where the peripherals runtime memory region is stored
+	VectorTable            memory.Range // Range within the encoded descriptor where the vector table configuration is stored
+	Peripherals            memory.Range // Range within the encoded descriptor where the peripherals configuration is stored
 }
 
 // Validates that memory layout of the encoded system descriptor is well-formed
 func (l *EncodedSystemDescriptorMemoryLayout) Validate() error {
 	if !memory.ContiguousRanges([]memory.Range{
 		l.Header,
+		l.VectorTableMemoryRange,
 		l.CodeMemoryRange,
 		l.DataMemoryRange,
 		l.HeapMemoryRange,
@@ -44,6 +46,7 @@ func (l *EncodedSystemDescriptorMemoryLayout) Validate() error {
 func (l *EncodedSystemDescriptorMemoryLayout) String() string {
 	return fmt.Sprintf("EncodedSystemDescriptorMemoryLayout{\n"+
 		"  Header: %s\n"+
+		"  VectorTableMemoryRange: %s\n"+
 		"  CodeMemoryRange: %s\n"+
 		"  DataMemoryRange: %s\n"+
 		"  HeapMemoryRange: %s\n"+
@@ -53,6 +56,7 @@ func (l *EncodedSystemDescriptorMemoryLayout) String() string {
 		"  Peripherals: %s\n"+
 		"}",
 		l.Header.String(),
+		l.VectorTableMemoryRange.String(),
 		l.CodeMemoryRange.String(),
 		l.DataMemoryRange.String(),
 		l.HeapMemoryRange.String(),
@@ -144,14 +148,15 @@ func (l *EncodedSystemDescriptorMemoryLayout) PeripheralInterruptVector(index in
 // Returns the layout of an encoded system descriptor given the number of peripherals and a custom base address
 func EncodedSystemDescriptorLayout_CustomBaseAddress(numPeripherals int, baseAddress uint32) *EncodedSystemDescriptorMemoryLayout {
 	return &EncodedSystemDescriptorMemoryLayout{
-		Header:                memory.Range{Start: baseAddress + 0, Size: 12},
-		VectorTable:           memory.Range{Start: baseAddress + 12, Size: 16},
-		CodeMemoryRange:       memory.Range{Start: baseAddress + 28, Size: 12},
-		DataMemoryRange:       memory.Range{Start: baseAddress + 40, Size: 12},
-		HeapMemoryRange:       memory.Range{Start: baseAddress + 52, Size: 12},
-		StackMemoryRange:      memory.Range{Start: baseAddress + 64, Size: 12},
-		PeripheralMemoryRange: memory.Range{Start: baseAddress + 76, Size: 12},
-		Peripherals:           memory.Range{Start: baseAddress + 88, Size: uint32(4 + numPeripherals*60)},
+		Header:                 memory.Range{Start: baseAddress + 0, Size: 12},
+		VectorTableMemoryRange: memory.Range{Start: baseAddress + 12, Size: 12},
+		CodeMemoryRange:        memory.Range{Start: baseAddress + 24, Size: 12},
+		DataMemoryRange:        memory.Range{Start: baseAddress + 36, Size: 12},
+		HeapMemoryRange:        memory.Range{Start: baseAddress + 48, Size: 12},
+		StackMemoryRange:       memory.Range{Start: baseAddress + 60, Size: 12},
+		PeripheralMemoryRange:  memory.Range{Start: baseAddress + 72, Size: 12},
+		VectorTable:            memory.Range{Start: baseAddress + 84, Size: 12},
+		Peripherals:            memory.Range{Start: baseAddress + 96, Size: uint32(4 + numPeripherals*60)},
 	}
 }
 
@@ -161,10 +166,10 @@ func EncodedSystemDescriptorLayout(numPeripherals int) *EncodedSystemDescriptorM
 }
 
 // The magic number that identifies a valid system descriptor.
-const RuntimeDescriptorMagic = 0xCCCACACA
+const RuntimeDescriptorMagic uint32 = 0xCCCACACA
 
 // The current version of the descriptor format.
-const RuntimeDescriptorVersion = 1
+const RuntimeDescriptorVersion uint32 = 1
 
 // Encodes a SystemDescriptor into its binary format
 //
@@ -175,13 +180,13 @@ const RuntimeDescriptorVersion = 1
 //   - TotalMemory (4 bytes, uint32)
 //
 // - Memory Regions (7 regions, each with BaseAddress (4 bytes, uint32), Size (4 bytes, uint32), Flags (4 bytes, uint32)):
-//   - SystemDescriptor
-//   - VectorTable
-//   - Code
-//   - Data
-//   - Heap
-//   - Stack
-//   - Peripherals
+//   - SystemDescriptor (12 bytes, memory.Range)
+//   - VectorTable      (12 bytes, memory.Range)
+//   - Code             (12 bytes, memory.Range)
+//   - Data             (12 bytes, memory.Range)
+//   - Heap             (12 bytes, memory.Range)
+//   - Stack            (12 bytes, memory.Range)
+//   - Peripherals      (12 bytes, memory.Range)
 //
 // - VectorTable:
 //   - BaseAddress (4 bytes, uint32)

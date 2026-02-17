@@ -3,6 +3,8 @@ package instructions
 import (
 	"fmt"
 	"strings"
+
+	"github.com/Manu343726/cucaracha/pkg/hw/cpu/mc/registers"
 )
 
 // Stores a fully decoded instruction
@@ -11,8 +13,8 @@ type Instruction struct {
 	OperandValues []OperandValue
 }
 
-func (i *Instruction) Raw() RawInstruction {
-	raw := RawInstruction{
+func (i *Instruction) Raw() *RawInstruction {
+	raw := &RawInstruction{
 		Descriptor:    i.Descriptor,
 		OperandValues: make([]uint64, len(i.OperandValues)),
 	}
@@ -74,4 +76,58 @@ func NewInstruction(descriptor *InstructionDescriptor, operands []OperandValue) 
 		Descriptor:    descriptor,
 		OperandValues: operands,
 	}, nil
+}
+
+// Returns the register containing the branch target for the given branch instruction
+func BranchTargetRegister(instr *Instruction) (*registers.RegisterDescriptor, error) {
+	switch instr.Descriptor.OpCode.OpCode {
+	case OpCode_CJMP:
+		return cjmpBranchTargetRegister(instr)
+	case OpCode_JMP:
+		return jmpBranchTargetRegister(instr)
+	default:
+		return nil, fmt.Errorf("instruction is not a branch")
+	}
+}
+
+func cjmpBranchTargetRegister(instr *Instruction) (*registers.RegisterDescriptor, error) {
+	if instr.Descriptor.OpCode.OpCode != OpCode_CJMP {
+		panic("expected CJMP instruction for cjmpBranchTarget()")
+	}
+
+	// CJMP has three operands: condition register, jump target address register, and link register
+	if len(instr.OperandValues) != 3 || len(instr.Descriptor.Operands) != 3 {
+		panic("expected 3 operands for CJMP instruction")
+	}
+
+	if instr.Descriptor.Operands[1].Role != OperandRole_Source {
+		panic("expected jump target operand to have source role")
+	}
+
+	if instr.OperandValues[1].Kind() != OperandKind_Register {
+		panic("expected jump target operand to be a register")
+	}
+
+	return instr.OperandValues[1].Register(), nil
+}
+
+func jmpBranchTargetRegister(instr *Instruction) (*registers.RegisterDescriptor, error) {
+	if instr.Descriptor.OpCode.OpCode != OpCode_JMP {
+		panic("expected JMP instruction for jmpBranchTarget()")
+	}
+
+	// JMP has two operands: jump target address register and link register
+	if len(instr.OperandValues) != 2 || len(instr.Descriptor.Operands) != 2 {
+		panic("expected 2 operands for JMP instruction")
+	}
+
+	if instr.Descriptor.Operands[0].Role != OperandRole_Source {
+		panic("expected jump target operand to have source role")
+	}
+
+	if instr.OperandValues[0].Kind() != OperandKind_Register {
+		panic("expected jump target operand to be a register")
+	}
+
+	return instr.OperandValues[0].Register(), nil
 }

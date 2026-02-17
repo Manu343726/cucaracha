@@ -21,6 +21,10 @@ type Registers interface {
 	Reset() error
 }
 
+func LookupRegister(idx uint32) (*registers.RegisterDescriptor, error) {
+	return mc.Descriptor.RegisterClasses.DecodeRegister(uint64(idx))
+}
+
 // Returns the value of SP register
 func ReadSP(regs Registers) (uint32, error) {
 	return regs.ReadByDescriptor(mc.Descriptor.Registers.SP)
@@ -44,6 +48,46 @@ func WriteLR(regs Registers, value uint32) error {
 // Returns the value of PC register
 func ReadPC(regs Registers) (uint32, error) {
 	return regs.ReadByDescriptor(mc.Descriptor.Registers.PC)
+}
+
+// Read a register by its name
+func ReadRegisterByName(regs Registers, name string) (uint32, error) {
+	regDesc, err := mc.Descriptor.RegisterClasses.RegisterByName(name)
+	if err != nil {
+		return 0, err
+	}
+
+	return regs.ReadByDescriptor(regDesc)
+}
+
+// Write a register by its name
+func WriteRegisterByName(regs Registers, name string, value uint32) error {
+	regDesc, err := mc.Descriptor.RegisterClasses.RegisterByName(name)
+	if err != nil {
+		return err
+	}
+
+	return regs.WriteByDescriptor(regDesc, value)
+}
+
+// Read a register by its encoded representation
+func ReadRegisterByEncodedId(regs Registers, rep uint32) (uint32, error) {
+	regDesc, err := mc.Descriptor.RegisterClasses.DecodeRegister(uint64(rep))
+	if err != nil {
+		return 0, err
+	}
+
+	return regs.ReadByDescriptor(regDesc)
+}
+
+// Write a register by its encoded representation
+func WriteRegisterByEncodedId(regs Registers, rep uint32, value uint32) error {
+	regDesc, err := mc.Descriptor.RegisterClasses.DecodeRegister(uint64(rep))
+	if err != nil {
+		return err
+	}
+
+	return regs.WriteByDescriptor(regDesc, value)
 }
 
 // Advances the PC register by N instructions

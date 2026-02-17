@@ -15,6 +15,11 @@ const (
 	FLAG_V // 0x8
 )
 
+// Tests if a specific CPSR flag is set
+func TestCPSRFlag(cpsr uint32, flag CPSRFlag) bool {
+	return (cpsr & uint32(flag)) != 0
+}
+
 // ConditionCode represents condition codes used by CJMP instruction.
 // These are numeric codes (0-14) that are evaluated using proper condition
 // semantics (e.g., GT = Z=0 AND N=V, not just a simple AND mask).

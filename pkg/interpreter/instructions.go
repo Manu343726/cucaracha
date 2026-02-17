@@ -2,8 +2,8 @@ package interpreter
 
 import (
 	"fmt"
+	"log/slog"
 	"reflect"
-	"strings"
 
 	"github.com/Manu343726/cucaracha/pkg/hw/cpu"
 	"github.com/Manu343726/cucaracha/pkg/hw/cpu/mc"
@@ -20,14 +20,16 @@ func generateExecutorMap() map[instructions.OpCode]executeFunc {
 	instrImplType := reflect.TypeOf(instrImpl)
 
 	for _, opCode := range mc.Descriptor.OpCodes.AllOpCodes() {
-		methodName := strings.Title(strings.ToLower(opCode.Mnemonic))
-		method, exists := instrImplType.MethodByName(methodName)
+		method, exists := instrImplType.MethodByName(opCode.Mnemonic)
 
 		if !exists {
 			panic(fmt.Sprintf("no execution function defined for instruction opcode %s", opCode))
 		}
 
-		executorMap[opCode.OpCode] = method.Func.Interface().(executeFunc)
+		executorMap[opCode.OpCode] = func(i *Interpreter, operands []*uint32) error {
+			methodFunction := method.Func.Interface().(func(*cpuInstructionsImplementation, *Interpreter, []*uint32) error)
+			return methodFunction(instrImpl, i, operands)
+		}
 	}
 
 	return executorMap
@@ -39,9 +41,11 @@ var Instruction_Executors map[instructions.OpCode]executeFunc = generateExecutor
 type cpuInstructionsImplementation struct{}
 
 func ExecuteInstruction(interpreter *Interpreter, instr *instructions.Instruction) error {
+	log := interpreter.Log().Child("execute")
+
 	execFunc, exists := Instruction_Executors[instr.Descriptor.OpCode.OpCode]
 	if !exists {
-		return fmt.Errorf("no execution function defined for instruction %s", instr)
+		return log.Errorf("no execution function defined for instruction %s", instr)
 	}
 
 	operandValues := make([]uint32, len(instr.Descriptor.Operands))
@@ -54,7 +58,7 @@ func ExecuteInstruction(interpreter *Interpreter, instr *instructions.Instructio
 			var err error
 			operandValues[i], err = interpreter.Registers().ReadByDescriptor(operand.Register())
 			if err != nil {
-				return fmt.Errorf("could not execute instruction %s: failed to read register operand [%d] %s: %w", instr, i, operand.Register().Name(), err)
+				return log.Errorf("could not execute instruction %s: failed to read register operand [%d] %s: %v", instr, i, operand.Register().Name(), err)
 			}
 
 			if instr.Descriptor.Operands[i].Role == instructions.OperandRole_Destination {
@@ -63,34 +67,36 @@ func ExecuteInstruction(interpreter *Interpreter, instr *instructions.Instructio
 		case instructions.OperandKind_Immediate:
 			operandValues[i] = uint32(operand.Immediate().Int32())
 		default:
-			return fmt.Errorf("could not execute instruction %s: unsupported operand [%d] type", instr, i)
+			return log.Errorf("could not execute instruction %s: unsupported operand [%d] type", instr, i)
 		}
 
 		operandReferences[i] = &operandValues[i]
 	}
 
+	log.Debug("executing instruction", slog.String("instruction", instr.String()))
+
 	err := execFunc(interpreter, operandReferences)
 
 	if err != nil {
-		return fmt.Errorf("error executing instruction %s: %w", instr, err)
+		return log.Errorf("error executing instruction %s: %v", instr, err)
 	}
 
 	// Write back destination operands
 	for regDesc, operandIdx := range destinationOperandIndices {
 		if err := interpreter.Registers().WriteByDescriptor(regDesc, operandValues[operandIdx]); err != nil {
-			return fmt.Errorf("could not execute instruction %s: failed to write back destination register %s: %w", instr, regDesc.Name(), err)
+			return log.Errorf("could not execute instruction %s: failed to write back destination register %s: %v", instr, regDesc.Name(), err)
 		}
 	}
 
 	return nil
 }
 
-func NOP(i *Interpreter, operands []uint32) error {
+func (*cpuInstructionsImplementation) NOP(i *Interpreter, operands []*uint32) error {
 	// No operation
 	return nil
 }
 
-func MOVIMM16H(i *Interpreter, operands []*uint32) error {
+func (*cpuInstructionsImplementation) MOVIMM16H(i *Interpreter, operands []*uint32) error {
 	immediateHighBits := *operands[0]
 	current := *operands[1]
 
@@ -100,7 +106,7 @@ func MOVIMM16H(i *Interpreter, operands []*uint32) error {
 	return nil
 }
 
-func MOVIMM16L(i *Interpreter, operands []*uint32) error {
+func (*cpuInstructionsImplementation) MOVIMM16L(i *Interpreter, operands []*uint32) error {
 	immediateLowBits := *operands[0]
 	current := *operands[1]
 
@@ -110,14 +116,14 @@ func MOVIMM16L(i *Interpreter, operands []*uint32) error {
 	return nil
 }
 
-func MOV(i *Interpreter, operands []*uint32) error {
+func (*cpuInstructionsImplementation) MOV(i *Interpreter, operands []*uint32) error {
 	*operands[1] = *operands[0]
 	return nil
 }
 
-func LD(i *Interpreter, operands []*uint32) error {
+func (*cpuInstructionsImplementation) LD(i *Interpreter, operands []*uint32) error {
 	address := *operands[0]
-	value, err := memory.ReadUint32(i.Ram(), address)
+	value, err := memory.ReadUint32(i.Memory(), address)
 	if err != nil {
 		return fmt.Errorf("error executing LD: failed to read memory at address 0x%X: %w", address, err)
 	}
@@ -126,18 +132,18 @@ func LD(i *Interpreter, operands []*uint32) error {
 	return nil
 }
 
-func ST(i *Interpreter, operands []*uint32) error {
+func (*cpuInstructionsImplementation) ST(i *Interpreter, operands []*uint32) error {
 	address := *operands[0]
 	value := *operands[1]
 
-	if err := memory.WriteUint32(i.Ram(), address, value); err != nil {
+	if err := memory.WriteUint32(i.Memory(), address, value); err != nil {
 		return fmt.Errorf("error executing ST: failed to write memory at address 0x%X: %w", address, err)
 	}
 
 	return nil
 }
 
-func CMP(i *Interpreter, operands []*uint32) error {
+func (*cpuInstructionsImplementation) CMP(i *Interpreter, operands []*uint32) error {
 	val1 := *operands[0]
 	val2 := *operands[1]
 
@@ -148,7 +154,7 @@ func CMP(i *Interpreter, operands []*uint32) error {
 	return nil
 }
 
-func JMP(i *Interpreter, operands []*uint32) error {
+func (*cpuInstructionsImplementation) JMP(i *Interpreter, operands []*uint32) error {
 	target := *operands[0]
 	link := operands[1]
 	// Write link register first before changing PC
@@ -165,7 +171,7 @@ func JMP(i *Interpreter, operands []*uint32) error {
 	return nil
 }
 
-func CJMP(i *Interpreter, operands []*uint32) error {
+func (*cpuInstructionsImplementation) CJMP(i *Interpreter, operands []*uint32) error {
 	condCode := instructions.ConditionCode(*operands[0])
 	target := *operands[1]
 	link := operands[2]
@@ -191,22 +197,22 @@ func CJMP(i *Interpreter, operands []*uint32) error {
 	return nil
 }
 
-func ADD(i *Interpreter, operands []*uint32) error {
+func (*cpuInstructionsImplementation) ADD(i *Interpreter, operands []*uint32) error {
 	*operands[2] = *operands[0] + *operands[1]
 	return nil
 }
 
-func SUB(i *Interpreter, operands []*uint32) error {
+func (*cpuInstructionsImplementation) SUB(i *Interpreter, operands []*uint32) error {
 	*operands[2] = *operands[0] - *operands[1]
 	return nil
 }
 
-func MUL(i *Interpreter, operands []*uint32) error {
+func (*cpuInstructionsImplementation) MUL(i *Interpreter, operands []*uint32) error {
 	*operands[2] = *operands[0] * *operands[1]
 	return nil
 }
 
-func DIV(i *Interpreter, operands []*uint32) error {
+func (*cpuInstructionsImplementation) DIV(i *Interpreter, operands []*uint32) error {
 	if *operands[1] == 0 {
 		// Handle division by zero as needed; here we just return zero
 		*operands[2] = 0
@@ -216,7 +222,7 @@ func DIV(i *Interpreter, operands []*uint32) error {
 	return nil
 }
 
-func MOD(i *Interpreter, operands []*uint32) error {
+func (*cpuInstructionsImplementation) MOD(i *Interpreter, operands []*uint32) error {
 	if *operands[1] == 0 {
 		// Handle modulo by zero as needed; here we just return zero
 		*operands[2] = 0
@@ -226,63 +232,68 @@ func MOD(i *Interpreter, operands []*uint32) error {
 	return nil
 }
 
-func AND(i *Interpreter, operands []*uint32) error {
+func (*cpuInstructionsImplementation) AND(i *Interpreter, operands []*uint32) error {
 	*operands[2] = *operands[0] & *operands[1]
 	return nil
 }
 
-func OR(i *Interpreter, operands []*uint32) error {
+func (*cpuInstructionsImplementation) OR(i *Interpreter, operands []*uint32) error {
 	*operands[2] = *operands[0] | *operands[1]
 	return nil
 }
 
-func XOR(i *Interpreter, operands []*uint32) error {
+func (*cpuInstructionsImplementation) XOR(i *Interpreter, operands []*uint32) error {
 	*operands[2] = *operands[0] ^ *operands[1]
 	return nil
 }
 
-func NOT(i *Interpreter, operands []*uint32) error {
+func (*cpuInstructionsImplementation) NOT(i *Interpreter, operands []*uint32) error {
 	*operands[1] = ^(*operands[0])
 	return nil
 }
 
-func LSL(i *Interpreter, operands []*uint32) error {
+func (*cpuInstructionsImplementation) LSL(i *Interpreter, operands []*uint32) error {
 	*operands[2] = *operands[0] << (*operands[1] & 0x1F)
 	return nil
 }
 
-func LSR(i *Interpreter, operands []*uint32) error {
+func (*cpuInstructionsImplementation) LSR(i *Interpreter, operands []*uint32) error {
 	*operands[2] = *operands[0] >> (*operands[1] & 0x1F)
 	return nil
 }
 
-func ASL(i *Interpreter, operands []*uint32) error {
+func (*cpuInstructionsImplementation) ASL(i *Interpreter, operands []*uint32) error {
 	*operands[2] = uint32(int32(*operands[0]) << (*operands[1] & 0x1F))
 	return nil
 }
 
-func ASR(i *Interpreter, operands []*uint32) error {
+func (*cpuInstructionsImplementation) ASR(i *Interpreter, operands []*uint32) error {
 	*operands[2] = uint32(int32(*operands[0]) >> (*operands[1] & 0x1F))
 	return nil
 }
 
-func HLT(i *Interpreter, operands []*uint32) error {
+func (*cpuInstructionsImplementation) HLT(i *Interpreter, operands []*uint32) error {
 	return i.Halt()
 }
 
-func EI(i *Interpreter, operands []*uint32) error {
+func (*cpuInstructionsImplementation) EI(i *Interpreter, operands []*uint32) error {
 	return i.Interrupts().Enable()
 }
 
-func DI(i *Interpreter, operands []*uint32) error {
+func (*cpuInstructionsImplementation) DI(i *Interpreter, operands []*uint32) error {
 	return i.Interrupts().Disable()
 }
 
-func SWI(i *Interpreter, operands []*uint32) error {
+func (*cpuInstructionsImplementation) INT(i *Interpreter, operands []*uint32) error {
 	vector := uint8(*operands[0] & 0xFF)
 	return i.Interrupts().Interrupt(vector)
 }
 
-func RETI(i *Interpreter, operands []*uint32) error {
+func (*cpuInstructionsImplementation) RETI(i *Interpreter, operands []*uint32) error {
 	return i.ReturnFromInterrupt()
+}
+
+func (*cpuInstructionsImplementation) SIG(i *Interpreter, operands []*uint32) error {
+	// TODO
+	return nil
 }

@@ -24,4 +24,10 @@ type Runtime interface {
 
 	// Executes a single step of the runtime simulation
 	Step() (*cpu.StepInfo, error)
+
+	SetBreakpoint(addr uint32) error
+	ClearBreakpoint(addr uint32) error
+
+	SetWatchpoint(r memory.Range) error
+	ClearWatchpoint(r memory.Range) error
 }

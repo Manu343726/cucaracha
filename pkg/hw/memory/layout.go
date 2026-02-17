@@ -1,6 +1,7 @@
 package memory
 
 import (
+	"fmt"
 	"sort"
 
 	"github.com/Manu343726/cucaracha/pkg/utils"
@@ -68,6 +69,70 @@ type MemoryLayout struct {
 
 	// Base address of each peripheral in order
 	PeripheralBaseAddresses []uint32
+}
+
+// EqualOrError compares two memory layouts and returns nil if they are equal.
+// If they are not equal, it returns an error explaining what doesn't match.
+func (m MemoryLayout) EqualOrError(other MemoryLayout) error {
+	if m.TotalSize != other.TotalSize {
+		return fmt.Errorf("TotalSize mismatch: %d vs %d", m.TotalSize, other.TotalSize)
+	}
+	if m.SystemDescriptorBase != other.SystemDescriptorBase {
+		return fmt.Errorf("SystemDescriptorBase mismatch: 0x%X vs 0x%X", m.SystemDescriptorBase, other.SystemDescriptorBase)
+	}
+	if m.SystemDescriptorSize != other.SystemDescriptorSize {
+		return fmt.Errorf("SystemDescriptorSize mismatch: %d vs %d", m.SystemDescriptorSize, other.SystemDescriptorSize)
+	}
+	if m.VectorTableBase != other.VectorTableBase {
+		return fmt.Errorf("VectorTableBase mismatch: 0x%X vs 0x%X", m.VectorTableBase, other.VectorTableBase)
+	}
+	if m.VectorTableSize != other.VectorTableSize {
+		return fmt.Errorf("VectorTableSize mismatch: %d vs %d", m.VectorTableSize, other.VectorTableSize)
+	}
+	if m.DataBase != other.DataBase {
+		return fmt.Errorf("DataBase mismatch: 0x%X vs 0x%X", m.DataBase, other.DataBase)
+	}
+	if m.DataSize != other.DataSize {
+		return fmt.Errorf("DataSize mismatch: %d vs %d", m.DataSize, other.DataSize)
+	}
+	if m.CodeBase != other.CodeBase {
+		return fmt.Errorf("CodeBase mismatch: 0x%X vs 0x%X", m.CodeBase, other.CodeBase)
+	}
+	if m.CodeSize != other.CodeSize {
+		return fmt.Errorf("CodeSize mismatch: %d vs %d", m.CodeSize, other.CodeSize)
+	}
+	if m.HeapBase != other.HeapBase {
+		return fmt.Errorf("HeapBase mismatch: 0x%X vs 0x%X", m.HeapBase, other.HeapBase)
+	}
+	if m.HeapSize != other.HeapSize {
+		return fmt.Errorf("HeapSize mismatch: %d vs %d", m.HeapSize, other.HeapSize)
+	}
+	if m.StackBase != other.StackBase {
+		return fmt.Errorf("StackBase mismatch: 0x%X vs 0x%X", m.StackBase, other.StackBase)
+	}
+	if m.StackSize != other.StackSize {
+		return fmt.Errorf("StackSize mismatch: %d vs %d", m.StackSize, other.StackSize)
+	}
+	if m.PeripheralBase != other.PeripheralBase {
+		return fmt.Errorf("PeripheralBase mismatch: 0x%X vs 0x%X", m.PeripheralBase, other.PeripheralBase)
+	}
+	if m.PeripheralSize != other.PeripheralSize {
+		return fmt.Errorf("PeripheralSize mismatch: %d vs %d", m.PeripheralSize, other.PeripheralSize)
+	}
+	if len(m.PeripheralBaseAddresses) != len(other.PeripheralBaseAddresses) {
+		return fmt.Errorf("PeripheralBaseAddresses length mismatch: %d vs %d", len(m.PeripheralBaseAddresses), len(other.PeripheralBaseAddresses))
+	}
+	for i := range m.PeripheralBaseAddresses {
+		if m.PeripheralBaseAddresses[i] != other.PeripheralBaseAddresses[i] {
+			return fmt.Errorf("PeripheralBaseAddresses[%d] mismatch: 0x%X vs 0x%X", i, m.PeripheralBaseAddresses[i], other.PeripheralBaseAddresses[i])
+		}
+	}
+	return nil
+}
+
+// Equals compares two memory layouts for equality.
+func (m MemoryLayout) Equals(other MemoryLayout) bool {
+	return m.EqualOrError(other) == nil
 }
 
 const (

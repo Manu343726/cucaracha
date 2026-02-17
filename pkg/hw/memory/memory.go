@@ -18,7 +18,7 @@ type Memory interface {
 	// Total memory size in bytes
 	Size() int
 	// Clears all memory contents to zero.
-	Reset()
+	Reset() error
 }
 
 // Reads data from memory starting at the given address and saves it into the provided buffer.

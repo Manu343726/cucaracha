@@ -1,661 +1,775 @@
-// Package interpreter provides debugging and step-by-step execution support
-// for the Cucaracha CPU interpreter.
 package debugger
 
 import (
 	"fmt"
-	goruntime "runtime"
-	"sort"
-	"strings"
-	"sync/atomic"
-	"time"
+	"os"
 
+	"github.com/Manu343726/cucaracha/pkg/debugger/core"
 	"github.com/Manu343726/cucaracha/pkg/hw/cpu"
-	"github.com/Manu343726/cucaracha/pkg/hw/cpu/interpreter"
-	"github.com/Manu343726/cucaracha/pkg/hw/cpu/mc"
 	"github.com/Manu343726/cucaracha/pkg/hw/cpu/mc/instructions"
 	"github.com/Manu343726/cucaracha/pkg/hw/memory"
-	"github.com/Manu343726/cucaracha/pkg/runtime"
+	"github.com/Manu343726/cucaracha/pkg/interpreter"
+	"github.com/Manu343726/cucaracha/pkg/runtime/program"
+	"github.com/Manu343726/cucaracha/pkg/runtime/program/loader"
+	"github.com/Manu343726/cucaracha/pkg/runtime/program/sourcecode"
+	"github.com/Manu343726/cucaracha/pkg/ui"
 	"github.com/Manu343726/cucaracha/pkg/utils"
+	"gopkg.in/yaml.v3"
 )
 
-// Debugger provides debugging capabilities for the interpreter
-type Debugger struct {
-	// execution runtime that is being debugged
-	runtime runtime.Runtime
-
-	// Program being debugged
-	programFile mc.ProgramFile
-
-	// Breakpoints indexed by ID
-	breakpoints map[int]*Breakpoint
-	// Breakpoint addresses for fast lookup
-	breakpointAddrs map[uint32]*Breakpoint
-	// Next breakpoint ID
-	nextBreakpointID int
-
-	// Watchpoints indexed by ID
-	watchpoints map[int]*Watchpoint
-	// Next watchpoint ID
-	nextWatchpointID int
-
-	// Termination addresses (e.g., return address from main)
-	terminationAddrs map[uint32]bool
-
-	// Event callback
-	eventCallback EventCallback
-
-	// Execution state
-	lastResult *ExecutionResult
-
-	// Interrupt flag (atomic for thread-safety)
-	interrupted int32
-
-	// Target execution speed
-	targetSpeedHz float64
+type debugger struct {
+	session *core.Session
 }
 
-// NewDebugger creates a new debugger for the given interpreter
-func NewDebugger(runtime runtime.Runtime, program mc.ProgramFile) *Debugger {
-	return &Debugger{
-		runtime:          runtime,
-		programFile:      program,
-		breakpoints:      make(map[int]*Breakpoint),
-		breakpointAddrs:  make(map[uint32]*Breakpoint),
-		watchpoints:      make(map[int]*Watchpoint),
-		terminationAddrs: make(map[uint32]bool),
+func NewDebugger() Debugger {
+	return &debugger{
+		session: &core.Session{},
 	}
 }
 
-func (d *Debugger) ProgramFile() mc.ProgramFile {
-	return d.programFile
-}
-
-// LoadProgram loads a program into the debugger's runtime
-func (d *Debugger) LoadProgram(prog *mc.Program) error {
-	if err := d.runtime.LoadProgram(prog); err != nil {
-		return err
-	}
-
-	d.program = prog
-	return nil
-}
-
-// Interrupt signals the debugger to stop execution.
-// This is safe to call from signal handlers or other goroutines.
-func (d *Debugger) Interrupt() {
-	atomic.StoreInt32(&d.interrupted, 1)
-}
-
-// ClearInterrupt clears the interrupt flag.
-func (d *Debugger) ClearInterrupt() {
-	atomic.StoreInt32(&d.interrupted, 0)
-}
-
-// IsInterrupted returns true if the interrupt flag is set.
-func (d *Debugger) IsInterrupted() bool {
-	return atomic.LoadInt32(&d.interrupted) != 0
-}
-
-// SetTargetSpeed sets the target execution speed in Hz (cycles per second).
-// Use 0 for unlimited speed (no timing simulation).
-// This delegates to the underlying Interpreter.
-func (d *Debugger) SetTargetSpeed(hz float64) {
-	d.targetSpeedHz = hz
-}
-
-// GetTargetSpeed returns the current target execution speed in Hz.
-func (d *Debugger) GetTargetSpeed() float64 {
-	return d.targetSpeedHz
-}
-
-// Runtime returns the underlying runtime
-func (d *Debugger) Runtime() runtime.Runtime {
-	return d.runtime
-}
-
-// SetEventCallback sets the callback for execution events
-func (d *Debugger) SetEventCallback(callback EventCallback) {
-	d.eventCallback = callback
-}
-
-// HasEventCallback returns true if an event callback is set (for debugging)
-func (d *Debugger) HasEventCallback() bool {
-	return d.eventCallback != nil
-}
-
-// LastResult returns the result of the last execution operation
-func (d *Debugger) LastResult() *ExecutionResult {
-	return d.lastResult
-}
-
-// --- Breakpoint Management ---
-
-// AddBreakpoint adds a breakpoint at the given address
-func (d *Debugger) AddBreakpoint(addr uint32) *Breakpoint {
-	bp := &Breakpoint{
-		ID:      d.nextBreakpointID,
-		Address: addr,
-		Enabled: true,
-	}
-	d.nextBreakpointID++
-	d.breakpoints[bp.ID] = bp
-	d.breakpointAddrs[addr] = bp
-	return bp
-}
-
-// RemoveBreakpoint removes a breakpoint by ID
-func (d *Debugger) RemoveBreakpoint(id int) bool {
-	bp, exists := d.breakpoints[id]
-	if !exists {
-		return false
-	}
-	delete(d.breakpointAddrs, bp.Address)
-	delete(d.breakpoints, id)
-	return true
-}
-
-// GetBreakpoint returns a breakpoint by ID
-func (d *Debugger) GetBreakpoint(id int) *Breakpoint {
-	return d.breakpoints[id]
-}
-
-// GetBreakpointAt returns a breakpoint at the given address
-func (d *Debugger) GetBreakpointAt(addr uint32) *Breakpoint {
-	return d.breakpointAddrs[addr]
-}
-
-// ListBreakpoints returns all breakpoints sorted by address
-func (d *Debugger) ListBreakpoints() []*Breakpoint {
-	bps := make([]*Breakpoint, 0, len(d.breakpoints))
-	for _, bp := range d.breakpoints {
-		bps = append(bps, bp)
-	}
-	sort.Slice(bps, func(i, j int) bool {
-		return bps[i].Address < bps[j].Address
+func (d *debugger) SetEventCallback(callback ui.DebuggerEventCallback) {
+	// Convert UI callback to core callback
+	d.session.SetEventCallback(func(event *core.Event) bool {
+		if callback != nil {
+			// For now, we'll call with nil
+			// Full implementation would require mapping core event types to UI
+			callback(EventToUI(event))
+		}
+		return true // continue processing
 	})
-	return bps
 }
 
-// EnableBreakpoint enables or disables a breakpoint
-func (d *Debugger) EnableBreakpoint(id int, enabled bool) bool {
-	bp, exists := d.breakpoints[id]
-	if !exists {
-		return false
+func (d *debugger) LoadRuntime(args *ui.LoadRuntimeArgs) *ui.LoadRuntimeResult {
+	switch args.Runtime {
+	case ui.RuntimeTypeInterpreter:
+		if d.session.System() == nil {
+			return &ui.LoadRuntimeResult{
+				Error: fmt.Errorf("system must be configured before loading interpreter runtime"),
+			}
+		}
+
+		r, err := interpreter.NewInterpreter(d.session.System())
+		if err != nil {
+			return &ui.LoadRuntimeResult{
+				Error: fmt.Errorf("failed to create interpreter runtime: %w", err),
+			}
+		}
+
+		return &ui.LoadRuntimeResult{
+			Error: d.session.LoadRuntime(r),
+		}
+	default:
+		return &ui.LoadRuntimeResult{
+			Error: fmt.Errorf("unsupported runtime: %s", args.Runtime),
+		}
 	}
-	bp.Enabled = enabled
-	return true
 }
 
-// ClearBreakpoints removes all breakpoints
-func (d *Debugger) ClearBreakpoints() {
-	d.breakpoints = make(map[int]*Breakpoint)
-	d.breakpointAddrs = make(map[uint32]*Breakpoint)
-}
-
-// --- Watchpoint Management ---
-
-// AddWatchpoint adds a memory watchpoint
-func (d *Debugger) AddWatchpoint(r memory.Range, wpType WatchpointType) (*Watchpoint, error) {
-	if r.Size > 4 {
-		return nil, fmt.Errorf("watchpoint size too large: %d bytes (max 4)", r.Size)
+// extractSystemInfo builds a LoadSystemResult with system information
+func (d *debugger) extractSystemInfo(err error) *ui.LoadSystemResult {
+	result := &ui.LoadSystemResult{
+		Error: err,
 	}
 
-	// Read initial value
-	lastValue, err := memory.NewSlice(d.runtime.Memory(), r).ReadAsUint32()
+	// Only populate system info if no error and system was loaded successfully
+	if err == nil && d.session.System() != nil {
+		sys := d.session.System()
+		layout := sys.MemoryLayout
+
+		result.TotalMemory = layout.TotalSize
+		result.CodeSize = layout.CodeSize
+		result.DataSize = layout.DataSize
+		result.StackSize = layout.StackSize
+		result.HeapSize = layout.HeapSize
+		result.PeripheralSize = layout.PeripheralSize
+		result.NumberOfVectors = sys.VectorTable.NumberOfVectors
+		result.VectorEntrySize = sys.VectorTable.VectorEntrySize
+		result.NumPeripherals = len(sys.Peripherals)
+
+		// Extract peripheral information
+		result.Peripherals = make([]ui.PeripheralInfo, len(sys.Peripherals))
+		for i, p := range sys.Peripherals {
+			metadata := p.Metadata()
+			typeStr := ""
+			displayName := ""
+			if metadata.Descriptor != nil {
+				typeStr = metadata.Descriptor.Type.String()
+				displayName = metadata.Descriptor.DisplayName
+			}
+			result.Peripherals[i] = ui.PeripheralInfo{
+				Name:            metadata.Name,
+				Type:            typeStr,
+				DisplayName:     displayName,
+				Description:     metadata.Description,
+				BaseAddress:     metadata.BaseAddress,
+				Size:            metadata.Size,
+				InterruptVector: metadata.InterruptVector,
+			}
+		}
+	}
+
+	return result
+}
+
+func (d *debugger) LoadSystemFromFile(args *ui.LoadSystemArgs) *ui.LoadSystemResult {
+	if args.FilePath == "default" {
+		return d.LoadSystemFromEmbedded()
+	}
+
+	err := d.session.LoadSystemFromFile(args.FilePath)
+	return d.extractSystemInfo(err)
+}
+
+func (d *debugger) LoadSystemFromEmbedded() *ui.LoadSystemResult {
+	config, err := DefaultSystemConfig()
 	if err != nil {
-		return nil, fmt.Errorf("failed to read initial watchpoint value: %w", err)
+		return &ui.LoadSystemResult{
+			Error: fmt.Errorf("failed to load embedded system config: %w", err),
+		}
 	}
 
-	wp := &Watchpoint{
-		ID:        d.nextWatchpointID,
-		Memory:    r,
-		Type:      wpType,
-		Enabled:   true,
-		LastValue: lastValue,
+	system, err := config.Setup()
+	if err != nil {
+		return &ui.LoadSystemResult{
+			Error: fmt.Errorf("failed to setup system from embedded config: %w", err),
+		}
 	}
-	d.nextWatchpointID++
-	d.watchpoints[wp.ID] = wp
-	return wp, nil
+
+	err = d.session.LoadSystem(system)
+	return d.extractSystemInfo(err)
 }
 
-// RemoveWatchpoint removes a watchpoint by ID
-func (d *Debugger) RemoveWatchpoint(id int) bool {
-	_, exists := d.watchpoints[id]
-	if !exists {
-		return false
+func (d *debugger) LoadProgramFromFile(args *ui.LoadProgramArgs) *ui.LoadProgramResult {
+	if d.session.System() == nil {
+		return &ui.LoadProgramResult{
+			Error: fmt.Errorf("system must be configured before loading a program"),
+		}
 	}
-	delete(d.watchpoints, id)
-	return true
+
+	options := &loader.Options{
+		Verbose:        false,
+		MemoryLayout:   &d.session.System().MemoryLayout,
+		OutputFormat:   "object",
+		AutoBuildClang: true,
+	}
+
+	loadedProgram, err := d.session.LoadProgramFromFile(args.FilePath, options)
+	if err != nil {
+		return &ui.LoadProgramResult{
+			Error: err,
+		}
+	}
+
+	return &ui.LoadProgramResult{
+		Warnings:   loadedProgram.Warnings,
+		SourceFile: &loadedProgram.OriginalPath,
+		ObjectFile: &loadedProgram.CompiledPath,
+	}
 }
 
-// GetWatchpoint returns a watchpoint by ID
-func (d *Debugger) GetWatchpoint(id int) *Watchpoint {
-	return d.watchpoints[id]
+type allFile struct {
+	Runtime     ui.RuntimeType `json:"runtime"`
+	ProgramFile string         `json:"programFile"`
 }
 
-// ListWatchpoints returns all watchpoints sorted by address
-func (d *Debugger) ListWatchpoints() []*Watchpoint {
-	wps := make([]*Watchpoint, 0, len(d.watchpoints))
-	for _, wp := range d.watchpoints {
-		wps = append(wps, wp)
+func (d *debugger) loadFromSingleFile(fullDescriptorPath string) *ui.LoadResult {
+	raw, err := os.ReadFile(fullDescriptorPath)
+	if err != nil {
+		return &ui.LoadResult{
+			Error: fmt.Errorf("failed to read file '%s': %w", fullDescriptorPath, err),
+		}
 	}
-	sort.Slice(wps, func(i, j int) bool {
-		return wps[i].Memory.Start < wps[j].Memory.Start
+
+	var all allFile
+	if err := yaml.Unmarshal(raw, &all); err != nil {
+		return &ui.LoadResult{
+			Error: fmt.Errorf("failed to parse YAML file '%s': %w", fullDescriptorPath, err),
+		}
+	}
+
+	return d.Load(&ui.LoadArgs{
+		Runtime:          utils.Ptr(all.Runtime),
+		SystemConfigPath: utils.Ptr(all.ProgramFile),
+		ProgramPath:      utils.Ptr(all.ProgramFile),
 	})
-	return wps
 }
 
-// ClearWatchpoints removes all watchpoints
-func (d *Debugger) ClearWatchpoints() {
-	d.watchpoints = make(map[int]*Watchpoint)
+func (d *debugger) Load(args *ui.LoadArgs) *ui.LoadResult {
+	if args.FullDescriptorPath != nil {
+		return d.loadFromSingleFile(*args.FullDescriptorPath)
+	}
+
+	if args.SystemConfigPath == nil {
+		args.SystemConfigPath = utils.Ptr("default")
+	}
+
+	loadSysResult := d.LoadSystemFromFile(&ui.LoadSystemArgs{
+		FilePath: *args.SystemConfigPath,
+	})
+	if loadSysResult.Error != nil {
+		return &ui.LoadResult{
+			Error: fmt.Errorf("failed to load system from file '%s': %w", *args.SystemConfigPath, loadSysResult.Error),
+		}
+	}
+
+	if args.Runtime == nil {
+		args.Runtime = utils.Ptr(ui.RuntimeTypeInterpreter)
+	}
+
+	loadRuntimeResult := d.LoadRuntime(&ui.LoadRuntimeArgs{
+		Runtime: *args.Runtime,
+	})
+	if loadRuntimeResult.Error != nil {
+		return &ui.LoadResult{
+			Error: fmt.Errorf("failed to load runtime '%s': %w", *args.Runtime, loadRuntimeResult.Error),
+		}
+	}
+
+	loadProgResult := d.LoadProgramFromFile(&ui.LoadProgramArgs{
+		FilePath: *args.ProgramPath,
+	})
+	if loadProgResult.Error != nil {
+		return &ui.LoadResult{
+			Error: fmt.Errorf("failed to load program from file '%s': %w", *args.ProgramPath, loadProgResult.Error),
+		}
+	}
+
+	return &ui.LoadResult{
+		System:  loadSysResult,
+		Program: loadProgResult,
+		Runtime: loadRuntimeResult,
+	}
 }
 
-// --- Termination Addresses ---
-
-// AddTerminationAddress adds an address that will cause execution to stop
-func (d *Debugger) AddTerminationAddress(addr uint32) {
-	d.terminationAddrs[addr] = true
-}
-
-// RemoveTerminationAddress removes a termination address
-func (d *Debugger) RemoveTerminationAddress(addr uint32) {
-	delete(d.terminationAddrs, addr)
-}
-
-// IsTerminationAddress checks if an address is a termination address
-func (d *Debugger) IsTerminationAddress(addr uint32) bool {
-	return d.terminationAddrs[addr]
-}
-
-// ClearTerminationAddresses removes all termination addresses
-func (d *Debugger) ClearTerminationAddresses() {
-	d.terminationAddrs = make(map[uint32]bool)
-}
-
-// --- Execution Control ---
-
-// Step executes a single instruction
-func (d *Debugger) Step() (*ExecutionResult, error) {
-	pc, err := d.runtime.CPU().Registers().ReadByDescriptor(mc.Descriptor.Registers.PC)
+func (d *debugger) Continue() *ui.ExecutionResult {
+	debugger, err := d.session.Debugger()
 	if err != nil {
-		return nil, fmt.Errorf("failed to read PC register before debugger step: %w", err)
+		return &ui.ExecutionResult{
+			Error: fmt.Errorf("debugger not ready: %w", err),
+		}
 	}
 
-	result := &ExecutionResult{
-		LastPC: pc,
-	}
+	return ExecutionResultToUI(debugger.Continue())
+}
 
-	// Check for termination address before executing
-	if d.terminationAddrs[pc] {
-		result.StopReason = utils.Ptr(StopTermination)
-		d.lastResult = result
-		d.fireEvent(EventProgramTerminated, result)
-		return result, nil
-	}
-
-	// Check for breakpoint (after first step, stepping over breakpoint)
-	if bp := d.breakpointAddrs[pc]; bp != nil && bp.Enabled {
-		bp.HitCount++
-		result.StopReason = utils.Ptr(StopBreakpoint)
-		result.BreakpointID = bp.ID
-		d.lastResult = result
-		d.fireEvent(EventBreakpointHit, result)
-		return result, nil
-	}
-
-	// Check if halted
-	if d.runtime.CPU().IsHalted() {
-		result.StopReason = utils.Ptr(StopHalt)
-		d.lastResult = result
-		d.fireEvent(EventProgramHalted, result)
-		return result, nil
-	}
-
-	// Execute simulation step
-	stepResult, err := d.runtime.Step()
-
+func (d *debugger) Interrupt() *ui.ExecutionResult {
+	debugger, err := d.session.Debugger()
 	if err != nil {
-		result.StopReason = utils.Ptr(StopError)
-		result.Error = err
-		d.lastResult = result
-		d.fireEvent(EventError, result)
-		return result, nil
+		return &ui.ExecutionResult{
+			Error: fmt.Errorf("debugger not ready: %w", err),
+		}
 	}
 
-	// Track cycles
-	if stepResult != nil {
-		result.CyclesExecuted = int64(stepResult.CyclesUsed)
-	}
-
-	// Check watchpoints after execution
-	if wp, err := d.checkWatchpoints(); err != nil {
-		result.StopReason = utils.Ptr(StopError)
-		result.Error = err
-		d.lastResult = result
-		d.fireEvent(EventError, result)
-		return result, nil
-	} else if wp != nil {
-		result.StopReason = utils.Ptr(StopWatchpoint)
-		result.WatchpointID = wp.ID
-		d.lastResult = result
-		d.fireEvent(EventWatchpointHit, result)
-		return result, nil
-	}
-
-	result.StopReason = nil
-	d.lastResult = result
-	d.fireEvent(EventStepped, result)
-	return result, nil
+	return ExecutionResultToUI(debugger.Interrupt())
 }
 
-// Continue executes until a stop condition is met
-func (d *Debugger) Continue() (*ExecutionResult, error) {
-	return d.Run(0)
-}
-
-// Run executes up to maxSteps instructions (0 = unlimited)
-func (d *Debugger) Run(maxSteps int) (*ExecutionResult, error) {
-	startTime := time.Now()
-	var totalCycles int64
-	totalSteps := 0
-
-	for {
-		result, err := d.Step()
-		if err != nil {
-			return result, err
+func (d *debugger) Step(args *ui.StepArgs) *ui.ExecutionResult {
+	debugger, err := d.session.Debugger()
+	if err != nil {
+		return &ui.ExecutionResult{
+			Error: fmt.Errorf("debugger not ready: %w", err),
 		}
+	}
 
-		totalSteps++
-		totalCycles += result.CyclesExecuted
-
-		// Yield to allow signal handlers and other goroutines to run
-		// This is important for Ctrl+C handling on Windows
-		if totalSteps%100 == 0 {
-			goruntime.Gosched()
-		}
-
-		if result.StopReason != nil {
-			result.StepsExecuted = totalSteps
-			result.CyclesExecuted = totalCycles
-			d.lastResult = result
-			return result, nil
-		}
-
-		if totalSteps == maxSteps {
-			result.StepsExecuted = totalSteps
-			result.CyclesExecuted = totalCycles
-			result.StopReason = utils.Ptr(StopMaxSteps)
-			d.lastResult = result
-			return result, nil
-		}
-
-		// Apply speed control: compute dynamic delay to match target Hz
-		if d.targetSpeedHz > 0 {
-			elapsed := time.Since(startTime)
-			// Calculate expected time based on cycles executed and target speed
-			// expectedTime = totalCycles / targetHz (in seconds)
-			expectedTime := time.Duration(float64(totalCycles) / d.targetSpeedHz * float64(time.Second))
-
-			if elapsed < expectedTime {
-				// We're running ahead of schedule, sleep to catch up
-				sleepDuration := expectedTime - elapsed
-				time.Sleep(sleepDuration)
-				result.Lagging = false
-				result.LagCycles = 0
-			} else {
-				// We're running behind schedule
-				lagTime := elapsed - expectedTime
-				// Convert lag time back to cycles: lagCycles = lagTime * targetHz
-				result.LagCycles = int64(lagTime.Seconds() * d.targetSpeedHz)
-				result.Lagging = result.LagCycles > 0
-
-				// Fire lagging event if we're behind by more than 10% of target speed
-				// (i.e., if we've fallen behind by more than 0.1 seconds worth of cycles)
-				lagThresholdCycles := int64(d.targetSpeedHz * 0.1) // 10% of one second's worth
-				if result.LagCycles > lagThresholdCycles {
-					d.fireEvent(EventLagging, result)
-				}
+	switch args.StepMode {
+	case ui.StepModeInto:
+		switch args.CountMode {
+		case ui.StepCountInstructions:
+			return ExecutionResultToUI(debugger.Step())
+		case ui.StepCountSourceLines:
+			return ExecutionResultToUI(debugger.StepIntoSource())
+		default:
+			return &ui.ExecutionResult{
+				Error: fmt.Errorf("unsupported single step count mode '%s'", args.CountMode),
 			}
 		}
-
-		d.lastResult = result
-	}
-}
-
-// RunUntil executes until the PC reaches the target address
-func (d *Debugger) RunUntil(targetAddr uint32) (*ExecutionResult, error) {
-	// Add temporary breakpoint
-	bp := d.AddBreakpoint(targetAddr)
-	defer d.RemoveBreakpoint(bp.ID)
-
-	return d.Continue()
-}
-
-// StepOver executes one instruction, stepping over function calls
-// For now, this is the same as Step (full implementation would track call depth)
-func (d *Debugger) StepOver() (*ExecutionResult, error) {
-	pc, err := cpu.ReadPC(d.runtime.CPU().Registers())
-	if err != nil {
-		return nil, fmt.Errorf("failed to read PC register before StepOver: %w", err)
-	}
-
-	// Check if the current instruction is a call
-	if d.isCallInstruction(pc) {
-		// Set temporary breakpoint at return address (PC + 4)
-		returnAddr := pc + 4
-
-		// Add temporary breakpoint
-		bp, err := b.AddBreakpoint(returnAddr)
-		if err != nil {
-			// If we can't set breakpoint, just do a regular step
-			return b.Step(1)
-		}
-
-		// Continue execution
-		result := b.Continue()
-
-		// Remove temporary breakpoint
-		b.RemoveBreakpoint(bp.ID)
-
-		// If we stopped at our temporary breakpoint, report as step
-		if result.StopReason == interpreter.StopBreakpoint && b.runner.State().PC == returnAddr {
-			result.StopReason = interpreter.StopStep
-		}
-
-		return result
-	}
-
-	// Not a call, just do a regular step
-	return b.Step(1)
-}
-
-// isCallInstruction checks if the instruction at addr is a function call
-// A branch is a call if the branch target is a function symbol
-func (d *Debugger) isCallInstruction(addr uint32) (bool, error) {
-	instr, err := cpu.DecodeInstruction(d.runtime.Memory(), addr)
-	if err != nil {
-		return false, fmt.Errorf("failed to decode instruction at 0x%X: %w", addr, err)
-	}
-
-	callOpcodes := map[instructions.OpCode]struct{}{
-		instructions.OpCode_JMP:  {},
-		instructions.OpCode_CJMP: {},
-	}
-
-	if _, isCall := callOpcodes[instr.Descriptor.OpCode.OpCode]; !isCall {
-		return false, nil
-	}
-
-	var operandValue instructions.OperandValue
-
-	switch instr.Descriptor.OpCode.OpCode {
-	case instructions.OpCode_JMP:
-		if len(instr.OperandValues) < 1 {
-			panic("JMP instruction missing operand???")
-		}
-
-		operandValue = instr.OperandValues[0]
-	case instructions.OpCode_CJMP:
-		if len(instr.OperandValues) < 2 {
-			panic("CJMP instruction missing operands???")
-		}
-
-		operandValue = instr.OperandValues[1]
-	}
-
-	if operandValue.Kind() != instructions.OperandKind_Register {
-		panic("branch target operand is not a register???")
-	}
-
-	targetReg := operandValue.Register()
-	if targetReg == nil {
-		panic("branch target operand register is nil???")
-	}
-
-	targetAddress, err := d.runtime.CPU().Registers().ReadByDescriptor(targetReg)
-	if err != nil {
-		return false, fmt.Errorf("failed to read branch target register %s: %w", targetReg.Name(), err)
-	}
-
-	instr, err = d.program.InstructionAtAddress(targetAddress)
-	if err != nil {
-		return false, fmt.Errorf("failed to get instruction at branch target address 0x%X: %w", targetAddress, err)
-	}
-
-	// Check if the branch target is a function
-	// Use the same logic as getBranchTarget - backtrack to find the MOVIMM16L/H
-	// that loads the target register, and check if the symbol is a function
-	return b.isBranchTargetFunction(idx, instrs)
-
-}
-
-// isBranchTargetFunction checks if the branch target at the given instruction index is a function
-func (b *Backend) isBranchTargetFunction(instrIdx int, instrs []mc.Instruction) bool {
-	instr := instrs[instrIdx]
-
-	// Get mnemonic
-	if instr.Instruction == nil || instr.Instruction.Descriptor == nil {
-		return false
-	}
-	mnemonic := strings.ToUpper(instr.Instruction.Descriptor.OpCode.Mnemonic)
-
-	// Determine which operand is the target register
-	targetRegIdx := 0
-	if mnemonic == "CJMP" && len(instr.Instruction.OperandValues) >= 2 {
-		targetRegIdx = 1 // CJMP: condcode, target, link
-	}
-
-	// Get the target register
-	if targetRegIdx >= len(instr.Instruction.OperandValues) {
-		return false
-	}
-	targetOp := instr.Instruction.OperandValues[targetRegIdx]
-	if targetOp.Kind() != instructions.OperandKind_Register {
-		return false
-	}
-	targetReg := targetOp.Register()
-	if targetReg == nil {
-		return false
-	}
-	targetRegName := targetReg.Name()
-
-	// Backtrack through previous instructions looking for MOVIMM16L/MOVIMM16H
-	// that write to this register and have a function symbol
-	for i := instrIdx - 1; i >= 0 && i >= instrIdx-20; i-- {
-		prevInstr := instrs[i]
-		if prevInstr.Instruction == nil || prevInstr.Instruction.Descriptor == nil {
-			continue
-		}
-
-		prevMnemonic := strings.ToUpper(prevInstr.Instruction.Descriptor.OpCode.Mnemonic)
-
-		// Check if this instruction writes to our target register with an immediate
-		if (prevMnemonic == "MOVIMM16L" || prevMnemonic == "MOVIMM16H") &&
-			len(prevInstr.Instruction.OperandValues) >= 2 {
-
-			// MOVIMM16L/H format: imm, dest_reg
-			destOp := prevInstr.Instruction.OperandValues[1]
-			if destOp.Kind() == instructions.OperandKind_Register {
-				destReg := destOp.Register()
-				if destReg != nil && destReg.Name() == targetRegName {
-					// Found an immediate load to our target register
-					// Check for associated function symbol
-					for _, sym := range prevInstr.Symbols {
-						if sym.Function != nil {
-							return true // Branch target is a function - this is a call
-						}
-					}
-				}
+	case ui.StepModeOver:
+		switch args.CountMode {
+		case ui.StepCountInstructions:
+			return ExecutionResultToUI(debugger.StepOver())
+		case ui.StepCountSourceLines:
+			return ExecutionResultToUI(debugger.StepOverSource())
+		default:
+			return &ui.ExecutionResult{
+				Error: fmt.Errorf("unsupported step over count mode '%s'", args.CountMode),
 			}
 		}
+	case ui.StepModeOut:
+		return ExecutionResultToUI(debugger.StepOut())
+	default:
+		return &ui.ExecutionResult{
+			Error: fmt.Errorf("unsupported step mode: %d", args.StepMode),
+		}
+	}
+}
 
-		// If we found a different instruction that writes to our register, stop
-		if prevMnemonic != "MOVIMM16L" && prevMnemonic != "MOVIMM16H" {
-			if prevInstr.Instruction != nil && prevInstr.Instruction.Descriptor != nil {
-				for opIdx, opDesc := range prevInstr.Instruction.Descriptor.Operands {
-					if opIdx < len(prevInstr.Instruction.OperandValues) &&
-						opDesc.Role == instructions.OperandRole_Destination {
-						destOp := prevInstr.Instruction.OperandValues[opIdx]
-						if destOp.Kind() == instructions.OperandKind_Register {
-							destReg := destOp.Register()
-							if destReg != nil && destReg.Name() == targetRegName {
-								// Different instruction writes to target reg, stop backtracking
-								return false
-							}
-						}
-					}
-				}
+func (d *debugger) CurrentSource(args *ui.CurrentSourceArgs) *ui.SourceResult {
+	debugger, err := d.session.Debugger()
+	if err != nil {
+		return &ui.SourceResult{
+			Error: fmt.Errorf("debugger not ready: %w", err),
+		}
+	}
+
+	pc, err := cpu.ReadPC(debugger.Runtime().CPU().Registers())
+	if err != nil {
+		return &ui.SourceResult{
+			Error: fmt.Errorf("failed to read PC register: %w", err),
+		}
+	}
+
+	currentSourceLoc, err := program.SourceLocationAtInstructionAddress(d.session.Program(), pc)
+	if err != nil {
+		return &ui.SourceResult{
+			Error: fmt.Errorf("failed to get current source location: %w", err),
+		}
+	}
+
+	return d.Source(&ui.SourceArgs{
+		File:         currentSourceLoc.File.Path(),
+		Line:         currentSourceLoc.Line,
+		ContextLines: args.ContextLines,
+		ContextMode:  args.ContextMode,
+	})
+}
+
+func (d *debugger) Source(args *ui.SourceArgs) *ui.SourceResult {
+	debugger, err := d.session.Debugger()
+	if err != nil {
+		return &ui.SourceResult{
+			Error: fmt.Errorf("debugger not ready: %w", err),
+		}
+	}
+
+	var sourceRange sourcecode.Range
+	sourceRange.File = sourcecode.FileNamed(args.File)
+	sourceRange.LineCount = args.ContextLines
+
+	switch args.ContextMode {
+	case ui.SourceContextTop:
+		sourceRange.StartLine = args.Line
+	case ui.SourceContextCentered:
+		sourceRange.StartLine = args.Line - args.ContextLines/2
+		if sourceRange.StartLine < 1 {
+			sourceRange.StartLine = 1
+		}
+	case ui.SourceContextBottom:
+		sourceRange.StartLine = args.Line - args.ContextLines + 1
+		if sourceRange.StartLine < 1 {
+			sourceRange.StartLine = 1
+		}
+	default:
+		return &ui.SourceResult{
+			Error: fmt.Errorf("unsupported context mode: %d", args.ContextMode),
+		}
+	}
+
+	snippet, err := sourcecode.ReadSnippet(debugger.Program().DebugInfo().SourceLibrary, &sourceRange)
+	return &ui.SourceResult{
+		Error:   err,
+		Snippet: SourceCodeSnippetToUI(snippet),
+	}
+}
+
+func (d *debugger) Break(args *ui.BreakArgs) *ui.BreakResult {
+	debugger, err := d.session.Debugger()
+	if err != nil {
+		return &ui.BreakResult{
+			Error: fmt.Errorf("debugger not ready: %w", err),
+		}
+	}
+
+	if args.Address != nil {
+		if bp, err := debugger.AddBreakpoint(*args.Address); err != nil {
+			return &ui.BreakResult{
+				Error: err,
+			}
+		} else {
+			return &ui.BreakResult{
+				Breakpoint: BreakpointToUI(bp),
 			}
 		}
 	}
 
-	return false
-}
-
-// StepOut executes until returning from the current function
-// For now, this runs until LR is reached (simplified implementation)
-func (d *Debugger) StepOut() (*ExecutionResult, error) {
-	lr, err := cpu.ReadLR(d.runtime.CPU().Registers())
-	if err != nil {
-		return nil, fmt.Errorf("failed to read LR register for StepOut: %w", err)
-	}
-
-	return d.RunUntil(lr)
-}
-
-// --- Helper functions ---
-
-func (d *Debugger) fireEvent(event DebugEvent, result *ExecutionResult) bool {
-	if d.eventCallback != nil {
-		return d.eventCallback(event, result)
-	}
-	return true // Continue by default
-}
-
-func (d *Debugger) checkWatchpoints() (*Watchpoint, error) {
-	for _, wp := range d.watchpoints {
-		if !wp.Enabled {
-			continue
-		}
-
-		if wp.Memory.Size > 4 {
-			return nil, fmt.Errorf("watchpoint size too large: %d bytes (max 4)", wp.Memory.Size)
-		}
-
-		var currentValue uint32
-
-		currentValue, err := memory.NewSlice(d.runtime.Memory(), wp.Memory).ReadAsUint32()
+	if args.SourceLocation != nil {
+		address, err := program.InstructionAddressAtSourceLocation(d.session.Program(), SourceLocationFromUI(args.SourceLocation))
 		if err != nil {
-			return nil, fmt.Errorf("failed to read watchpoint memory: %w", err)
+			return &ui.BreakResult{
+				Error: fmt.Errorf("failed to resolve source location to instruction address: %w", err),
+			}
 		}
 
-		if currentValue != wp.LastValue && (wp.Type&WatchRead) != 0 {
-			wp.HitCount++
-			wp.LastValue = currentValue
-			return wp, nil
+		if bp, err := debugger.AddBreakpoint(address); err != nil {
+			return &ui.BreakResult{
+				Error: fmt.Errorf("failed to add breakpoint at address 0x%X: %w", address, err),
+			}
+		} else {
+			return &ui.BreakResult{
+				Breakpoint: BreakpointToUI(bp),
+			}
 		}
 	}
 
-	return nil, nil
+	return &ui.BreakResult{
+		Error: fmt.Errorf("either address or source location must be provided to set a breakpoint"),
+	}
+}
+
+func (d *debugger) Watch(args *ui.WatchArgs) *ui.WatchResult {
+	debugger, err := d.session.Debugger()
+	if err != nil {
+		return &ui.WatchResult{
+			Error: fmt.Errorf("debugger not ready: %w", err),
+		}
+	}
+
+	watchpoint, err := debugger.AddWatchpoint(MemoryRangeFromUI(args.Range), WatchpointTypeFromUI(args.Type))
+	return &ui.WatchResult{
+		Error:      err,
+		Watchpoint: WatchpointToUI(watchpoint),
+	}
+}
+
+func (d *debugger) RemoveBreakpoint(args *ui.RemoveBreakpointArgs) *ui.RemoveBreakpointResult {
+	debugger, err := d.session.Debugger()
+	if err != nil {
+		return &ui.RemoveBreakpointResult{
+			Error: fmt.Errorf("debugger not ready: %w", err),
+		}
+	}
+
+	bp, err := debugger.RemoveBreakpoint(args.ID)
+	return &ui.RemoveBreakpointResult{
+		Error:      err,
+		Breakpoint: BreakpointToUI(bp),
+	}
+}
+
+func (d *debugger) RemoveWatchpoint(args *ui.RemoveWatchpointArgs) *ui.RemoveWatchpointResult {
+	debugger, err := d.session.Debugger()
+	if err != nil {
+		return &ui.RemoveWatchpointResult{
+			Error: fmt.Errorf("debugger not ready: %w", err),
+		}
+	}
+
+	wp, err := debugger.RemoveWatchpoint(args.ID)
+	return &ui.RemoveWatchpointResult{
+		Error:      err,
+		Watchpoint: WatchpointToUI(wp),
+	}
+}
+
+func (d *debugger) CurrentInstruction() *ui.CurrentInstructionResult {
+	debugger, err := d.session.Debugger()
+	if err != nil {
+		return &ui.CurrentInstructionResult{
+			Error: fmt.Errorf("debugger not ready: %w", err),
+		}
+	}
+
+	pc, err := cpu.ReadPC(debugger.Runtime().CPU().Registers())
+	if err != nil {
+		return &ui.CurrentInstructionResult{
+			Error: fmt.Errorf("failed to read PC register: %w", err),
+		}
+	}
+
+	instr, err := program.InstructionAtAddress(debugger.Program(), pc)
+	return &ui.CurrentInstructionResult{
+		Error:       err,
+		Instruction: d.uiInstruction(debugger, instr),
+	}
+}
+
+func (d *debugger) uiBreakpoint(debugger core.Debugger, bp *core.Breakpoint) *ui.Breakpoint {
+	if bp == nil {
+		return nil
+	}
+
+	result := BreakpointToUI(bp)
+
+	srcLoc, _ := program.SourceLocationAtInstructionAddress(debugger.Program(), bp.Address)
+	result.Location = SourceLocationToUI(srcLoc)
+
+	return result
+}
+
+func (d *debugger) uiInstruction(debugger core.Debugger, instr *program.Instruction) *ui.Instruction {
+	if instr == nil {
+		return nil
+	}
+
+	if instr.Address != nil {
+		panic("program instruction has no resolved address????")
+	}
+
+	pc, err := cpu.ReadPC(debugger.Runtime().CPU().Registers())
+	if err != nil {
+		panic("failed to read PC register: " + err.Error())
+	}
+
+	srcLoc, _ := program.SourceLocationAtInstructionAddress(debugger.Program(), pc)
+
+	branchTarget, targetSymbol, _ := program.BranchTargetAtInstruction(debugger.Program(), *instr.Address)
+	uiInstr := InstructionToUI(instr)
+	uiInstr.IsCurrentPC = (*instr.Address == pc)
+	uiInstr.BranchTarget = branchTarget
+	if targetSymbol != nil {
+		uiInstr.BranchTargetSym = &targetSymbol.Name
+	}
+	uiInstr.Breakpoints = []*ui.Breakpoint{BreakpointToUI(debugger.GetBreakpointAt(pc))}
+	uiInstr.SourceLocation = SourceLocationToUI(srcLoc)
+
+	return uiInstr
+}
+
+func (d *debugger) Disasm(args *ui.DisasmArgs) *ui.DisassemblyResult {
+	debugger, err := d.session.Debugger()
+	if err != nil {
+		return &ui.DisassemblyResult{
+			Error: fmt.Errorf("debugger not ready: %w", err),
+		}
+	}
+
+	instructions, err := program.InstructionsAtAddress(debugger.Program(), args.Address, args.Count)
+	return &ui.DisassemblyResult{
+		Error: err,
+		Instructions: utils.Map(instructions, func(instr *program.Instruction) *ui.Instruction {
+			return d.uiInstruction(debugger, instr)
+		}),
+	}
+}
+
+func (d *debugger) Eval(args *ui.EvalArgs) *ui.EvalResult {
+	debugger, err := d.session.Debugger()
+	if err != nil {
+		return &ui.EvalResult{
+			Error: fmt.Errorf("debugger not ready: %w", err),
+		}
+	}
+
+	value, err := core.Eval(debugger.Runtime(), debugger.Program(), args.Expression)
+	return &ui.EvalResult{
+		Error: err,
+		Value: value,
+	}
+}
+
+func (d *debugger) Info() *ui.InfoResult {
+	debugger, err := d.session.Debugger()
+	if err != nil {
+		var status ui.DebuggerStatus
+		if d.session.System() == nil {
+			status = ui.DebuggerStatusNotReady_MissingSystemConfig
+		} else if d.session.Runtime() == nil {
+			status = ui.DebuggerStatusNotReady_MissingRuntime
+		} else if d.session.Program() == nil {
+			status = ui.DebuggerStatusNotReady_MissingProgram
+		}
+
+		return &ui.InfoResult{
+			DebuggerState: &ui.DebuggerState{
+				Status: status,
+			},
+		}
+	}
+
+	var status ui.DebuggerStatus
+
+	if debugger.IsInterrupted() {
+		status = ui.DebuggerStatusPaused
+	} else {
+		status = ui.DebuggerStatusRunning
+	}
+
+	registers := core.NewRegisters(debugger.Runtime())
+	cpsr := registers.ReadCPSR()
+
+	return &ui.InfoResult{
+		DebuggerState: &ui.DebuggerState{
+			Status:    status,
+			Registers: RegistersValuesToUI(registers.ReadAllRegisters()),
+			Flags: &ui.FlagState{
+				N: instructions.TestCPSRFlag(cpsr, instructions.FLAG_N),
+				Z: instructions.TestCPSRFlag(cpsr, instructions.FLAG_Z),
+				C: instructions.TestCPSRFlag(cpsr, instructions.FLAG_C),
+				V: instructions.TestCPSRFlag(cpsr, instructions.FLAG_V),
+			},
+		},
+	}
+}
+
+func (d *debugger) List() *ui.ListResult {
+	debugger, err := d.session.Debugger()
+	if err != nil {
+		return &ui.ListResult{
+			Error: fmt.Errorf("debugger not ready: %w", err),
+		}
+	}
+
+	breakpoints := debugger.ListBreakpoints()
+	watchpoints := debugger.ListWatchpoints()
+
+	return &ui.ListResult{
+		Error:       nil,
+		Breakpoints: utils.Map(breakpoints, func(bp *core.Breakpoint) *ui.Breakpoint { return d.uiBreakpoint(debugger, bp) }),
+		Watchpoints: utils.Map(watchpoints, WatchpointToUI),
+	}
+}
+
+func (d *debugger) Run() *ui.ExecutionResult {
+	debugger, err := d.session.Debugger()
+	if err != nil {
+		return &ui.ExecutionResult{
+			Error: fmt.Errorf("debugger not ready: %w", err),
+		}
+	}
+
+	return ExecutionResultToUI(debugger.Continue())
+}
+
+func (d *debugger) Memory(args *ui.MemoryArgs) *ui.MemoryResult {
+	debugger, err := d.session.Debugger()
+	if err != nil {
+		return &ui.MemoryResult{
+			Error: fmt.Errorf("debugger not ready: %w", err),
+		}
+	}
+
+	// Evaluate the address expression
+	var address uint32
+	if args.AddressExpr != "" {
+		val, err := core.Eval(debugger.Runtime(), debugger.Program(), args.AddressExpr)
+		if err != nil {
+			return &ui.MemoryResult{
+				Error: fmt.Errorf("failed to evaluate address expression '%s': %w", args.AddressExpr, err),
+			}
+		}
+		address = val
+	}
+
+	// Get memory contents using the memory package functions
+	mem := debugger.Runtime().Memory()
+	count := args.Count
+	if count == 0 {
+		count = 256 // Default to 256 bytes
+	}
+
+	// Read all memory at once for efficiency
+	data, err := memory.Read(mem, address, count)
+	if err != nil {
+		return &ui.MemoryResult{
+			Error: fmt.Errorf("failed to read memory at 0x%x: %w", address, err),
+		}
+	}
+
+	// Read memory regions
+	regions := make([]*ui.MemoryRegion, 0)
+	if data != nil && len(data) > 0 {
+		regions = append(regions, &ui.MemoryRegion{
+			Start: address,
+			Size:  uint32(len(data)),
+		})
+	}
+
+	return &ui.MemoryResult{
+		Error:   nil,
+		Regions: regions,
+	}
+}
+
+func (d *debugger) Registers() *ui.RegistersResult {
+	debugger, err := d.session.Debugger()
+	if err != nil {
+		return &ui.RegistersResult{
+			Error: fmt.Errorf("debugger not ready: %w", err),
+		}
+	}
+
+	registers := core.NewRegisters(debugger.Runtime())
+	cpsr := registers.ReadCPSR()
+
+	// Get register values as map
+	registerMap := RegistersValuesToUI(registers.ReadAllRegisters())
+
+	return &ui.RegistersResult{
+		Error:     nil,
+		Registers: registerMap,
+		Flags: &ui.FlagState{
+			N: instructions.TestCPSRFlag(cpsr, instructions.FLAG_N),
+			Z: instructions.TestCPSRFlag(cpsr, instructions.FLAG_Z),
+			C: instructions.TestCPSRFlag(cpsr, instructions.FLAG_C),
+			V: instructions.TestCPSRFlag(cpsr, instructions.FLAG_V),
+		},
+	}
+}
+
+func (d *debugger) Stack() *ui.StackResult {
+	debugger, err := d.session.Debugger()
+	if err != nil {
+		return &ui.StackResult{
+			Error: fmt.Errorf("debugger not ready: %w", err),
+		}
+	}
+
+	// Get stack frames - for now return minimal information
+	frames := make([]*ui.StackFrame, 0)
+
+	// Try to get current frame information
+	pc, err := cpu.ReadPC(debugger.Runtime().CPU().Registers())
+	if err != nil {
+		return &ui.StackResult{
+			Error: fmt.Errorf("failed to read PC: %w", err),
+		}
+	}
+
+	sp, err := cpu.ReadSP(debugger.Runtime().CPU().Registers())
+	if err != nil {
+		return &ui.StackResult{
+			Error: fmt.Errorf("failed to read SP: %w", err),
+		}
+	}
+
+	// Get source location at current PC
+	srcLoc, _ := program.SourceLocationAtInstructionAddress(d.session.Program(), pc)
+	frames = append(frames, &ui.StackFrame{
+		SourceLocation: SourceLocationToUI(srcLoc),
+		Memory: &ui.MemoryRegion{
+			Start: sp,
+			Size:  1,
+		},
+	})
+
+	return &ui.StackResult{
+		Error:       nil,
+		StackFrames: frames,
+	}
+}
+
+func (d *debugger) Vars() *ui.VarsResult {
+	debugger, err := d.session.Debugger()
+	if err != nil {
+		return &ui.VarsResult{
+			Error: fmt.Errorf("debugger not ready: %w", err),
+		}
+	}
+
+	// Get current PC
+	pc, err := cpu.ReadPC(debugger.Runtime().CPU().Registers())
+	if err != nil {
+		return &ui.VarsResult{
+			Error: fmt.Errorf("failed to read PC: %w", err),
+		}
+	}
+
+	// For now, return empty variable list
+	// Full variable extraction would require debug info parsing
+	_ = pc // use pc to avoid unused variable
+	vars := make([]*ui.VariableValue, 0)
+
+	return &ui.VarsResult{
+		Error:     nil,
+		Variables: vars,
+	}
 }

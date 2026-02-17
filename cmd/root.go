@@ -19,9 +19,12 @@ var RootCmd = &cobra.Command{
 	Long: `Cucaracha is a toy CPU architecture implemented as an emulator and a C/C++ toolchain.
 
 This CLI is the entry point for the Cucaracha ecosystem, providing access to the emulator, tools, etc`,
-	// Uncomment the following line if your bare application
-	// has an action associated with it:
-	// Run: func(cmd *cobra.Command, args []string) { },
+	Run: func(cmd *cobra.Command, args []string) {
+		// If no subcommand is given, launch the debug command
+		if len(args) == 0 {
+			DebugCmd.Run(cmd, args)
+		}
+	},
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.

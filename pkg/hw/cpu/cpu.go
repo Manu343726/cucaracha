@@ -24,6 +24,12 @@ type StepInfo struct {
 	InterruptionDetails InterruptionStatistics
 	// Whether the CPU is halted after the last step
 	Halted bool
+
+	// If the step triggered a breakpoint, the address of the instruction that caused the breakpoint to be hit
+	BreakpointHit *uint32
+
+	// If the step triggered a watchpoint, the range of memory that caused the watchpoint to be hit
+	WatchpointHit *memory.Range
 }
 
 // CPU defines the minimal contract for a Cucaracha CPU implementation.
@@ -62,8 +68,8 @@ func DecodeInstruction(ram memory.Memory, addr uint32) (*instructions.Instructio
 }
 
 // Decodes the instruction currently pointed to by the PC register
-func DecodeCurrentInstruction(cpu CPU, ram memory.Memory) (*instructions.Instruction, error) {
-	pc, err := ReadPC(cpu.Registers())
+func DecodeCurrentInstruction(registers Registers, ram memory.Memory) (*instructions.Instruction, error) {
+	pc, err := ReadPC(registers)
 	if err != nil {
 		return nil, fmt.Errorf("error decoding current CPU instruction: error reading PC register: %w", err)
 	}
@@ -71,31 +77,21 @@ func DecodeCurrentInstruction(cpu CPU, ram memory.Memory) (*instructions.Instruc
 	return DecodeInstruction(ram, pc)
 }
 
-func LoadProgram(cpu CPU, ram memory.Memory, layout memory.MemoryLayout, program *mc.Program) error {
-	if err := cpu.Reset(); err != nil {
-		return fmt.Errorf("failed to reset CPU before loading program: %w", err)
-	}
-
-	binary, err := program.Encode()
+// Returns the target address of a branch instruction in memory
+//
+// The target address is obtained by reading the register that contains the branch target
+// address as specified by the instruction operands. If this function is called when the given
+// instruction is not the current instruction being executed by the CPU, the returned
+// address may not correspond to the actual branch target address used during execution.
+//
+// To get a more accurate branch target address for common cases, such as compile-time resolved
+// branches where the target address is hardcoded, use program.BranchTargetAddress() instead, which
+// uses debug information to read the target address of hardcoded branches.
+func BranchTargetAddress(instr *instructions.Instruction, registers Registers) (uint32, error) {
+	targetReg, err := instructions.BranchTargetRegister(instr)
 	if err != nil {
-		return fmt.Errorf("failed to encode program: %w", err)
+		return 0, fmt.Errorf("error getting branch target address register: %w", err)
 	}
 
-	if uint32(len(binary))+layout.CodeBase > uint32(ram.Size()) {
-		return fmt.Errorf("program too large to fit in memory at address 0x%X", layout.CodeBase)
-	}
-
-	for offset, b := range binary {
-		err := ram.WriteByte(layout.CodeBase+uint32(offset), b)
-		if err != nil {
-			return fmt.Errorf("failed to write program to memory at address 0x%X: %w", layout.CodeBase+uint32(offset), err)
-		}
-	}
-
-	err = WritePC(cpu.Registers(), layout.CodeBase)
-	if err != nil {
-		return fmt.Errorf("failed to set PC to program start address 0x%X: %w", layout.CodeBase, err)
-	}
-
-	return nil
+	return registers.ReadByDescriptor(targetReg)
 }

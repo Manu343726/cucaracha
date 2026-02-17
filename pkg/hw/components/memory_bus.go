@@ -55,8 +55,9 @@ func (m *memoryAdapter) Size() int {
 }
 
 // Reset resets the memory to its initial state
-func (m *memoryAdapter) Reset() {
+func (m *memoryAdapter) Reset() error {
 	m.memory.Reset()
+	return nil
 }
 
 // Ranges returns the address ranges where operations are valid

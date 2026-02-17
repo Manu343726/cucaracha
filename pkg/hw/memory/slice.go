@@ -10,8 +10,8 @@ type Slice struct {
 // Returns an slice of the specified range of memory
 // Remarks: Note that slices do not perform bounds checking until
 // an actual read or write is attempted.
-func NewSlice(m Memory, r Range) Slice {
-	return Slice{m: m, r: r}
+func NewSlice(m Memory, r *Range) Slice {
+	return Slice{m: m, r: *r}
 }
 
 // Returns a slice covering the entire memory

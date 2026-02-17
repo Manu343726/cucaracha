@@ -3,8 +3,8 @@ package runtime
 import (
 	"fmt"
 
-	"github.com/Manu343726/cucaracha/pkg/hw/cpu/mc"
 	"github.com/Manu343726/cucaracha/pkg/hw/memory"
+	"github.com/Manu343726/cucaracha/pkg/runtime/program"
 	"github.com/Manu343726/cucaracha/pkg/system"
 )
 
@@ -17,7 +17,7 @@ func LoadSystemDescriptor(r Runtime, s *system.SystemDescriptor) error {
 }
 
 // Loads a program into the given runtime environment
-func Load(r Runtime, s *system.SystemDescriptor, programFile mc.ProgramFile) error {
+func Load(r Runtime, s *system.SystemDescriptor, programFile program.ProgramFile) error {
 	if err := LoadSystemDescriptor(r, s); err != nil {
 		return fmt.Errorf("failed to load system descriptor: %w", err)
 	}

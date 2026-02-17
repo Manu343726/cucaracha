@@ -400,6 +400,38 @@ All test programs compile and execute correctly:
 - `arrays` - Array initialization and access
 - `functions` - Function calls with arguments
 
+## Interactive Debugger TUI
+
+The project includes a terminal-based debugger with an interactive UI built using tview and Go.
+
+### Theme System
+
+The debugger TUI includes a comprehensive theme system with support for multiple popular color schemes:
+
+**Available Themes:**
+- **Monokai Dark** (default) - Vibrant and high-contrast
+- **Dracula** - Muted and professional
+- **Nord** - Arctic, cool color palette
+- **Solarized Dark** - Scientifically designed colors
+- **Gruvbox Dark** - Warm, retro feel
+- **One Dark** - Popular Atom/VSCode-style
+
+**Using Themes:**
+```bash
+# Start the debugger
+./debugger-tui-tview
+
+# In the debugger, type:
+theme
+
+# Navigate with arrow keys and press Enter to select
+# Press ESC to cancel
+```
+
+The theme selector provides real-time preview of colors with sample code and register output. All debugger output automatically respects the selected theme.
+
+For detailed information, see [THEME_SYSTEM.md](THEME_SYSTEM.md) and [THEME_QUICK_REFERENCE.md](THEME_QUICK_REFERENCE.md).
+
 ## Development
 
 ### Regenerating LLVM Backend

@@ -37,26 +37,26 @@ type Descriptor struct {
 // PeripheralParams contains parameters for creating a peripheral instance.
 type PeripheralParams struct {
 	// Name is the unique identifier for this instance.
-	Name string
+	Name string `yaml:"name,omitempty"`
 
 	// BaseAddress is the memory-mapped base address.
-	BaseAddress uint32
+	BaseAddress uint32 `yaml:"baseaddress,omitempty"`
 
 	// Size is the memory-mapped region size (0 = use default).
-	Size uint32
+	Size uint32 `yaml:"size,omitempty"`
 
 	// InterruptVector is the interrupt vector number (0xFF = no interrupt).
-	InterruptVector uint8
+	InterruptVector uint8 `yaml:"interrupt_vector,omitempty"`
 
 	// Instance is the instance number for multiple peripherals of the same type.
-	Instance uint8
+	Instance uint8 `yaml:"instance,omitempty"`
 
 	// Description of the specific purpose and usage of this peripheral instance.
-	Description string
+	Description string `yaml:"description,omitempty"`
 
 	// Extra contains peripheral-specific parameters.
 	// Keys and expected types depend on the peripheral type.
-	Extra map[string]interface{}
+	Extra map[string]interface{} `yaml:"extra,omitempty"`
 }
 
 // GetExtra retrieves an extra parameter with type assertion.

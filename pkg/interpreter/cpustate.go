@@ -61,6 +61,7 @@ func NewCPUState(system *system.SystemDescriptor) (*CPUState, error) {
 
 	state := &CPUState{
 		Halted:        false,
+		Registers:     NewRegisters(),
 		Ram:           memory.NewSimulatedMemory(make([]byte, system.MemoryLayout.TotalSize)),
 		MemoryLayout:  system.MemoryLayout,
 		Peripherals:   peripheralsCollection,

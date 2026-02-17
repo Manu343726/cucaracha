@@ -48,8 +48,9 @@ func (m *SimulatedMemory) Size() int {
 	return len(m.data)
 }
 
-func (m *SimulatedMemory) Reset() {
+func (m *SimulatedMemory) Reset() error {
 	for i := range m.data {
 		m.data[i] = 0
 	}
+	return nil
 }

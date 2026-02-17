@@ -6,16 +6,17 @@ import (
 	"github.com/Manu343726/cucaracha/pkg/hw/cpu"
 	"github.com/Manu343726/cucaracha/pkg/hw/cpu/mc"
 	"github.com/Manu343726/cucaracha/pkg/hw/memory"
+	"github.com/Manu343726/cucaracha/pkg/runtime/program"
 )
 
 // Implements program loading into the runtime
 type ProgramLoader struct {
-	programFile mc.ProgramFile
+	programFile program.ProgramFile
 	runtime     Runtime
 }
 
 // Returns a program loader for the given program file and runtime
-func NewProgramLoader(programFile mc.ProgramFile, runtime Runtime) *ProgramLoader {
+func NewProgramLoader(programFile program.ProgramFile, runtime Runtime) *ProgramLoader {
 	return &ProgramLoader{
 		programFile: programFile,
 		runtime:     runtime,
@@ -24,8 +25,27 @@ func NewProgramLoader(programFile mc.ProgramFile, runtime Runtime) *ProgramLoade
 
 // Loads the program code into the runtime memory
 func (pl *ProgramLoader) LoadCode() error {
+	if pl.programFile.MemoryLayout() == nil {
+		return fmt.Errorf("program file has no resolved memory addresses")
+	}
+
+	progLayout := pl.programFile.MemoryLayout()
+	runtimeLayout := pl.runtime.MemoryLayout()
+
+	// Program code base must match runtime (no relocation support)
+	if progLayout.CodeBase != runtimeLayout.CodeBase {
+		return fmt.Errorf("program code base does not match runtime: program 0x%X, runtime 0x%X",
+			progLayout.CodeBase, runtimeLayout.CodeBase)
+	}
+
+	// Program code must fit within runtime code region
+	if progLayout.CodeSize > runtimeLayout.CodeSize {
+		return fmt.Errorf("program code does not fit in runtime: program size 0x%X, runtime size 0x%X",
+			progLayout.CodeSize, runtimeLayout.CodeSize)
+	}
+
 	for i, instr := range pl.programFile.Instructions() {
-		expectedAddr := pl.programFile.MemoryLayout().CodeStart + uint32(i*4)
+		expectedAddr := pl.programFile.MemoryLayout().CodeBase + uint32(i*4)
 		if instr.Address == nil {
 			return fmt.Errorf("instruction %d has no resolved address", i)
 		} else if *instr.Address != expectedAddr {
@@ -57,7 +77,7 @@ func (pl *ProgramLoader) LoadData() error {
 			return fmt.Errorf("global '%s' range %s is outside of the data segment", global.Name, global.Range().String())
 		}
 
-		if err := memory.NewSlice(pl.runtime.Memory(), *global.Range()).Write(global.InitialData); err != nil {
+		if err := memory.NewSlice(pl.runtime.Memory(), global.Range()).Write(global.InitialData); err != nil {
 			return fmt.Errorf("failed to write global '%s' data to memory at address 0x%X: %w", global.Name, *global.Address, err)
 		}
 	}
@@ -67,7 +87,7 @@ func (pl *ProgramLoader) LoadData() error {
 
 // Configures the CPU registers according to the program file
 func (pl *ProgramLoader) SetupCPU() error {
-	entrypoint, err := mc.ProgramEntryPoint(pl.programFile)
+	entrypoint, err := program.ProgramEntryPoint(pl.programFile)
 	if err != nil {
 		return fmt.Errorf("failed to get program entry point: %w", err)
 	}
@@ -111,7 +131,7 @@ func (pl *ProgramLoader) Load() error {
 }
 
 // Loads a program into the given runtime
-func LoadProgram(program mc.ProgramFile, runtime Runtime) error {
+func LoadProgram(program program.ProgramFile, runtime Runtime) error {
 	loader := NewProgramLoader(program, runtime)
 	return loader.Load()
 }
