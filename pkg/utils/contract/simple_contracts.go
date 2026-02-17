@@ -3,7 +3,7 @@ package contract
 import (
 	"fmt"
 
-	"github.com/Manu343726/cucaracha/pkg/logging"
+	"github.com/Manu343726/cucaracha/pkg/utils/logging"
 )
 
 // parseVarArgs parses variadic arguments for *That functions.

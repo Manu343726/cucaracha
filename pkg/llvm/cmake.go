@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+
+	"github.com/Manu343726/cucaracha/pkg/utils/contract"
 )
 
 // CMakeGenerator represents a CMake generator type
@@ -310,6 +312,8 @@ func DefaultCMakeConfig() *CMakeConfig {
 
 // CMake provides an interface to the CMake build system
 type CMake struct {
+	contract.Base
+
 	// Path to the cmake executable
 	cmakePath string
 }
@@ -336,7 +340,10 @@ func NewCMake(cmakePath ...string) (*CMake, error) {
 		return nil, fmt.Errorf("cmake at %s is not functional: %w", path, err)
 	}
 
-	return &CMake{cmakePath: path}, nil
+	return &CMake{
+		Base:      contract.NewBase(log().Child("cmake")),
+		cmakePath: path,
+	}, nil
 }
 
 // Path returns the path to the cmake executable
@@ -397,21 +404,21 @@ func (c *CMake) Configure(config *CMakeConfig) (*ConfigureResult, error) {
 	}
 
 	if config.SourceDir == "" {
-		return nil, fmt.Errorf("source directory not specified")
+		return nil, c.Log().Errorf("source directory not specified")
 	}
 
 	if config.BuildDir == "" {
-		return nil, fmt.Errorf("build directory not specified")
+		return nil, c.Log().Errorf("build directory not specified")
 	}
 
 	// Ensure source directory exists
 	if _, err := os.Stat(config.SourceDir); err != nil {
-		return nil, fmt.Errorf("source directory not found: %s", config.SourceDir)
+		return nil, c.Log().Errorf("source directory not found: %s", config.SourceDir)
 	}
 
 	// Create build directory if it doesn't exist
 	if err := os.MkdirAll(config.BuildDir, 0755); err != nil {
-		return nil, fmt.Errorf("failed to create build directory: %w", err)
+		return nil, c.Log().Errorf("failed to create build directory: %w", err)
 	}
 
 	// Build arguments
@@ -483,7 +490,7 @@ func (c *CMake) Configure(config *CMakeConfig) (*ConfigureResult, error) {
 	if err := cmd.Run(); err != nil {
 		result.Stdout = stdoutBuf.String()
 		result.Stderr = stderrBuf.String()
-		return result, fmt.Errorf("cmake configure failed: %w\n%s", err, result.Stderr)
+		return result, c.Log().Errorf("cmake configure failed: %w\n%s", err, result.Stderr)
 	}
 
 	result.Stdout = stdoutBuf.String()
@@ -510,12 +517,12 @@ func (c *CMake) Build(config *CMakeConfig) (*BuildResult, error) {
 	}
 
 	if config.BuildDir == "" {
-		return nil, fmt.Errorf("build directory not specified")
+		return nil, c.Log().Errorf("build directory not specified")
 	}
 
 	// Ensure build directory exists
 	if _, err := os.Stat(config.BuildDir); err != nil {
-		return nil, fmt.Errorf("build directory not found: %s", config.BuildDir)
+		return nil, c.Log().Errorf("build directory not found: %s", config.BuildDir)
 	}
 
 	// Build arguments
@@ -570,7 +577,7 @@ func (c *CMake) Build(config *CMakeConfig) (*BuildResult, error) {
 	if err := cmd.Run(); err != nil {
 		result.Stdout = stdoutBuf.String()
 		result.Stderr = stderrBuf.String()
-		return result, fmt.Errorf("cmake build failed: %w\n%s", err, result.Stderr)
+		return result, c.Log().Errorf("cmake build failed: %w\n%s", err, result.Stderr)
 	}
 
 	result.Stdout = stdoutBuf.String()
@@ -647,13 +654,13 @@ func (c *CMake) BuildLLVM(config *LLVMBuildConfig) (*BuildResult, error) {
 	}
 
 	if config.LLVMRoot == "" {
-		return nil, fmt.Errorf("LLVM root not specified")
+		return nil, c.Log().Errorf("LLVM root not specified")
 	}
 
 	// Check llvm-project structure
 	llvmDir := filepath.Join(config.LLVMRoot, "llvm")
 	if _, err := os.Stat(llvmDir); err != nil {
-		return nil, fmt.Errorf("llvm directory not found at %s", llvmDir)
+		return nil, c.Log().Errorf("llvm directory not found at %s", llvmDir)
 	}
 
 	// Check for CMakePresets.json
@@ -666,7 +673,7 @@ func (c *CMake) BuildLLVM(config *LLVMBuildConfig) (*BuildResult, error) {
 		}
 		// If presets failed, log and fall back to manual config
 		if config.Verbose {
-			fmt.Printf("Warning: Failed to build with presets: %v, falling back to manual configuration\n", err)
+			c.Log().Warn("Failed to build with presets: %v, falling back to manual configuration", err)
 		}
 	}
 
@@ -732,7 +739,7 @@ func (c *CMake) BuildLLVMWithPresets(config *LLVMBuildConfig, presetsPath string
 	}
 
 	if config.Verbose {
-		fmt.Printf("Using CMake preset: %s\n", configurePreset.Name)
+		c.Log().Info("Using CMake preset: %s", configurePreset.Name)
 	}
 
 	// Find corresponding build preset
@@ -748,7 +755,7 @@ func (c *CMake) ConfigureAndBuildWithPreset(llvmRoot string, configurePreset *Co
 
 	// Step 1: Configure using preset
 	if verbose {
-		fmt.Printf("Configuring with preset: %s\n", configurePreset.Name)
+		c.Log().Info("Configuring with preset: %s", configurePreset.Name)
 	}
 
 	configureArgs := []string{
@@ -779,7 +786,7 @@ func (c *CMake) ConfigureAndBuildWithPreset(llvmRoot string, configurePreset *Co
 
 	// Step 2: Build using preset if available, otherwise manual build
 	if verbose {
-		fmt.Println("Building clang...")
+		c.Log().Info("Building clang...")
 	}
 
 	var buildArgs []string
@@ -811,7 +818,7 @@ func (c *CMake) ConfigureAndBuildWithPreset(llvmRoot string, configurePreset *Co
 	}
 
 	if err := buildCmd.Run(); err != nil {
-		return nil, fmt.Errorf("build failed: %w\nOutput: %s", err, buildOutput.String())
+		return nil, c.Log().Errorf("build failed: %w\nOutput: %s", err, buildOutput.String())
 	}
 
 	return &BuildResult{

@@ -3,7 +3,7 @@ package contract
 import (
 	"reflect"
 
-	"github.com/Manu343726/cucaracha/pkg/logging"
+	"github.com/Manu343726/cucaracha/pkg/utils/logging"
 )
 
 // Base is an embeddable type that provides logging and contract checking capabilities.

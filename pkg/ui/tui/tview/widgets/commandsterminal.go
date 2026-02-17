@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Manu343726/cucaracha/pkg/logging"
+	"github.com/Manu343726/cucaracha/pkg/utils/logging"
 	"github.com/Manu343726/cucaracha/pkg/ui"
 	"github.com/Manu343726/cucaracha/pkg/ui/tui/tview/themes"
 	"github.com/gdamore/tcell/v2"

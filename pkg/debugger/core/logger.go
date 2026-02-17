@@ -1,7 +1,7 @@
 package core
 
 import (
-	"github.com/Manu343726/cucaracha/pkg/logging"
+	"github.com/Manu343726/cucaracha/pkg/utils/logging"
 )
 
 // log returns the logger for the debugger core package.

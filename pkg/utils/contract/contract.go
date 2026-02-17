@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/Manu343726/cucaracha/pkg/logging"
+	"github.com/Manu343726/cucaracha/pkg/utils/logging"
 )
 
 // FormatErrorMessage formats an error message like fmt.Errorf.
