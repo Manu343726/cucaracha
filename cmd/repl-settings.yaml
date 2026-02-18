@@ -1,0 +1,3 @@
+display.events: true
+show.logs:
+  - "cucaracha"

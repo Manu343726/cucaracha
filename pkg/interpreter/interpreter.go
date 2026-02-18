@@ -7,11 +7,11 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/Manu343726/cucaracha/pkg/utils/contract"
 	"github.com/Manu343726/cucaracha/pkg/hw/cpu"
 	"github.com/Manu343726/cucaracha/pkg/hw/memory"
 	"github.com/Manu343726/cucaracha/pkg/hw/peripheral"
 	"github.com/Manu343726/cucaracha/pkg/system"
+	"github.com/Manu343726/cucaracha/pkg/utils/contract"
 )
 
 // --- Interpreter ---

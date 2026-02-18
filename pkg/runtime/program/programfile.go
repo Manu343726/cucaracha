@@ -16,6 +16,18 @@ const (
 	GlobalObject
 )
 
+// String returns a string representation of the GlobalType
+func (g GlobalType) String() string {
+	switch g {
+	case GlobalFunction:
+		return "function"
+	case GlobalObject:
+		return "object"
+	default:
+		return "unknown"
+	}
+}
+
 // Global represents a global variable or constant in a program
 type Global struct {
 	Name        string

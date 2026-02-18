@@ -204,6 +204,7 @@ type Debugger interface {
 
 	// Execution state
 	LastResult() *ExecutionResult
+	GetRunnerState() runtime.RunnerState
 
 	// Breakpoint management
 	AddBreakpoint(addr uint32) (*Breakpoint, error)
@@ -226,6 +227,9 @@ type Debugger interface {
 	RemoveTerminationAddress(addr uint32)
 	IsTerminationAddress(addr uint32) bool
 	ClearTerminationAddresses()
+
+	// Execution control - reset
+	Reset() *ExecutionResult
 
 	// Program information
 	Program() program.ProgramFile

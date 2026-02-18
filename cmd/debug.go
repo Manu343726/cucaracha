@@ -18,6 +18,8 @@ var (
 	useTUI             bool
 	scriptFile         string
 	scriptOutputFormat string
+	settingsFile       string
+	settings           []string
 )
 
 // DebugCmd represents the debug command
@@ -89,6 +91,21 @@ Use --script to run a script file instead of interactive mode.`,
 			if scriptFile != "" {
 				// For script mode, use the specified output format
 				replInstance = repl.NewREPLWithOutputFormat(uiDebugger, nil, os.Stdout, outputFormat)
+
+				// Apply settings: load from file first, then apply CLI overrides
+				if settingsFile != "" {
+					if err := replInstance.ApplySettingsFromFile(settingsFile); err != nil {
+						fmt.Fprintf(os.Stderr, "Error loading settings file: %v\n", err)
+						os.Exit(1)
+					}
+				}
+				for _, setting := range settings {
+					if err := replInstance.ApplySettingsKeyValue(setting); err != nil {
+						fmt.Fprintf(os.Stderr, "Error applying setting: %v\n", err)
+						os.Exit(1)
+					}
+				}
+
 				if err := replInstance.RunScript(scriptFile); err != nil {
 					fmt.Fprintf(os.Stderr, "Error running script: %v\n", err)
 					os.Exit(1)
@@ -96,6 +113,21 @@ Use --script to run a script file instead of interactive mode.`,
 			} else {
 				// Interactive mode - always use human readable
 				replInstance = repl.NewREPLWithLoadArgs(uiDebugger, loadArgsPtr)
+
+				// Apply settings: load from file first, then apply CLI overrides
+				if settingsFile != "" {
+					if err := replInstance.ApplySettingsFromFile(settingsFile); err != nil {
+						fmt.Fprintf(os.Stderr, "Error loading settings file: %v\n", err)
+						os.Exit(1)
+					}
+				}
+				for _, setting := range settings {
+					if err := replInstance.ApplySettingsKeyValue(setting); err != nil {
+						fmt.Fprintf(os.Stderr, "Error applying setting: %v\n", err)
+						os.Exit(1)
+					}
+				}
+
 				replInstance.Run()
 			}
 		} else {
@@ -127,5 +159,7 @@ func init() {
 	DebugCmd.Flags().BoolVar(&useTUI, "tui", false, "Use the TUI interface (default: use REPL)")
 	DebugCmd.Flags().StringVarP(&scriptFile, "script", "c", "", "Script file to run (sequence of debugger commands)")
 	DebugCmd.Flags().StringVar(&scriptOutputFormat, "script-output-format", "human_readable", "Output format for script execution (human_readable or machine_readable)")
+	DebugCmd.Flags().StringVar(&settingsFile, "settings-file", "", "YAML file containing REPL settings")
+	DebugCmd.Flags().StringSliceVar(&settings, "settings", []string{}, "REPL settings to apply (key=value format, can be specified multiple times)")
 	RootCmd.AddCommand(DebugCmd)
 }

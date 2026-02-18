@@ -4,6 +4,7 @@ package core
 
 import (
 	"fmt"
+	"log/slog"
 	"slices"
 	"sort"
 
@@ -13,10 +14,13 @@ import (
 	"github.com/Manu343726/cucaracha/pkg/runtime"
 	"github.com/Manu343726/cucaracha/pkg/runtime/program"
 	"github.com/Manu343726/cucaracha/pkg/runtime/program/sourcecode"
+	"github.com/Manu343726/cucaracha/pkg/utils/contract"
 )
 
 // debugger provides debugging capabilities for the interpreter
 type debugger struct {
+	contract.Base
+
 	// execution runtime that is being debugged
 	runtime runtime.Runtime
 	runner  *runtime.Runner
@@ -58,7 +62,8 @@ func NewDebugger(r runtime.Runtime, program program.ProgramFile) Debugger {
 	// runtime go through the runner and are properly synchronized.
 	runtime := runner.Runtime()
 
-	return &debugger{
+	d := &debugger{
+		Base:             contract.NewBase(log().Child("debugger")),
 		runtime:          runtime,
 		runner:           runner,
 		programFile:      program,
@@ -67,6 +72,91 @@ func NewDebugger(r runtime.Runtime, program program.ProgramFile) Debugger {
 		watchpoints:      make(map[int]*Watchpoint),
 		terminationAddrs: make(map[uint32]bool),
 		eventsQueue:      NewInternalEventsQueue(),
+	}
+
+	go d.monitorRunnerEvents()
+
+	return d
+}
+
+func (d *debugger) monitorRunnerEvents() {
+	for event := range d.runner.Events() {
+		d.handleRunnerEvent(event)
+	}
+}
+
+func (d *debugger) handleRunnerEvent(event runtime.RunnerEvent) {
+	d.Log().Debug("received runner event", slog.Any("type", event.Type))
+
+	// Convert runner event to debugger event and trigger callback
+	debugEvent := &Event{
+		Result: &ExecutionResult{},
+	}
+
+	switch event.Type {
+	case runtime.RunnerEventBreakpointHit:
+		if addr, ok := event.Data.(uint32); ok {
+			debugEvent.Event = EventBreakpointHit
+			debugEvent.Result.LastPC = addr
+			debugEvent.Result.StopReason = StopBreakpoint
+
+			// Find the corresponding breakpoint in the debugger's breakpoint list
+			if bp := d.GetBreakpointAt(addr); bp != nil {
+				bp.HitCount++
+				debugEvent.Result.Breakpoint = bp
+			}
+		}
+
+	case runtime.RunnerEventWatchpointHit:
+		if watchRange, ok := event.Data.(memory.Range); ok {
+			debugEvent.Event = EventWatchpointHit
+			debugEvent.Result.StopReason = StopWatchpoint
+
+			// Find the corresponding watchpoint in the debugger's watchpoint list
+			for _, wp := range d.ListWatchpoints() {
+				if wp.Memory != nil && wp.Memory.Start == watchRange.Start && wp.Memory.End() == watchRange.End() {
+					wp.HitCount++
+					debugEvent.Result.Watchpoint = wp
+					break
+				}
+			}
+		}
+
+	case runtime.RunnerEventStepCompleted:
+		if stepInfo, ok := event.Data.(*cpu.StepInfo); ok {
+			debugEvent.Event = EventStepped
+			debugEvent.Result.StopReason = StopStep
+			debugEvent.Result.CyclesExecuted = int64(stepInfo.CyclesUsed)
+
+			// Note: PC will be updated from CPU state if needed
+			// This event is always triggered, even if breakpoint/watchpoint was hit
+		}
+
+	case runtime.RunnerEventRuntimeError:
+		if err, ok := event.Data.(error); ok {
+			debugEvent.Event = EventError
+			debugEvent.Result.StopReason = StopError
+			debugEvent.Result.Error = err
+		}
+
+	case runtime.RunnerEventInterrupted:
+		debugEvent.Event = EventInterrupted
+		debugEvent.Result.StopReason = StopInterrupt
+
+	case runtime.RunnerEventStopped:
+		debugEvent.Event = EventProgramHalted
+		debugEvent.Result.StopReason = StopHalt
+
+	default:
+		d.Log().Warn("unknown runner event type", slog.Any("type", event.Type))
+		return
+	}
+
+	// Store the result and trigger callback
+	d.lastResult = debugEvent.Result
+
+	if d.eventCallback != nil {
+		d.eventCallback(debugEvent)
 	}
 }
 
@@ -110,6 +200,11 @@ func (d *debugger) HasEventCallback() bool {
 // LastResult returns the result of the last execution operation
 func (d *debugger) LastResult() *ExecutionResult {
 	return d.lastResult
+}
+
+// GetRunnerState returns the current state of the underlying runner
+func (d *debugger) GetRunnerState() runtime.RunnerState {
+	return d.runner.State()
 }
 
 // --- Breakpoint Management ---
@@ -597,4 +692,19 @@ func (d *debugger) StepOverSource() *ExecutionResult {
 
 func (d *debugger) Program() program.ProgramFile {
 	return d.programFile
+}
+
+func (d *debugger) Reset() *ExecutionResult {
+	result := <-d.runner.SendCommand(runtime.RunnerCommand{Type: runtime.RunnerCommandReset})
+	if result.Error != nil {
+		return &ExecutionResult{
+			StopReason: StopError,
+			Error:      result.Error,
+		}
+	}
+
+	// Clear breakpoints and watchpoints after reset
+	return &ExecutionResult{
+		StopReason: StopHalt,
+	}
 }

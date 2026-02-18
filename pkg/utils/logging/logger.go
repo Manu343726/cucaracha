@@ -16,6 +16,7 @@ import (
 // RegisteredLoggers are stored in the Registry and do the actual logging work.
 type RegisteredLogger struct {
 	name   string
+	sinks  []*Sink      // Stores the sinks for reconstruction
 	logger *slog.Logger // with Fanout handler connecting multiple sinks
 }
 
@@ -39,10 +40,65 @@ func NewRegisteredLogger(name string, sinks ...*Sink) *RegisteredLogger {
 		handler = slogmulti.Fanout(handlers...)
 	}
 
+	// Store a copy of the sinks for potential reconstruction
+	sinksCopy := make([]*Sink, len(sinks))
+	copy(sinksCopy, sinks)
+
 	return &RegisteredLogger{
 		name:   name,
+		sinks:  sinksCopy,
 		logger: slog.New(handler),
 	}
+}
+
+// GetSinks returns the sinks attached to this logger.
+func (rl *RegisteredLogger) GetSinks() []*Sink {
+	return rl.sinks
+}
+
+// Returns an equivalent logger with a different set of sinks
+func (rl *RegisteredLogger) WithSinks(newSinks ...*Sink) *RegisteredLogger {
+	return NewRegisteredLogger(rl.name, newSinks...)
+}
+
+// Returns an equivalent logger with the specified sinks added (if they're not already attached)
+func (rl *RegisteredLogger) WithAddedSinks(newSinks ...*Sink) *RegisteredLogger {
+	existingSinks := make(map[*Sink]struct{})
+	for _, s := range rl.sinks {
+		existingSinks[s] = struct{}{}
+	}
+
+	var combinedSinks []*Sink
+	combinedSinks = append(combinedSinks, rl.sinks...)
+	for _, s := range newSinks {
+		if _, exists := existingSinks[s]; !exists {
+			combinedSinks = append(combinedSinks, s)
+		}
+	}
+
+	return NewRegisteredLogger(rl.name, combinedSinks...)
+}
+
+// Returns an equivalent logger without the specified sink (if it exists)
+func (rl *RegisteredLogger) WithoutSink(sink *Sink) *RegisteredLogger {
+	var newSinks []*Sink
+	for _, s := range rl.sinks {
+		if s != sink {
+			newSinks = append(newSinks, s)
+		}
+	}
+	return NewRegisteredLogger(rl.name, newSinks...)
+}
+
+// Returns an equivalent logger without the specified sink name (if it exists)
+func (rl *RegisteredLogger) WithoutSinkNamed(sinkName string) *RegisteredLogger {
+	var newSinks []*Sink
+	for _, s := range rl.sinks {
+		if s.Name() != sinkName {
+			newSinks = append(newSinks, s)
+		}
+	}
+	return NewRegisteredLogger(rl.name, newSinks...)
 }
 
 // Name returns the registered logger's name.
@@ -50,44 +106,68 @@ func (rl *RegisteredLogger) Name() string {
 	return rl.name
 }
 
+func (rl *RegisteredLogger) log(ctx context.Context, level slog.Level, msg string, attrs ...slog.Attr) {
+	rl.logger.LogAttrs(ctx, level, msg, attrs...)
+}
+
+// Log logs a message at the specified level with context.
+func (rl *RegisteredLogger) LogContext(ctx context.Context, level slog.Level, msg string, attrs ...slog.Attr) {
+	rl.logger.LogAttrs(ctx, level, msg, attrs...)
+}
+
+// Logf logs a formatted message at the specified level with context.
+func (rl *RegisteredLogger) LogfContext(ctx context.Context, level slog.Level, format string, args ...interface{}) {
+	rl.LogContext(ctx, level, fmt.Sprintf(format, args...))
+}
+
+// Log logs a message at the specified level with background context.
+func (rl *RegisteredLogger) Log(level slog.Level, msg string, attrs ...slog.Attr) {
+	rl.LogContext(context.Background(), level, msg, attrs...)
+}
+
+// Logf logs a formatted message at the specified level with background context.
+func (rl *RegisteredLogger) Logf(level slog.Level, format string, args ...interface{}) {
+	rl.Log(level, fmt.Sprintf(format, args...))
+}
+
 // Debug logs at debug level with context.
 func (rl *RegisteredLogger) DebugContext(ctx context.Context, msg string, attrs ...slog.Attr) {
-	rl.logger.LogAttrs(ctx, slog.LevelDebug, msg, attrs...)
+	rl.log(ctx, slog.LevelDebug, msg, attrs...)
 }
 
 // Debug logs at debug level with background context.
 func (rl *RegisteredLogger) Debug(msg string, attrs ...slog.Attr) {
-	rl.logger.LogAttrs(context.Background(), slog.LevelDebug, msg, attrs...)
+	rl.DebugContext(context.Background(), msg, attrs...)
 }
 
 // Info logs at info level with context.
 func (rl *RegisteredLogger) InfoContext(ctx context.Context, msg string, attrs ...slog.Attr) {
-	rl.logger.LogAttrs(ctx, slog.LevelInfo, msg, attrs...)
+	rl.log(ctx, slog.LevelInfo, msg, attrs...)
 }
 
 // Info logs at info level with background context.
 func (rl *RegisteredLogger) Info(msg string, attrs ...slog.Attr) {
-	rl.logger.LogAttrs(context.Background(), slog.LevelInfo, msg, attrs...)
+	rl.InfoContext(context.Background(), msg, attrs...)
 }
 
 // Warn logs at warn level with context.
 func (rl *RegisteredLogger) WarnContext(ctx context.Context, msg string, attrs ...slog.Attr) {
-	rl.logger.LogAttrs(ctx, slog.LevelWarn, msg, attrs...)
+	rl.log(ctx, slog.LevelWarn, msg, attrs...)
 }
 
 // Warn logs at warn level with background context.
 func (rl *RegisteredLogger) Warn(msg string, attrs ...slog.Attr) {
-	rl.logger.LogAttrs(context.Background(), slog.LevelWarn, msg, attrs...)
+	rl.WarnContext(context.Background(), msg, attrs...)
 }
 
 // Error logs at error level with context.
 func (rl *RegisteredLogger) ErrorContext(ctx context.Context, msg string, attrs ...slog.Attr) {
-	rl.logger.LogAttrs(ctx, slog.LevelError, msg, attrs...)
+	rl.log(ctx, slog.LevelError, msg, attrs...)
 }
 
 // Error logs at error level with background context.
 func (rl *RegisteredLogger) Error(msg string, attrs ...slog.Attr) {
-	rl.logger.LogAttrs(context.Background(), slog.LevelError, msg, attrs...)
+	rl.ErrorContext(context.Background(), msg, attrs...)
 }
 
 // PanicContext logs at panic level with backtrace and then panics.
@@ -102,7 +182,7 @@ func (rl *RegisteredLogger) PanicContext(ctx context.Context, msg string, attrs 
 	allAttrs[len(attrs)] = backtraceAttr
 
 	// Log as error level with backtrace
-	rl.logger.LogAttrs(ctx, slog.LevelError, msg, allAttrs...)
+	rl.log(ctx, slog.LevelError, msg, allAttrs...)
 
 	// Panic
 	panic(msg)
@@ -204,19 +284,12 @@ func (l *Logger) logContext(ctx context.Context, level slog.Level, msg string, a
 	}
 
 	// Combine pre-configured attrs with provided attrs
-	allAttrs := make([]any, len(l.attrs)+len(attrs))
-	copy(allAttrs, l.attrs)
-	copy(allAttrs[len(l.attrs):], attrs)
+	allAttrs := make([]any, 1+len(l.attrs)+len(attrs))
+	allAttrs[0] = slog.String("cucaracha.logging.logger.name", l.name)
+	copy(allAttrs[1:], l.attrs)
+	copy(allAttrs[1+len(l.attrs):], attrs)
 
-	// Convert to slog.Attr for the logger
-	slogAttrs := make([]slog.Attr, 0, len(allAttrs))
-	for _, a := range allAttrs {
-		if attr, ok := a.(slog.Attr); ok {
-			slogAttrs = append(slogAttrs, attr)
-		}
-	}
-
-	registeredLogger.logger.LogAttrs(ctx, level, msg, slogAttrs...)
+	registeredLogger.logger.Log(ctx, level, msg, allAttrs...)
 }
 
 // log is the internal method that forwards to the registered logger with background context.
@@ -269,16 +342,6 @@ func (l *Logger) Errorf(msg string, args ...any) error {
 	err := fmt.Errorf(msg, args...)
 	l.Error(err.Error())
 	return err
-}
-
-// LogfContext logs a formatted message at the specified level with context.
-func (l *Logger) LogfContext(ctx context.Context, level slog.Level, format string, args ...interface{}) {
-	l.logContext(ctx, level, fmt.Sprintf(format, args...))
-}
-
-// Logf logs a formatted message at the specified level with background context.
-func (l *Logger) Logf(level slog.Level, format string, args ...interface{}) {
-	l.log(level, fmt.Sprintf(format, args...))
 }
 
 // PanicContext logs at panic level with backtrace and then panics.

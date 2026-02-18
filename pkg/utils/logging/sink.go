@@ -11,9 +11,10 @@ import (
 // and enforces a minimum log level.
 // Sinks are configured at creation time and cannot be modified afterward.
 type Sink struct {
-	name    string
-	handler slog.Handler
-	level   slog.Level
+	name       string
+	handler    slog.Handler
+	level      slog.Level
+	uiSinkImpl interface{} // Optional: stores *UISink if this is a UI sink (for internal use only)
 }
 
 // NewSink creates a new immutable sink with the given name, handler, and level.

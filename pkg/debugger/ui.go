@@ -21,6 +21,14 @@ func (d *DebuggerUI) SetEventCallback(callback ui.DebuggerEventCallback) {
 	d.commands.SetEventCallback(callback)
 }
 
+func (d *DebuggerUI) Reset() *ui.ExecutionResult {
+	return d.commands.Reset()
+}
+
+func (d *DebuggerUI) Restart() *ui.ExecutionResult {
+	return d.commands.Restart()
+}
+
 func (d *DebuggerUI) Execute(args *ui.DebuggerCommand) (*ui.DebuggerCommandResult, error) {
 	result := &ui.DebuggerCommandResult{
 		Id:      args.Id,
@@ -57,13 +65,23 @@ func (d *DebuggerUI) Execute(args *ui.DebuggerCommand) (*ui.DebuggerCommandResul
 	case ui.DebuggerCommandEvaluateExpression:
 		result.EvalResult = d.commands.Eval(args.EvalArgs)
 	case ui.DebuggerCommandInfo:
-		result.InfoResult = d.commands.Info()
+		infoArgs := args.InfoArgs
+		if infoArgs == nil {
+			infoArgs = &ui.InfoArgs{Type: ui.InfoTypeGeneral}
+		}
+		result.InfoResult = d.commands.Info(infoArgs)
 	case ui.DebuggerCommandRegisters:
 		result.RegistersResult = d.commands.Registers()
 	case ui.DebuggerCommandStack:
 		result.StackResult = d.commands.Stack()
 	case ui.DebuggerCommandVariables:
 		result.VariablesResult = d.commands.Vars()
+	case ui.DebuggerCommandSymbols:
+		result.SymbolsResult = d.commands.Symbols(args.SymbolsArgs)
+	case ui.DebuggerCommandReset:
+		result.ResetResult = d.commands.Reset()
+	case ui.DebuggerCommandRestart:
+		result.RestartResult = d.commands.Restart()
 	case ui.DebuggerCommandLoadProgramFromFile:
 		result.LoadProgramResult = d.commands.LoadProgramFromFile(args.LoadProgramArgs)
 	case ui.DebuggerCommandLoadSystemFromFile:

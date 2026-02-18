@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/Manu343726/cucaracha/pkg/ui"
+	"github.com/Manu343726/cucaracha/pkg/utils/logging"
 )
 
 func (r *REPL) printCommandResult(result *ui.DebuggerCommandResult) {
@@ -23,6 +24,12 @@ func (r *REPL) printCommandResult(result *ui.DebuggerCommandResult) {
 	}
 	if result.InterruptResult != nil {
 		r.printExecutionResult(result.InterruptResult)
+	}
+	if result.ResetResult != nil {
+		r.printExecutionResult(result.ResetResult)
+	}
+	if result.RestartResult != nil {
+		r.printExecutionResult(result.RestartResult)
 	}
 	if result.BreakResult != nil {
 		r.printBreakResult(result.BreakResult)
@@ -66,6 +73,9 @@ func (r *REPL) printCommandResult(result *ui.DebuggerCommandResult) {
 	if result.VariablesResult != nil {
 		r.printVarsResult(result.VariablesResult)
 	}
+	if result.SymbolsResult != nil {
+		r.printSymbolsResult(result.SymbolsResult)
+	}
 	if result.EvalResult != nil {
 		r.printEvalResult(result.EvalResult)
 	}
@@ -77,6 +87,9 @@ func (r *REPL) printCommandResult(result *ui.DebuggerCommandResult) {
 	}
 	if result.LoadRuntimeResult != nil {
 		r.printLoadRuntimeResult(result.LoadRuntimeResult)
+	}
+	if result.LoadResult != nil {
+		r.printLoadResult(result.LoadResult)
 	}
 }
 
@@ -100,6 +113,8 @@ Execution:
   continue, c            - Continue execution until breakpoint
   run, r                 - Run the program
   interrupt              - Interrupt execution
+  reset                  - Reset program to initial state
+  restart                - Reset and continue execution
 
 Breakpoints:
   break <addr>, b <addr> - Set breakpoint at address
@@ -113,11 +128,13 @@ Inspection:
   current                - Show current instruction
   memory <addr> [cnt]    - Display memory
   source [path]          - Show source code
-  info, i                - Show debugger info
+  info [general|runtime| - Show debugger/system/program info
+    program], i
   registers, reg         - Show CPU registers
   stack, st              - Show stack trace
   vars, v                - Show variables
   eval <expr>, e <expr>  - Evaluate expression
+  symbols [name], sym    - Show loaded symbols
 
 Program Loading:
   load <file>            - Load program from file
@@ -125,7 +142,12 @@ Program Loading:
   loadsystem <file>      - Load system configuration
   loadruntime <name>     - Load runtime (interpreter)
 
+Settings:
+  set [name] [value]     - Set a REPL setting (or show all with descriptions)
+  get [name]             - Get a setting value (or show all current values)
+
 Utility:
+  loggers                - List all registered loggers and their sinks
   help, h                - Show this help message
   exit, quit, q          - Exit the debugger
 `
@@ -385,9 +407,69 @@ func (r *REPL) printInfoResult(result *ui.InfoResult) {
 		return
 	}
 
-	r.write("\nDebugger Info:\n")
+	// Print debugger state if available
 	if result.DebuggerState != nil {
+		r.write("\nDebugger State:\n")
 		r.write("  Status: %v\n", result.DebuggerState.Status)
+		if result.DebuggerState.Registers != nil && len(result.DebuggerState.Registers) > 0 {
+			r.write("  Registers:\n")
+			for name, reg := range result.DebuggerState.Registers {
+				r.write("    %s = 0x%x\n", name, reg.Value)
+			}
+		}
+		if result.DebuggerState.Flags != nil {
+			r.write("  Flags: N=%v Z=%v C=%v V=%v\n",
+				result.DebuggerState.Flags.N,
+				result.DebuggerState.Flags.Z,
+				result.DebuggerState.Flags.C,
+				result.DebuggerState.Flags.V)
+		}
+	}
+
+	// Print system info if available
+	if result.SystemInfo != nil {
+		r.write("\nSystem Configuration:\n")
+		r.write("  Total Memory: %d bytes (0x%x)\n", result.SystemInfo.TotalMemory, result.SystemInfo.TotalMemory)
+		r.write("  Code Region: %d bytes (0x%x)\n", result.SystemInfo.CodeSize, result.SystemInfo.CodeSize)
+		r.write("  Data Region: %d bytes (0x%x)\n", result.SystemInfo.DataSize, result.SystemInfo.DataSize)
+		r.write("  Stack Region: %d bytes (0x%x)\n", result.SystemInfo.StackSize, result.SystemInfo.StackSize)
+		r.write("  Heap Region: %d bytes (0x%x)\n", result.SystemInfo.HeapSize, result.SystemInfo.HeapSize)
+		r.write("  Peripheral Region: %d bytes (0x%x)\n", result.SystemInfo.PeripheralSize, result.SystemInfo.PeripheralSize)
+		r.write("  Interrupt Vectors: %d (entry size: %d bytes)\n", result.SystemInfo.NumberOfVectors, result.SystemInfo.VectorEntrySize)
+
+		if result.SystemInfo.NumPeripherals > 0 {
+			r.write("  Peripherals (%d):\n", result.SystemInfo.NumPeripherals)
+			for _, p := range result.SystemInfo.Peripherals {
+				r.write("    - %s (%s): %s\n", p.Name, p.Type, p.DisplayName)
+				r.write("      Base Address: 0x%x, Size: %d bytes, IRQ: %d\n",
+					p.BaseAddress, p.Size, p.InterruptVector)
+			}
+		}
+	}
+
+	// Print program info if available
+	if result.ProgramInfo != nil {
+		r.write("\nProgram Information:\n")
+		if result.ProgramInfo.SourceFile != nil {
+			r.write("  Source File: %s\n", *result.ProgramInfo.SourceFile)
+		}
+		if result.ProgramInfo.ObjectFile != nil {
+			r.write("  Object File: %s\n", *result.ProgramInfo.ObjectFile)
+		}
+		r.write("  Entry Point: 0x%x\n", result.ProgramInfo.EntryPoint)
+		r.write("  Debug Symbols: %v\n", result.ProgramInfo.HasDebugInfo)
+		if len(result.ProgramInfo.Warnings) > 0 {
+			r.write("  Warnings:\n")
+			for _, w := range result.ProgramInfo.Warnings {
+				r.write("    - %s\n", w)
+			}
+		}
+	}
+
+	// Print runtime info if available
+	if result.RuntimeInfo != nil {
+		r.write("\nRuntime Information:\n")
+		r.write("  Type: %s\n", result.RuntimeInfo.Runtime)
 	}
 }
 
@@ -469,6 +551,88 @@ func (r *REPL) printVarsResult(result *ui.VarsResult) {
 	}
 }
 
+func (r *REPL) printSymbolsResult(result *ui.SymbolsResult) {
+	if result == nil {
+		r.printError("Failed to list symbols")
+		return
+	}
+
+	if result.Error != nil {
+		r.printError(result.Error.Error())
+		return
+	}
+
+	if result.TotalCount == 0 {
+		r.write("No symbols found\n")
+		return
+	}
+
+	r.write("\nSymbols (%d total):\n", result.TotalCount)
+
+	// Print functions
+	if len(result.Functions) > 0 {
+		r.write("\nFunctions:\n")
+		for _, fn := range result.Functions {
+			if fn != nil {
+				addrStr := "???"
+				if fn.Address != nil {
+					addrStr = fmt.Sprintf("0x%x", *fn.Address)
+				}
+				sizeStr := "???"
+				if fn.Size != nil {
+					sizeStr = fmt.Sprintf("%d", *fn.Size)
+				}
+				rangeStr := ""
+				if len(fn.InstructionRanges) > 0 {
+					rangeStr = fmt.Sprintf(" [%s]", strings.Join(fn.InstructionRanges, ", "))
+				}
+				sourceStr := ""
+				if fn.SourceFile != "" {
+					sourceStr = fmt.Sprintf(" (%s:%d-%d)", fn.SourceFile, fn.StartLine, fn.EndLine)
+				}
+				r.write("  %s @ %s size=%s%s%s\n", fn.Name, addrStr, sizeStr, rangeStr, sourceStr)
+			}
+		}
+	}
+
+	// Print globals
+	if len(result.Globals) > 0 {
+		r.write("\nGlobals:\n")
+		for _, global := range result.Globals {
+			if global != nil {
+				addrStr := "???"
+				if global.Address != nil {
+					addrStr = fmt.Sprintf("0x%x", *global.Address)
+				}
+				typeStr := global.SymbolType
+				initStr := ""
+				if global.HasInitData {
+					initStr = fmt.Sprintf(" (init data: %d bytes)", global.InitDataLen)
+				}
+				r.write("  %s @ %s type=%s size=%d%s\n", global.Name, addrStr, typeStr, global.Size, initStr)
+			}
+		}
+	}
+
+	// Print labels
+	if len(result.Labels) > 0 {
+		r.write("\nLabels:\n")
+		for _, label := range result.Labels {
+			if label != nil {
+				addrStr := "???"
+				if label.Address != nil {
+					addrStr = fmt.Sprintf("0x%x", *label.Address)
+				}
+				idxStr := ""
+				if label.InstructionIndex >= 0 {
+					idxStr = fmt.Sprintf(" [instr %d]", label.InstructionIndex)
+				}
+				r.write("  %s @ %s%s\n", label.Name, addrStr, idxStr)
+			}
+		}
+	}
+}
+
 func (r *REPL) printEvalResult(result *ui.EvalResult) {
 	if result == nil {
 		r.printError("Failed to evaluate expression")
@@ -525,6 +689,20 @@ func (r *REPL) printLoadRuntimeResult(result *ui.LoadRuntimeResult) {
 	r.write("Runtime loaded successfully\n")
 }
 
+func (r *REPL) printLoadResult(result *ui.LoadResult) {
+	if result == nil {
+		r.printError("Failed to load")
+		return
+	}
+
+	if result.Error != nil {
+		r.printError(result.Error.Error())
+		return
+	}
+
+	r.write("Load completed successfully\n")
+}
+
 // ============================================================================
 // Machine-Readable Output Support
 // ============================================================================
@@ -575,6 +753,30 @@ func (r *REPL) finishCommandOutput(success bool, err error) {
 	r.outputBuffer.Reset()
 }
 
+func (r *REPL) printAllSettings() {
+	r.write("\nAvailable Settings:\n\n")
+	for _, setting := range r.settings.List() {
+		r.write("  %s\n", setting.Name)
+		r.write("    %s\n", setting.Description)
+		r.write("    Default: %v\n\n", setting.DefaultValue)
+	}
+}
+
+func (r *REPL) printCurrentSettings() {
+	r.write("\nCurrent Settings:\n\n")
+	for _, setting := range r.settings.List() {
+		r.write("  %s = %v\n", setting.Name, setting.Value)
+	}
+	r.write("\n")
+}
+
+func (r *REPL) printEvent(eventType string, details map[string]interface{}) {
+	r.write("[%s event]\n", eventType)
+	for key, value := range details {
+		r.write("  %s: %v\n", key, value)
+	}
+}
+
 // write outputs text, buffering in machine-readable mode, direct output in human-readable mode
 func (r *REPL) write(format string, args ...interface{}) {
 	if r.outputFormat == MachineReadable && r.commandStarted {
@@ -582,4 +784,8 @@ func (r *REPL) write(format string, args ...interface{}) {
 	} else {
 		fmt.Fprintf(r.writer, format, args...)
 	}
+}
+
+func (r *REPL) printLogEntry(entry logging.UILogEntry) {
+	r.write(entry.String())
 }

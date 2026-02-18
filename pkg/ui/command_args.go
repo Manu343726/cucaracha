@@ -29,8 +29,8 @@ type RemoveWatchpointArgs struct {
 
 // Disasm command arguments
 type DisasmArgs struct {
-	Address uint32 `json:"address"` // Starting address (optional)
-	Count   int    `json:"count"`   // Number of instructions to disassemble (optional)
+	AddressExpr string `json:"addressExpr"` // Address expression (e.g., "0x1000", "r0", "sp+8")
+	Count       int    `json:"count"`       // Number of instructions to disassemble (optional)
 }
 
 // Step command arguments
@@ -118,6 +118,66 @@ type EvalArgs struct {
 	Expression string `json:"expression"` // Expression to evaluate
 }
 
+// Info command type
+type InfoType int
+
+const (
+	// Show general debugger info (status, registers, flags)
+	InfoTypeGeneral InfoType = iota
+	// Show runtime info (system config, memory layout)
+	InfoTypeRuntime
+	// Show program info (source file, entry point, code layout)
+	InfoTypeProgram
+)
+
+func (i InfoType) String() string {
+	switch i {
+	case InfoTypeGeneral:
+		return "general"
+	case InfoTypeRuntime:
+		return "runtime"
+	case InfoTypeProgram:
+		return "program"
+	default:
+		return "unknown"
+	}
+}
+
+func InfoTypeFromString(s string) (InfoType, error) {
+	switch s {
+	case "general", "":
+		return InfoTypeGeneral, nil
+	case "runtime", "system":
+		return InfoTypeRuntime, nil
+	case "program":
+		return InfoTypeProgram, nil
+	default:
+		return 0, fmt.Errorf("unknown InfoType: \"%s\"", s)
+	}
+}
+
+func (i InfoType) MarshalJSON() ([]byte, error) {
+	return json.Marshal(i.String())
+}
+
+func (i *InfoType) UnmarshalJSON(data []byte) error {
+	var str string
+	if err := json.Unmarshal(data, &str); err != nil {
+		return err
+	}
+	val, err := InfoTypeFromString(str)
+	if err != nil {
+		return err
+	}
+	*i = val
+	return nil
+}
+
+// Info command arguments
+type InfoArgs struct {
+	Type InfoType `json:"type"` // Type of info to display (general, runtime, or program)
+}
+
 // CurrentSource command arguments
 type CurrentSourceArgs struct {
 	ContextLines int               `json:"contextLines"` // Number of lines to show
@@ -188,4 +248,8 @@ func (r *RuntimeType) UnmarshalJSON(data []byte) error {
 // LoadRuntime command arguments
 type LoadRuntimeArgs struct {
 	Runtime RuntimeType `json:"runtimeType"` // Type of runtime to load (e.g., "interpreter")
+}
+// Symbols command arguments
+type SymbolsArgs struct {
+	SymbolName *string `json:"symbolName"` // Optional symbol name pattern to filter symbols (nil shows all)
 }

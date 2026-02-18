@@ -95,3 +95,39 @@ type CurrentInstructionResult struct {
 	Error       error        `json:"error"`       // Error, if any
 	Instruction *Instruction `json:"instruction"` // Current instruction
 }
+// Represents a function symbol
+type FunctionSymbol struct {
+	Name              string   `json:"name"`              // Function name
+	Address           *uint32  `json:"address"`           // Function start address (nil if not resolved)
+	Size              *uint32  `json:"size"`              // Function size in bytes (nil if unknown)
+	SourceFile        string   `json:"sourceFile"`        // Original source file (if available)
+	StartLine         int      `json:"startLine"`         // Start line in source (if available)
+	EndLine           int      `json:"endLine"`           // End line in source (if available)
+	InstructionRanges []string `json:"instructionRanges"` // Ranges of instructions (e.g., ["0-10", "20-35"])
+}
+
+// Represents a global variable/object symbol
+type GlobalSymbol struct {
+	Name        string  `json:"name"`        // Symbol name
+	Address     *uint32 `json:"address"`     // Symbol address (nil if not resolved)
+	Size        int     `json:"size"`        // Size in bytes
+	SymbolType  string  `json:"symbolType"`  // Type of global (function, object)
+	HasInitData bool    `json:"hasInitData"` // Whether symbol has initial data
+	InitDataLen int     `json:"initDataLen"` // Length of initial data if present
+}
+
+// Represents a label symbol
+type LabelSymbol struct {
+	Name             string  `json:"name"`             // Label name
+	InstructionIndex int     `json:"instructionIndex"` // Index into instructions array (-1 if not pointing to instruction)
+	Address          *uint32 `json:"address"`          // Resolved instruction address (nil if not resolved)
+}
+
+// Result of Symbols command
+type SymbolsResult struct {
+	Error        error            `json:"error"`        // Error, if any
+	TotalCount   int              `json:"totalCount"`   // Total number of matching symbols
+	Functions    []*FunctionSymbol `json:"functions"`    // Matching function symbols
+	Globals      []*GlobalSymbol   `json:"globals"`      // Matching global symbols
+	Labels       []*LabelSymbol    `json:"labels"`       // Matching label symbols
+}

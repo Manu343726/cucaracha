@@ -58,8 +58,8 @@ type DebuggerCommands interface {
 
 	// Evaluates an expression
 	Eval(args *ui.EvalArgs) *ui.EvalResult
-	// Returns current debugger state
-	Info() *ui.InfoResult
+	// Returns current debugger state, system info, or program info
+	Info(args *ui.InfoArgs) *ui.InfoResult
 
 	// Returns all register values
 	Registers() *ui.RegistersResult
@@ -69,6 +69,15 @@ type DebuggerCommands interface {
 
 	// Returns accessible variables
 	Vars() *ui.VarsResult
+
+	// Returns symbols from the loaded program
+	Symbols(args *ui.SymbolsArgs) *ui.SymbolsResult
+
+	// Resets the program to its initial state
+	Reset() *ui.ExecutionResult
+
+	// Restarts the program (reset + continue)
+	Restart() *ui.ExecutionResult
 }
 
 type Runtime uint

@@ -5,6 +5,7 @@ import (
 	"github.com/Manu343726/cucaracha/pkg/hw/cpu/mc/instructions"
 	"github.com/Manu343726/cucaracha/pkg/hw/cpu/mc/registers"
 	"github.com/Manu343726/cucaracha/pkg/hw/memory"
+	"github.com/Manu343726/cucaracha/pkg/runtime"
 	"github.com/Manu343726/cucaracha/pkg/runtime/program"
 	"github.com/Manu343726/cucaracha/pkg/runtime/program/sourcecode"
 	"github.com/Manu343726/cucaracha/pkg/ui"
@@ -337,5 +338,59 @@ func EventToUI(event *core.Event) *ui.DebuggerEvent {
 	return &ui.DebuggerEvent{
 		Type:   EventTypeToUI(event.Event),
 		Result: ExecutionResultToUI(event.Result),
+	}
+}
+
+// DetermineDetailedDebuggerStatus returns a more detailed debugger status by examining
+// the runner state and the last execution result's stop reason.
+// This provides better insight into why the debugger is in its current state.
+func DetermineDetailedDebuggerStatus(debugger core.Debugger) ui.DebuggerStatus {
+	if debugger == nil {
+		return ui.DebuggerStatusNotReady_MissingProgram
+	}
+
+	runnerState := debugger.GetRunnerState()
+	lastResult := debugger.LastResult()
+
+	switch runnerState {
+	case runtime.RunnerStateIdle:
+		return ui.DebuggerStatusIdle
+
+	case runtime.RunnerStateRunning:
+		return ui.DebuggerStatusRunning
+
+	case runtime.RunnerStateInterrupted:
+		// When interrupted, check the stop reason for more details
+		if lastResult != nil {
+			switch lastResult.StopReason {
+			case core.StopTermination:
+				return ui.DebuggerStatusTerminated
+			case core.StopError:
+				return ui.DebuggerStatusPaused
+			case core.StopHalt:
+				return ui.DebuggerStatusPaused
+			// All other stop reasons indicate paused state (breakpoint, watchpoint, step, etc.)
+			default:
+				return ui.DebuggerStatusPaused
+			}
+		}
+		return ui.DebuggerStatusPaused
+
+	case runtime.RunnerStateStopped:
+		// Runner stopped, check if it's terminated or halted
+		if lastResult != nil {
+			switch lastResult.StopReason {
+			case core.StopTermination:
+				return ui.DebuggerStatusTerminated
+			case core.StopHalt:
+				return ui.DebuggerStatusPaused
+			case core.StopError:
+				return ui.DebuggerStatusPaused
+			}
+		}
+		return ui.DebuggerStatusTerminated
+
+	default:
+		return ui.DebuggerStatusRunning
 	}
 }

@@ -6,11 +6,11 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/Manu343726/cucaracha/pkg/utils/contract"
 	"github.com/Manu343726/cucaracha/pkg/hw/cpu"
 	"github.com/Manu343726/cucaracha/pkg/hw/cpu/mc/registers"
 	"github.com/Manu343726/cucaracha/pkg/hw/memory"
 	"github.com/Manu343726/cucaracha/pkg/hw/peripheral"
+	"github.com/Manu343726/cucaracha/pkg/utils/contract"
 )
 
 type RunnerCommandType int
@@ -175,7 +175,7 @@ func NewRunner(r Runtime) *Runner {
 	runner := &Runner{
 		Base:     contract.NewBase(log().Child("runner")),
 		r:        r,
-		state:    RunnerStateStopped,
+		state:    RunnerStateIdle,
 		commands: make(chan RunnerRequest, 100),
 		events:   make(chan RunnerEvent, 100),
 	}

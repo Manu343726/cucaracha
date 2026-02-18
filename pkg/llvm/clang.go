@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+
+	"github.com/Manu343726/cucaracha/pkg/utils/contract"
 )
 
 // OutputFormat specifies the output format for compilation
@@ -109,10 +111,23 @@ func DefaultConfig() *ClangConfig {
 
 // ClangToolchain represents a discovered or configured Clang toolchain
 type ClangToolchain struct {
+	contract.Base
+
 	config    *ClangConfig
 	clangPath string
 	llvmRoot  string
 	isSystem  bool // true if using system clang, false if using project build
+}
+
+func NewClangToolchain(config *ClangConfig, clangPath string, llvmRoot string, isSystem bool) *ClangToolchain {
+	return &ClangToolchain{
+		Base: contract.NewBase(log().Child("ClangToolchain")),
+
+		config:    config,
+		clangPath: clangPath,
+		llvmRoot:  llvmRoot,
+		isSystem:  isSystem,
+	}
 }
 
 // ClangPath returns the path to the clang executable
@@ -146,6 +161,8 @@ type DiscoverClangOptions struct {
 // 3. If AutoBuild is enabled and llvm-project exists, build clang
 // 4. System PATH
 func DiscoverClang(config *ClangConfig, opts ...*DiscoverClangOptions) (*ClangToolchain, error) {
+	log := log().Child("DiscoverClang")
+
 	if config == nil {
 		config = DefaultConfig()
 	}
@@ -158,7 +175,10 @@ func DiscoverClang(config *ClangConfig, opts ...*DiscoverClangOptions) (*ClangTo
 		options = &DiscoverClangOptions{}
 	}
 
-	toolchain := &ClangToolchain{config: config}
+	toolchain := &ClangToolchain{
+		Base:   contract.NewBase(log.Child("ClangToolchain")),
+		config: config,
+	}
 
 	// 1. Check explicit ClangPath
 	if config.ClangPath != "" {
@@ -167,7 +187,7 @@ func DiscoverClang(config *ClangConfig, opts ...*DiscoverClangOptions) (*ClangTo
 			toolchain.llvmRoot = config.LLVMRoot
 			return toolchain, nil
 		}
-		return nil, fmt.Errorf("specified clang path not found: %s", config.ClangPath)
+		return nil, log.Errorf("specified clang path not found: %s", config.ClangPath)
 	}
 
 	// 2. Check project build directory
@@ -184,7 +204,7 @@ func DiscoverClang(config *ClangConfig, opts ...*DiscoverClangOptions) (*ClangTo
 		llvmProjectPath := FindLLVMProject()
 		if llvmProjectPath != "" {
 			if options.Verbose {
-				fmt.Fprintf(os.Stderr, "llvm-project found at %s, building clang...\n", llvmProjectPath)
+				log.Info("llvm-project found, building clang...", "llvmRoot", llvmProjectPath)
 			}
 
 			toolchain.llvmRoot = llvmProjectPath
@@ -193,7 +213,7 @@ func DiscoverClang(config *ClangConfig, opts ...*DiscoverClangOptions) (*ClangTo
 			if err := toolchain.BuildClang(options.Verbose); err != nil {
 				// Building failed, continue to try system clang
 				if options.Verbose {
-					fmt.Fprintf(os.Stderr, "Failed to build clang: %v\n", err)
+					log.Warn("Failed to build clang", "error", err)
 				}
 			} else {
 				// Successfully built
@@ -212,24 +232,24 @@ func DiscoverClang(config *ClangConfig, opts ...*DiscoverClangOptions) (*ClangTo
 			return toolchain, nil
 		}
 		// System clang found but doesn't support cucaracha
-
+		log.Warn("System clang found but does not support cucaracha target", "clangPath", systemClang)
 		// If llvm-project exists, suggest building
 		if llvmRoot := FindLLVMProject(); llvmRoot != "" {
-			return nil, fmt.Errorf("system clang at %s does not support cucaracha target; "+
+			return nil, log.Errorf("system clang at %s does not support cucaracha target; "+
 				"llvm-project found at %s - run with --build-clang to build from source",
 				systemClang, llvmRoot)
 		}
 
-		return nil, fmt.Errorf("system clang found at %s but does not support cucaracha target", systemClang)
+		return nil, log.Errorf("system clang found at %s but does not support cucaracha target", systemClang)
 	}
 
 	// If llvm-project exists but clang not built, suggest building
 	if llvmRoot := FindLLVMProject(); llvmRoot != "" {
-		return nil, fmt.Errorf("clang not found; llvm-project exists at %s - "+
+		return nil, log.Errorf("clang not found; llvm-project exists at %s - "+
 			"run with --build-clang to build from source", llvmRoot)
 	}
 
-	return nil, fmt.Errorf("could not find clang with cucaracha support; please build LLVM with -DLLVM_EXPERIMENTAL_TARGETS_TO_BUILD=Cucaracha")
+	return nil, log.Errorf("could not find clang with cucaracha support; please build LLVM with -DLLVM_EXPERIMENTAL_TARGETS_TO_BUILD=Cucaracha")
 }
 
 // findProjectClang looks for clang in the project's LLVM build directory
@@ -430,13 +450,15 @@ func (r *CompileResult) Cleanup() {
 
 // Compile compiles a source file to Cucaracha target
 func (t *ClangToolchain) Compile(inputPath string, opts *CompileOptions) (*CompileResult, error) {
+	log := t.Log().Child("Compile")
+
 	if opts == nil {
 		opts = DefaultCompileOptions()
 	}
 
 	// Validate input file exists
 	if _, err := os.Stat(inputPath); err != nil {
-		return nil, fmt.Errorf("input file not found: %s", inputPath)
+		return nil, log.Errorf("input file not found: %s", inputPath)
 	}
 
 	// Determine output path
@@ -485,9 +507,8 @@ func (t *ClangToolchain) Compile(inputPath string, opts *CompileOptions) (*Compi
 		Command:    fmt.Sprintf("%s %s", t.clangPath, strings.Join(args, " ")),
 	}
 
-	if opts.Verbose {
-		fmt.Fprintf(os.Stderr, "Running: %s\n", result.Command)
-	}
+	log.Debug("call options", "options", *opts, "input", inputPath, "output", outputPath)
+	log.Debug("clang command", "command", result.Command)
 
 	// Execute - in verbose mode, stream output directly to stderr
 	var output []byte
@@ -508,7 +529,7 @@ func (t *ClangToolchain) Compile(inputPath string, opts *CompileOptions) (*Compi
 	}
 
 	if err != nil {
-		return result, fmt.Errorf("compilation failed: %v\n%s", err, output)
+		return result, log.Errorf("compilation failed: %v\n%s", err, output)
 	}
 
 	return result, nil

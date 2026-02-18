@@ -5,10 +5,13 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"strings"
 
 	"github.com/Manu343726/cucaracha/pkg/ui"
+	"github.com/Manu343726/cucaracha/pkg/utils"
+	"github.com/Manu343726/cucaracha/pkg/utils/logging"
 	"github.com/chzyer/readline"
 )
 
@@ -28,155 +31,127 @@ type REPL struct {
 	scriptFile     string          // Current script file path (for location tracking)
 	scriptLine     int             // Current line number in script (for location tracking)
 	commandIndex   int             // Current command index (0-based)
+	settings       *Settings       // REPL settings (display.events, etc)
+	uiSink         *logging.Sink   // UI sink for capturing log entries
 }
 
 // CommandHandler is a function that handles a debugger command
 type CommandHandler func(args []string) error
 
-// NewREPL creates a new REPL instance
-func NewREPL(debugger ui.Debugger) *REPL {
-	rl, err := readline.New("(cucaracha) ")
+// readlineOptions holds configuration for readline creation
+type readlineOptions struct {
+	reader          io.Reader
+	writer          io.Writer
+	useCustomConfig bool
+}
+
+// createReadline creates a readline instance with the given options
+func createReadline(opts readlineOptions) *readline.Instance {
+	if !opts.useCustomConfig {
+		// Simple readline with default prompt
+		rl, err := readline.New("(cucaracha) ")
+		if err != nil {
+			panic(err)
+		}
+		return rl
+	}
+
+	// Wrap reader to implement io.ReadCloser if needed
+	var readCloser io.ReadCloser
+	if rc, ok := opts.reader.(io.ReadCloser); ok {
+		readCloser = rc
+	} else {
+		readCloser = io.NopCloser(opts.reader)
+	}
+
+	rl, err := readline.NewEx(&readline.Config{
+		Prompt:            "(cucaracha) ",
+		Stdin:             readCloser,
+		Stdout:            opts.writer,
+		InterruptPrompt:   "^C",
+		EOFPrompt:         "exit",
+		HistorySearchFold: true,
+	})
 	if err != nil {
 		panic(err)
 	}
+	return rl
+}
 
+// newREPLInternal creates a new REPL instance with the provided configuration
+func newREPLInternal(debugger ui.Debugger, readline *readline.Instance, writer io.Writer,
+	loadArgs *ui.LoadArgs, quiet bool, outputFormat OutputFormat) *REPL {
 	repl := &REPL{
-		debugger: debugger,
-		readline: rl,
-		writer:   os.Stdout,
-		commands: make(map[string]CommandHandler),
+		debugger:     debugger,
+		readline:     readline,
+		writer:       writer,
+		commands:     make(map[string]CommandHandler),
+		loadArgs:     loadArgs,
+		quiet:        quiet,
+		outputFormat: outputFormat,
+		settings:     NewSettings(),
 	}
 
 	repl.registerCommands()
 	return repl
+}
+
+// NewREPL creates a new REPL instance
+func NewREPL(debugger ui.Debugger) *REPL {
+	rl := createReadline(readlineOptions{useCustomConfig: false})
+	return newREPLInternal(debugger, rl, os.Stdout, nil, false, HumanReadable)
 }
 
 // NewREPLWithLoadArgs creates a new REPL instance with load arguments
 func NewREPLWithLoadArgs(debugger ui.Debugger, loadArgs *ui.LoadArgs) *REPL {
-	rl, err := readline.New("(cucaracha) ")
-	if err != nil {
-		panic(err)
-	}
-
-	repl := &REPL{
-		debugger: debugger,
-		readline: rl,
-		writer:   os.Stdout,
-		commands: make(map[string]CommandHandler),
-		loadArgs: loadArgs,
-	}
-
-	repl.registerCommands()
-	return repl
+	rl := createReadline(readlineOptions{useCustomConfig: false})
+	return newREPLInternal(debugger, rl, os.Stdout, loadArgs, false, HumanReadable)
 }
 
 // NewREPLWithIO creates a new REPL instance with custom input/output
 func NewREPLWithIO(debugger ui.Debugger, reader io.Reader, writer io.Writer) *REPL {
-	// Wrap reader to implement io.ReadCloser if needed
-	var readCloser io.ReadCloser
-	if rc, ok := reader.(io.ReadCloser); ok {
-		readCloser = rc
-	} else {
-		readCloser = io.NopCloser(reader)
-	}
-
-	rl, err := readline.NewEx(&readline.Config{
-		Prompt:            "(cucaracha) ",
-		Stdin:             readCloser,
-		Stdout:            writer,
-		InterruptPrompt:   "^C",
-		EOFPrompt:         "exit",
-		HistorySearchFold: true,
+	rl := createReadline(readlineOptions{
+		reader:          reader,
+		writer:          writer,
+		useCustomConfig: true,
 	})
-	if err != nil {
-		panic(err)
-	}
-
-	repl := &REPL{
-		debugger: debugger,
-		readline: rl,
-		writer:   writer,
-		commands: make(map[string]CommandHandler),
-	}
-
-	repl.registerCommands()
-	return repl
+	return newREPLInternal(debugger, rl, writer, nil, false, HumanReadable)
 }
 
 // NewREPLWithIOQuiet creates a new REPL instance with custom input/output in quiet mode (no welcome/goodbye messages)
 func NewREPLWithIOQuiet(debugger ui.Debugger, reader io.Reader, writer io.Writer) *REPL {
-	// Wrap reader to implement io.ReadCloser if needed
-	var readCloser io.ReadCloser
-	if rc, ok := reader.(io.ReadCloser); ok {
-		readCloser = rc
-	} else {
-		readCloser = io.NopCloser(reader)
-	}
-
-	rl, err := readline.NewEx(&readline.Config{
-		Prompt:            "(cucaracha) ",
-		Stdin:             readCloser,
-		Stdout:            writer,
-		InterruptPrompt:   "^C",
-		EOFPrompt:         "exit",
-		HistorySearchFold: true,
+	rl := createReadline(readlineOptions{
+		reader:          reader,
+		writer:          writer,
+		useCustomConfig: true,
 	})
-	if err != nil {
-		panic(err)
-	}
-
-	repl := &REPL{
-		debugger:     debugger,
-		readline:     rl,
-		writer:       writer,
-		commands:     make(map[string]CommandHandler),
-		quiet:        true,
-		outputFormat: HumanReadable,
-	}
-
-	repl.registerCommands()
-	return repl
+	return newREPLInternal(debugger, rl, writer, nil, true, HumanReadable)
 }
 
 // NewREPLWithOutputFormat creates a new REPL instance with a specific output format
 func NewREPLWithOutputFormat(debugger ui.Debugger, reader io.Reader, writer io.Writer, format OutputFormat) *REPL {
-	// Wrap reader to implement io.ReadCloser if needed
-	var readCloser io.ReadCloser
-	if rc, ok := reader.(io.ReadCloser); ok {
-		readCloser = rc
-	} else {
-		readCloser = io.NopCloser(reader)
-	}
-
 	// In machine-readable mode, suppress readline echo by using a discard writer
 	readlineStdout := writer
 	if format == MachineReadable {
 		readlineStdout = io.Discard
 	}
 
-	rl, err := readline.NewEx(&readline.Config{
-		Prompt:            "(cucaracha) ",
-		Stdin:             readCloser,
-		Stdout:            readlineStdout,
-		InterruptPrompt:   "^C",
-		EOFPrompt:         "exit",
-		HistorySearchFold: true,
+	rl := createReadline(readlineOptions{
+		reader:          reader,
+		writer:          readlineStdout,
+		useCustomConfig: true,
 	})
-	if err != nil {
-		panic(err)
-	}
+	return newREPLInternal(debugger, rl, writer, nil, format == MachineReadable, format)
+}
 
-	repl := &REPL{
-		debugger:     debugger,
-		readline:     rl,
-		writer:       writer,
-		commands:     make(map[string]CommandHandler),
-		quiet:        format == MachineReadable, // Suppress welcome/goodbye in machine readable mode
-		outputFormat: format,
-	}
+// ApplySettingsFromFile loads and applies settings from a YAML file
+func (r *REPL) ApplySettingsFromFile(filePath string) error {
+	return r.settings.LoadFromFile(filePath)
+}
 
-	repl.registerCommands()
-	return repl
+// ApplySettingsKeyValue applies a single key=value setting string
+func (r *REPL) ApplySettingsKeyValue(kvStr string) error {
+	return r.settings.ApplyKeyValue(kvStr)
 }
 
 // registerCommands registers all available REPL commands
@@ -195,6 +170,8 @@ func (r *REPL) registerCommands() {
 	r.commands["interrupt"] = r.handleInterrupt
 	r.commands["run"] = r.handleRun
 	r.commands["r"] = r.handleRun
+	r.commands["reset"] = r.handleReset
+	r.commands["restart"] = r.handleRestart
 
 	// Breakpoint commands
 	r.commands["break"] = r.handleBreak
@@ -225,12 +202,21 @@ func (r *REPL) registerCommands() {
 	r.commands["v"] = r.handleVars
 	r.commands["eval"] = r.handleEval
 	r.commands["e"] = r.handleEval
+	r.commands["symbols"] = r.handleSymbols
+	r.commands["sym"] = r.handleSymbols
 
 	// Program loading commands
 	r.commands["load"] = r.handleLoad
 	r.commands["loadprogram"] = r.handleLoadProgram
 	r.commands["loadsystem"] = r.handleLoadSystem
 	r.commands["loadruntime"] = r.handleLoadRuntime
+
+	// Settings commands
+	r.commands["set"] = r.handleSet
+	r.commands["get"] = r.handleGet
+
+	// Utility commands
+	r.commands["loggers"] = r.handleLoggers
 }
 
 // Run starts the REPL interactive loop
@@ -242,6 +228,17 @@ func (r *REPL) Run() error {
 		if err := r.initializeDebugger(); err != nil {
 			r.printError(fmt.Sprintf("Failed to initialize debugger: %v", err))
 		}
+	}
+
+	// Create UI sink (but don't register it yet - will be applied to specific loggers)
+	r.uiSink = logging.NewUISink("ui-repl", slog.LevelDebug, 1000, r.printLogEntry)
+
+	// Set up event callback if display.events is enabled
+	displayEvents, _ := r.settings.GetBool(SettingKeyDisplayEvents)
+	if displayEvents {
+		r.debugger.SetEventCallback(func(event *ui.DebuggerEvent) {
+			r.handleDebuggerEvent(event)
+		})
 	}
 
 	if !r.quiet {
@@ -282,11 +279,17 @@ func (r *REPL) initializeDebugger() error {
 		return nil
 	}
 
+	if r.loadArgs.SystemConfigPath == nil {
+		r.loadArgs.SystemConfigPath = utils.Ptr("default")
+	}
+
+	if r.loadArgs.Runtime == nil {
+		r.loadArgs.Runtime = utils.Ptr(ui.RuntimeTypeInterpreter)
+	}
+
 	// Check if there's anything to load
 	if r.loadArgs.FullDescriptorPath == nil &&
-		r.loadArgs.ProgramPath == nil &&
-		r.loadArgs.SystemConfigPath == nil &&
-		r.loadArgs.Runtime == nil {
+		r.loadArgs.ProgramPath == nil {
 		return nil
 	}
 
@@ -351,6 +354,9 @@ func (r *REPL) RunScript(scriptPath string) error {
 	r.scriptFile = scriptPath
 	r.commandIndex = 0
 
+	// Create UI sink (but don't register it yet - will be applied to specific loggers)
+	r.uiSink = logging.NewUISink("ui-repl", slog.LevelDebug, 1000, r.printLogEntry)
+
 	// Only initialize debugger if we have a program to debug
 	// Script mode typically just provides commands, not program setup
 	if r.loadArgs != nil && r.loadArgs.ProgramPath != nil {
@@ -401,4 +407,28 @@ func (r *REPL) RunScript(scriptPath string) error {
 		r.printGoodbye()
 	}
 	return nil
+}
+
+// applyUILoggers applies the UI sink to the specified logger names.
+// This removes the UI sink from any previously configured loggers and applies it to the new list.
+func (r *REPL) applyUILoggers(loggerNames []string) error {
+	if r.uiSink == nil {
+		return fmt.Errorf("UI sink not initialized")
+	}
+
+	registry := logging.DefaultRegistry()
+
+	registry.RemoveSinkFromLoggers(r.uiSink)
+
+	if len(loggerNames) == 0 {
+		// If no loggers specified, we just remove the UI sink from all loggers and return
+		return nil
+	}
+
+	if err := registry.AddSinkToLoggers(r.uiSink, loggerNames); err != nil {
+		return fmt.Errorf("failed to apply UI sink to loggers: %w", err)
+	}
+
+	// Store the logger names in the setting
+	return r.settings.Set(SettingKeyShowLogs, loggerNames)
 }

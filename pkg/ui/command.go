@@ -54,6 +54,12 @@ const (
 	DebuggerCommandStack
 	// Returns accessible variables
 	DebuggerCommandVariables
+	// Returns symbols from the loaded program
+	DebuggerCommandSymbols
+	// Resets the program to its initial state
+	DebuggerCommandReset
+	// Resets the program and continues execution
+	DebuggerCommandRestart
 )
 
 func (c DebuggerCommandId) String() string {
@@ -102,6 +108,12 @@ func (c DebuggerCommandId) String() string {
 		return "stack"
 	case DebuggerCommandVariables:
 		return "variables"
+	case DebuggerCommandSymbols:
+		return "symbols"
+	case DebuggerCommandReset:
+		return "reset"
+	case DebuggerCommandRestart:
+		return "restart"
 	default:
 		return "unknown"
 	}
@@ -153,6 +165,12 @@ func DebuggerCommandIdFromString(s string) (DebuggerCommandId, error) {
 		return DebuggerCommandStack, nil
 	case "variables":
 		return DebuggerCommandVariables, nil
+	case "symbols":
+		return DebuggerCommandSymbols, nil
+	case "reset":
+		return DebuggerCommandReset, nil
+	case "restart":
+		return DebuggerCommandRestart, nil
 	default:
 		return 0, fmt.Errorf("unknown DebuggerCommandId: \"%s\"", s)
 	}
@@ -296,6 +314,8 @@ type DebuggerCommand struct {
 	SourceArgs           *SourceArgs           `json:"sourceArgs"`           // Command arguments for Source command
 	CurrentSourceArgs    *CurrentSourceArgs    `json:"currentSourceArgs"`    // Command arguments for CurrentSource command
 	EvalArgs             *EvalArgs             `json:"evalArgs"`             // Command arguments for Eval command
+	InfoArgs             *InfoArgs             `json:"infoArgs"`             // Command arguments for Info command
+	SymbolsArgs          *SymbolsArgs          `json:"symbolsArgs"`          // Command arguments for Symbols command
 }
 
 // Represents a debugger command result
@@ -324,6 +344,9 @@ type DebuggerCommandResult struct {
 	RegistersResult          *RegistersResult          `json:"registersResult"` // Result of Registers command
 	StackResult              *StackResult              `json:"stackResult"`     // Result of Stack command
 	VariablesResult          *VarsResult               `json:"variablesResult"` // Result of Variables command
+	SymbolsResult            *SymbolsResult            `json:"symbolsResult"`   // Result of Symbols command
+	ResetResult              *ExecutionResult          `json:"resetResult"`     // Result of Reset command
+	RestartResult            *ExecutionResult          `json:"restartResult"`   // Result of Restart command
 }
 
 // An interface to interact with the debugger in the UI
@@ -333,4 +356,10 @@ type Debugger interface {
 
 	// Sets a callback to receive debugger events
 	SetEventCallback(callback DebuggerEventCallback)
+
+	// Resets the debugger to its initial state
+	Reset() *ExecutionResult
+
+	// Restarts the debugger (reset + continue)
+	Restart() *ExecutionResult
 }

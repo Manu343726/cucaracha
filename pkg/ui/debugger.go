@@ -323,7 +323,10 @@ type CommandHelp struct {
 // Result of Info command
 type InfoResult struct {
 	Error         error          `json:"error"`         // Error, if any
-	DebuggerState *DebuggerState `json:"debuggerState"` // Debugger state
+	DebuggerState *DebuggerState `json:"debuggerState"` // Debugger state (for general info)
+	SystemInfo    *SystemInfo    `json:"systemInfo"`    // System/runtime info (memory layout, peripherals)
+	ProgramInfo   *ProgramInfo   `json:"programInfo"`   // Program info (source file, entry point)
+	RuntimeInfo   *RuntimeInfo   `json:"runtimeInfo"`   // Runtime info (runtime type)
 }
 
 // Result of Stack command

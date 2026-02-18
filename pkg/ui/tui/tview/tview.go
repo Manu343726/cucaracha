@@ -453,7 +453,13 @@ func (m *DebuggerTUI) handleLoadResult(result *ui.DebuggerCommandResult, err err
 	}
 
 	// Display system information
-	sysInfo := result.LoadResult.System
+	sysResult := result.LoadResult.System
+	if sysResult == nil || sysResult.System == nil {
+		m.commandsTerminal.AddOutput(m.formatError("System information not available"))
+		return
+	}
+
+	sysInfo := sysResult.System
 	m.commandsTerminal.AddOutput(m.formatInfo(fmt.Sprintf("Memory: %dKB (Code: %dB, Data: %dB, Stack: %dB, Heap: %dB)",
 		sysInfo.TotalMemory/1024, sysInfo.CodeSize, sysInfo.DataSize, sysInfo.StackSize, sysInfo.HeapSize)))
 	m.commandsTerminal.AddOutput(m.formatInfo(fmt.Sprintf("Interrupts: %d vectors, Entry size: %d bytes",
@@ -478,20 +484,24 @@ func (m *DebuggerTUI) handleLoadResult(result *ui.DebuggerCommandResult, err err
 
 	// Display program loading result
 	progResult := result.LoadResult.Program
-	m.commandsTerminal.AddOutput(m.formatInfo(fmt.Sprintf("Program entry point: 0x%08X", progResult.EntryPoint)))
-	if progResult.SourceFile != nil {
-		m.commandsTerminal.AddOutput(m.formatInfo(fmt.Sprintf("Loaded source file: %s", *progResult.SourceFile)))
-	}
-	if progResult.ObjectFile != nil {
-		m.commandsTerminal.AddOutput(m.formatInfo(fmt.Sprintf("Generated object file: %s", *progResult.ObjectFile)))
-	}
-	for _, warning := range progResult.Warnings {
-		m.commandsTerminal.AddOutput(m.formatWarning(fmt.Sprintf("compile warning: %v", warning)))
+	if progResult != nil && progResult.Program != nil {
+		m.commandsTerminal.AddOutput(m.formatInfo(fmt.Sprintf("Program entry point: 0x%08X", progResult.Program.EntryPoint)))
+		if progResult.Program.SourceFile != nil {
+			m.commandsTerminal.AddOutput(m.formatInfo(fmt.Sprintf("Loaded source file: %s", *progResult.Program.SourceFile)))
+		}
+		if progResult.Program.ObjectFile != nil {
+			m.commandsTerminal.AddOutput(m.formatInfo(fmt.Sprintf("Generated object file: %s", *progResult.Program.ObjectFile)))
+		}
+		for _, warning := range progResult.Program.Warnings {
+			m.commandsTerminal.AddOutput(m.formatWarning(fmt.Sprintf("compile warning: %v", warning)))
+		}
 	}
 
 	// Display runtime loading result
 	runtimeResult := result.LoadResult.Runtime
-	m.commandsTerminal.AddOutput(m.formatInfo(fmt.Sprintf("Using runtime: %s", runtimeResult.Runtime)))
+	if runtimeResult != nil && runtimeResult.Runtime != nil {
+		m.commandsTerminal.AddOutput(m.formatInfo(fmt.Sprintf("Using runtime: %s", runtimeResult.Runtime.Runtime)))
+	}
 }
 
 // initializeFromOptions loads system and program if configured via options

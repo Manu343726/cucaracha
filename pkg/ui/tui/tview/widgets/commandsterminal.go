@@ -5,9 +5,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Manu343726/cucaracha/pkg/utils/logging"
 	"github.com/Manu343726/cucaracha/pkg/ui"
 	"github.com/Manu343726/cucaracha/pkg/ui/tui/tview/themes"
+	"github.com/Manu343726/cucaracha/pkg/utils/logging"
 	"github.com/gdamore/tcell/v2"
 	tvlib "github.com/rivo/tview"
 )
@@ -138,6 +138,8 @@ func initCommandDescriptions() map[string]CommandInfo {
 		"stepi":               {Name: "stepi", Description: "Step one instruction", Syntax: "stepi", Example: "stepi"},
 		"continue":            {Name: "continue", Description: "Continue execution until next breakpoint", Syntax: "continue", Example: "continue"},
 		"interrupt":           {Name: "interrupt", Description: "Interrupt execution", Syntax: "interrupt", Example: "interrupt"},
+		"reset":               {Name: "reset", Description: "Reset program to initial state", Syntax: "reset", Example: "reset"},
+		"restart":             {Name: "restart", Description: "Reset and continue execution", Syntax: "restart", Example: "restart"},
 		"break":               {Name: "break", Description: "Set a breakpoint", Syntax: "break <address>", Example: "break 0x1000"},
 		"removeBreakpoint":    {Name: "removeBreakpoint", Description: "Remove a breakpoint", Syntax: "removeBreakpoint <id>", Example: "removeBreakpoint 1"},
 		"watch":               {Name: "watch", Description: "Set a watchpoint", Syntax: "watch <address> <size>", Example: "watch 0x2000 4"},
@@ -149,7 +151,7 @@ func initCommandDescriptions() map[string]CommandInfo {
 		"source":              {Name: "source", Description: "Display source code", Syntax: "source <file> [line]", Example: "source main.c 10"},
 		"currentSource":       {Name: "currentSource", Description: "Display current source code", Syntax: "currentSource", Example: "currentSource"},
 		"evaluateExpression":  {Name: "evaluateExpression", Description: "Evaluate an expression", Syntax: "evaluateExpression <expr>", Example: "evaluateExpression x + 5"},
-		"info":                {Name: "info", Description: "Show debugger info", Syntax: "info", Example: "info"},
+		"info":                {Name: "info", Description: "Show debugger/system/program info", Syntax: "info [general|runtime|program]", Example: "info runtime"},
 		"registers":           {Name: "registers", Description: "Show CPU registers", Syntax: "registers", Example: "registers"},
 		"stack":               {Name: "stack", Description: "Show call stack", Syntax: "stack", Example: "stack"},
 		"variables":           {Name: "variables", Description: "Show variables", Syntax: "variables", Example: "variables"},

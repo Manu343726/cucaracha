@@ -2,9 +2,10 @@ package contract
 
 import (
 	"bytes"
-	"github.com/stretchr/testify/assert"
 	"log/slog"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 
 	"github.com/Manu343726/cucaracha/pkg/utils/logging"
 )

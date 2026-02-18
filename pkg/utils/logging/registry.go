@@ -2,6 +2,7 @@ package logging
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"sync"
 )
@@ -93,6 +94,85 @@ func (r *Registry) GetRegisteredLogger(name string) (*RegisteredLogger, error) {
 	return logger, nil
 }
 
+// Returns the set of registered loggers using the given sink
+func (r *Registry) GetLoggersBySink(sink *Sink) []*RegisteredLogger {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	return r.unsafe_getLoggersBySink(sink)
+}
+
+func (r *Registry) unsafe_getLoggersBySink(sink *Sink) []*RegisteredLogger {
+	var loggers []*RegisteredLogger
+	for _, logger := range r.registeredLoggers {
+		for _, s := range logger.sinks {
+			if s == sink {
+				loggers = append(loggers, logger)
+				break
+			}
+		}
+	}
+	return loggers
+}
+
+// Returns the set of registered loggers not currently using the given sink
+func (r *Registry) GetLoggersNotUsingSink(sink *Sink) []*RegisteredLogger {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	return r.unsafe_getLoggersNotUsingSink(sink)
+}
+
+func (r *Registry) unsafe_getLoggersNotUsingSink(sink *Sink) []*RegisteredLogger {
+
+	var loggers []*RegisteredLogger
+	for _, logger := range r.registeredLoggers {
+		usesSink := false
+		for _, s := range logger.sinks {
+			if s == sink {
+				usesSink = true
+				break
+			}
+		}
+		if !usesSink {
+			loggers = append(loggers, logger)
+		}
+	}
+	return loggers
+}
+
+// Removes a given sink from all registered loggers that use it.
+func (r *Registry) RemoveSinkFromLoggers(sink *Sink) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	for _, logger := range r.unsafe_getLoggersBySink(sink) {
+		newLogger := logger.WithoutSink(sink)
+		r.registeredLoggers[logger.Name()] = newLogger
+	}
+}
+
+// Adds the given sink to all the given loggers.
+func (r *Registry) AddSinkToLoggers(sink *Sink, loggers []string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	for _, loggerName := range loggers {
+		if _, exists := r.registeredLoggers[loggerName]; !exists {
+			return fmt.Errorf("logger %q not found", loggerName)
+		}
+	}
+
+	for _, logger := range r.unsafe_getLoggersNotUsingSink(sink) {
+		if slices.Contains(loggers, logger.Name()) {
+			newLogger := logger.WithAddedSinks(sink)
+			r.registeredLoggers[logger.Name()] = newLogger
+		}
+	}
+
+	return nil
+}
+
 // Get returns a thin wrapper Logger for the given hierarchical name.
 // This is the main method users call to get a logger.
 // The logger forwards calls to the best-matching registered logger.
@@ -126,20 +206,6 @@ func (r *Registry) ResolveLogger(name string) *RegisteredLogger {
 		}
 	}
 
-	return nil
-}
-
-// RemoveLogger removes a logger from the registry by name.
-// This is primarily used for registry cleanup and testing.
-func (r *Registry) RemoveLogger(name string) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	if _, exists := r.registeredLoggers[name]; !exists {
-		return fmt.Errorf("logger %q not found", name)
-	}
-
-	delete(r.registeredLoggers, name)
 	return nil
 }
 

@@ -58,6 +58,21 @@ Use --system to specify a system configuration file (uses embedded default if no
 		if !useTUI {
 			// Use REPL mode
 			replInstance := repl.NewREPL(uiDebugger)
+
+			// Apply settings: load from file first, then apply CLI overrides
+			if settingsFile != "" {
+				if err := replInstance.ApplySettingsFromFile(settingsFile); err != nil {
+					fmt.Fprintf(os.Stderr, "Error loading settings file: %v\n", err)
+					os.Exit(1)
+				}
+			}
+			for _, setting := range settings {
+				if err := replInstance.ApplySettingsKeyValue(setting); err != nil {
+					fmt.Fprintf(os.Stderr, "Error applying setting: %v\n", err)
+					os.Exit(1)
+				}
+			}
+
 			replInstance.Run()
 		} else {
 			// Force true color support
@@ -86,5 +101,7 @@ func init() {
 	TuiCmd.Flags().StringVar(&debugRuntime, "runtime", "interpreter", "Runtime to use (interpreter)")
 	TuiCmd.Flags().StringVar(&debugSystem, "system", "", "Path to system configuration file (uses embedded default if not provided)")
 	TuiCmd.Flags().BoolVar(&useTUI, "tui", false, "Use the TUI interface (default: use REPL)")
+	TuiCmd.Flags().StringVar(&settingsFile, "settings-file", "", "YAML file containing REPL settings")
+	TuiCmd.Flags().StringSliceVar(&settings, "settings", []string{}, "REPL settings to apply (key=value format, can be specified multiple times)")
 	RootCmd.AddCommand(TuiCmd)
 }
