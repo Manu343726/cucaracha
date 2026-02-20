@@ -24,6 +24,10 @@ type StepInfo struct {
 	InterruptionDetails InterruptionStatistics
 	// Whether the CPU is halted after the last step
 	Halted bool
+	// Address of the instruction executed during the last step
+	InstructionAddress uint32
+	// Address of the next instruction to be executed (after the last step)
+	NextInstructionAddress uint32
 
 	// If the step triggered a breakpoint, the address of the instruction that caused the breakpoint to be hit
 	BreakpointHit *uint32

@@ -46,6 +46,9 @@ type Options struct {
 	// AutoBuildClang enables automatic building of clang from llvm-project
 	// if llvm-project is found but clang hasn't been built yet
 	AutoBuildClang bool
+
+	// ForceRebuildClang forces a rebuild of clang even if it's already built
+	ForceRebuildClang bool
 }
 
 // Result contains the result of a load operation
@@ -128,7 +131,7 @@ func LoadFile(path string, opts *Options) (*Result, error) {
 			}
 		}
 
-		compiledPath, cleanup, warnings, err := compileSourceFile(path, outputFormat, opts.Verbose, opts.AutoBuildClang)
+		compiledPath, cleanup, warnings, err := compileSourceFile(path, outputFormat, opts.Verbose, opts.AutoBuildClang, opts.ForceRebuildClang)
 		if err != nil {
 			return nil, fmt.Errorf("compiling source file: %w", err)
 		}
@@ -189,13 +192,14 @@ func IsSupportedFile(path string) bool {
 
 // compileSourceFile compiles a C/C++ source file to the specified output format.
 // Returns the path to the compiled file, a cleanup function, any warnings, and any error.
-func compileSourceFile(inputPath string, outputFormat llvm.OutputFormat, verbose bool, autoBuild bool) (string, func(), []string, error) {
+func compileSourceFile(inputPath string, outputFormat llvm.OutputFormat, verbose bool, autoBuild bool, forceRebuild bool) (string, func(), []string, error) {
 	var warnings []string
 
-	// Discover clang with auto-build option
+	// Discover clang with auto-build option and force rebuild option
 	discoverOpts := &llvm.DiscoverClangOptions{
-		AutoBuild: autoBuild,
-		Verbose:   verbose,
+		AutoBuild:    autoBuild,
+		ForceRebuild: forceRebuild,
+		Verbose:      verbose,
 	}
 	toolchain, err := llvm.DiscoverClang(nil, discoverOpts)
 	if err != nil {

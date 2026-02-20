@@ -264,6 +264,7 @@ func (l *Logger) Child(name string) *Logger {
 	}
 }
 
+// Timed executes the provided function while logging the start and end of the operation with elapsed time.
 func (l *Logger) Timed(name string, fn func(*Logger) error) error {
 	start := time.Now()
 	log := l.Child(name)
@@ -274,8 +275,8 @@ func (l *Logger) Timed(name string, fn func(*Logger) error) error {
 	return err
 }
 
-// logContext is the internal method that forwards to the registered logger with context.
-func (l *Logger) logContext(ctx context.Context, level slog.Level, msg string, attrs ...any) {
+// Logs a message at the specified level with context
+func (l *Logger) LogContext(ctx context.Context, level slog.Level, msg string, attrs ...any) {
 	// Resolve the registered logger via hierarchy
 	registeredLogger := l.registry.ResolveLogger(l.name)
 	if registeredLogger == nil {
@@ -292,49 +293,49 @@ func (l *Logger) logContext(ctx context.Context, level slog.Level, msg string, a
 	registeredLogger.logger.Log(ctx, level, msg, allAttrs...)
 }
 
-// log is the internal method that forwards to the registered logger with background context.
-func (l *Logger) log(level slog.Level, msg string, attrs ...any) {
-	l.logContext(context.Background(), level, msg, attrs...)
+// Logs at the specified level with background context.
+func (l *Logger) Log(level slog.Level, msg string, attrs ...any) {
+	l.LogContext(context.Background(), level, msg, attrs...)
 }
 
 // DebugContext logs at debug level with context.
 func (l *Logger) DebugContext(ctx context.Context, msg string, attrs ...any) {
-	l.logContext(ctx, slog.LevelDebug, msg, attrs...)
+	l.LogContext(ctx, slog.LevelDebug, msg, attrs...)
 }
 
 // Debug logs at debug level with background context.
 func (l *Logger) Debug(msg string, attrs ...any) {
-	l.log(slog.LevelDebug, msg, attrs...)
+	l.Log(slog.LevelDebug, msg, attrs...)
 }
 
 // InfoContext logs at info level with context.
 func (l *Logger) InfoContext(ctx context.Context, msg string, attrs ...any) {
-	l.logContext(ctx, slog.LevelInfo, msg, attrs...)
+	l.LogContext(ctx, slog.LevelInfo, msg, attrs...)
 }
 
 // Info logs at info level with background context.
 func (l *Logger) Info(msg string, attrs ...any) {
-	l.log(slog.LevelInfo, msg, attrs...)
+	l.Log(slog.LevelInfo, msg, attrs...)
 }
 
 // WarnContext logs at warn level with context.
 func (l *Logger) WarnContext(ctx context.Context, msg string, attrs ...any) {
-	l.logContext(ctx, slog.LevelWarn, msg, attrs...)
+	l.LogContext(ctx, slog.LevelWarn, msg, attrs...)
 }
 
 // Warn logs at warn level with background context.
 func (l *Logger) Warn(msg string, attrs ...any) {
-	l.log(slog.LevelWarn, msg, attrs...)
+	l.Log(slog.LevelWarn, msg, attrs...)
 }
 
 // ErrorContext logs at error level with context.
 func (l *Logger) ErrorContext(ctx context.Context, msg string, attrs ...any) {
-	l.logContext(ctx, slog.LevelError, msg, attrs...)
+	l.LogContext(ctx, slog.LevelError, msg, attrs...)
 }
 
 // Error logs at error level with background context.
 func (l *Logger) Error(msg string, attrs ...any) {
-	l.log(slog.LevelError, msg, attrs...)
+	l.Log(slog.LevelError, msg, attrs...)
 }
 
 // Like Error(), but takes format string and arguments, builds an error through fmt.Errorf, logs it, and returns the error.
@@ -357,7 +358,7 @@ func (l *Logger) PanicContext(ctx context.Context, msg string, attrs ...any) {
 	allAttrs[len(l.attrs)+len(attrs)] = backtraceAttr
 
 	// Log at error level (panic level is treated as error for slog)
-	l.logContext(ctx, slog.LevelError, msg, allAttrs...)
+	l.LogContext(ctx, slog.LevelError, msg, allAttrs...)
 
 	// Panic
 	panic(msg)

@@ -3,7 +3,7 @@ package widgets
 import (
 	"fmt"
 
-	"github.com/Manu343726/cucaracha/pkg/ui"
+	debuggerUI "github.com/Manu343726/cucaracha/pkg/ui/debugger"
 	"github.com/Manu343726/cucaracha/pkg/ui/tui/tview/themes"
 	tvlib "github.com/rivo/tview"
 )
@@ -11,14 +11,14 @@ import (
 // SourceSnippet is a widget for displaying current source code snippet
 type SourceSnippet struct {
 	*tvlib.TextView
-	result   *ui.SourceResult
+	result   *debuggerUI.SourceResult
 	maxLines int
 }
 
 // NewSourceSnippet creates a new SourceSnippet widget
-func NewSourceSnippet(result *ui.SourceResult, maxLines int) *SourceSnippet {
+func NewSourceSnippet(result *debuggerUI.SourceResult, maxLines int) *SourceSnippet {
 	if result == nil {
-		result = &ui.SourceResult{}
+		result = &debuggerUI.SourceResult{}
 	}
 	if maxLines <= 0 {
 		maxLines = 10
@@ -37,7 +37,7 @@ func NewSourceSnippet(result *ui.SourceResult, maxLines int) *SourceSnippet {
 }
 
 // SetResult sets the result for this widget
-func (ss *SourceSnippet) SetResult(result *ui.SourceResult) {
+func (ss *SourceSnippet) SetResult(result *debuggerUI.SourceResult) {
 	ss.result = result
 	ss.refresh()
 }
@@ -71,11 +71,11 @@ func (ss *SourceSnippet) refresh() {
 // SourceFile is a widget for displaying full source code file
 type SourceFile struct {
 	*tvlib.TextView
-	result *ui.SourceResult
+	result *debuggerUI.SourceResult
 }
 
 // NewSourceFile creates a new SourceFile widget
-func NewSourceFile(result *ui.SourceResult) *SourceFile {
+func NewSourceFile(result *debuggerUI.SourceResult) *SourceFile {
 	tv := tvlib.NewTextView()
 	tv.SetDynamicColors(true)
 	tv.SetBorder(true)
@@ -89,7 +89,7 @@ func NewSourceFile(result *ui.SourceResult) *SourceFile {
 }
 
 // SetResult sets the result for this widget
-func (sf *SourceFile) SetResult(result *ui.SourceResult) {
+func (sf *SourceFile) SetResult(result *debuggerUI.SourceResult) {
 	sf.result = result
 	sf.refresh()
 }

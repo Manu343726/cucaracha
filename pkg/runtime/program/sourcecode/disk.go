@@ -23,7 +23,7 @@ func NewSourceFileOnDisk(filePath string) (File, error) {
 		}
 
 		return nil, fmt.Errorf("failed to stat source file '%s': %w", filePath, err)
-	} else if !fileInfo.IsDir() {
+	} else if fileInfo.IsDir() {
 		return nil, fmt.Errorf("source file '%s' is a directory", filePath)
 	}
 
@@ -56,6 +56,16 @@ func (s *sourceFileOnDisk) Snippet(r *Range) (*Snippet, error) {
 
 	scanner := bufio.NewScanner(reader)
 	var currentLine int = 1
+	finalLine := r.StartLine + r.LineCount - 1
+
+	// Fast forward to the starting line
+	for currentLine < r.StartLine && scanner.Scan() {
+		currentLine++
+	}
+
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("error reading source file '%s': %w", s.path, err)
+	}
 
 	result := &Snippet{
 		Range:    r,
@@ -63,11 +73,9 @@ func (s *sourceFileOnDisk) Snippet(r *Range) (*Snippet, error) {
 		FullText: "",
 	}
 
-	for scanner.Scan() {
-		if r.ContainsLine(currentLine) {
-			lineText := scanner.Text()
-			result.FullText += lineText + "\n"
-		}
+	for currentLine <= finalLine && scanner.Scan() {
+		lineText := scanner.Text()
+		result.FullText += lineText + "\n"
 
 		currentLine++
 	}
@@ -78,7 +86,7 @@ func (s *sourceFileOnDisk) Snippet(r *Range) (*Snippet, error) {
 
 	// We compose the lines from the full text to reduce memory usage (we don't store each line
 	// separately as a new string but as slices of the full text)
-	for i, line := range strings.Split(result.FullText, "\n") {
+	for i, line := range strings.Split(result.FullText, "\n")[0:r.LineCount /* ignore last empty line from split */] {
 		result.Lines = append(result.Lines, &Line{
 			Location: &Location{
 				File:      s,

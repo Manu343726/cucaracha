@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/Manu343726/cucaracha/pkg/debugger"
-	"github.com/Manu343726/cucaracha/pkg/ui"
+	uiDebugger "github.com/Manu343726/cucaracha/pkg/ui/debugger"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -26,20 +26,15 @@ type ScriptExpectation struct {
 
 // TestFixture holds test setup and teardown
 type IntegrationTestFixture struct {
-	Debugger      ui.Debugger       // UI interface for REPL
-	UnderDebugger debugger.Debugger // Underlying debugger for setup
-	REPL          *REPL
-	OutputBuf     *bytes.Buffer
+	Debugger  uiDebugger.Debugger
+	REPL      *REPL
+	OutputBuf *bytes.Buffer
 }
 
 // NewIntegrationTestFixture creates a new test fixture with a real debugger
 func NewIntegrationTestFixture() *IntegrationTestFixture {
-	underlying := debugger.NewDebugger()
-	uiDebugger := debugger.NewDebuggerForUI(underlying)
-
 	return &IntegrationTestFixture{
-		Debugger:      uiDebugger,
-		UnderDebugger: underlying,
+		Debugger: debugger.NewDebugger(),
 	}
 }
 

@@ -24,7 +24,7 @@ const int MAX = 100;
 // Main function
 int main() {
     int i = 0;
-    while (1) {
+    while (i < MAX * 2) { // Loop to demonstrate conditionals and function calls
         int result = fib(i);
         i = i + 1;
 

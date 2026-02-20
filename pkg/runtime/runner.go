@@ -153,6 +153,25 @@ const (
 	RunnerEventStopped
 )
 
+func (r RunnerEventType) String() string {
+	switch r {
+	case RunnerEventBreakpointHit:
+		return "BreakpointHit"
+	case RunnerEventWatchpointHit:
+		return "WatchpointHit"
+	case RunnerEventStepCompleted:
+		return "StepCompleted"
+	case RunnerEventRuntimeError:
+		return "RuntimeError"
+	case RunnerEventInterrupted:
+		return "Interrupted"
+	case RunnerEventStopped:
+		return "Stopped"
+	default:
+		return "Unknown"
+	}
+}
+
 type RunnerEvent struct {
 	Type RunnerEventType
 	Data any
@@ -385,7 +404,10 @@ func (runner *Runner) commandStop(cmd RunnerRequest) {
 
 func (runner *Runner) commandAddBreakpoint(cmd RunnerRequest) {
 	if _, ok := cmd.Command.Args.(AddBreakpointArgs); ok {
-		// TODO: implement adding a breakpoint at args.Address
+		if err := runner.r.SetBreakpoint(cmd.Command.Args.(AddBreakpointArgs).Address); err != nil {
+			cmd.Error(runner.Log().Errorf("failed to add breakpoint: %w", err))
+			return
+		}
 		cmd.Success(nil)
 	} else {
 		cmd.Error(runner.Log().Errorf("invalid arguments for AddBreakpoint command. Expected AddBreakpointArgs, got %T", cmd.Command.Args))
@@ -394,7 +416,10 @@ func (runner *Runner) commandAddBreakpoint(cmd RunnerRequest) {
 
 func (runner *Runner) commandRemoveBreakpoint(cmd RunnerRequest) {
 	if _, ok := cmd.Command.Args.(RemoveBreakpointArgs); ok {
-		// TODO: implement removing a breakpoint at args.Address
+		if err := runner.r.ClearBreakpoint(cmd.Command.Args.(RemoveBreakpointArgs).Address); err != nil {
+			cmd.Error(runner.Log().Errorf("failed to remove breakpoint: %w", err))
+			return
+		}
 		cmd.Success(nil)
 	} else {
 		cmd.Error(runner.Log().Errorf("invalid arguments for RemoveBreakpoint command. Expected RemoveBreakpointArgs, got %T", cmd.Command.Args))
@@ -582,38 +607,38 @@ type runnerMemory struct {
 	r *Runner
 }
 
-func (m *runnerMemory) ReadByte(addr uint32) (byte, error) {
+func (m *runnerMemory) Read(addr uint32, size int) ([]byte, error) {
 	result := <-m.r.SendCommand(RunnerCommand{
 		Type: RunnerCommandReadMemory,
 		Args: ReadMemoryArgs{
 			Range: &memory.Range{
 				Start: addr,
-				Size:  1,
+				Size:  uint32(size),
 			},
 		},
 	})
 
 	if result.Error != nil {
-		return 0, result.Error
+		return nil, result.Error
 	}
 
 	data := result.Data.([]byte)
-	if len(data) != 1 {
-		return 0, fmt.Errorf("expected to read 1 byte, but got %d bytes", len(data))
+	if len(data) != size {
+		return nil, fmt.Errorf("expected to read %d bytes, but got %d bytes", size, len(data))
 	}
 
-	return data[0], nil
+	return data, nil
 }
 
-func (m *runnerMemory) WriteByte(addr uint32, value byte) error {
+func (m *runnerMemory) Write(addr uint32, data []byte) error {
 	result := <-m.r.SendCommand(RunnerCommand{
 		Type: RunnerCommandWriteMemory,
 		Args: WriteMemoryArgs{
 			Range: &memory.Range{
 				Start: addr,
-				Size:  1,
+				Size:  uint32(len(data)),
 			},
-			Data: []byte{value},
+			Data: data,
 		},
 	})
 

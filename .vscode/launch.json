@@ -48,7 +48,8 @@
             "program": "${workspaceFolder}/main.go",
             "args": [
                 "debug",
-                "programs/program.c"
+                "programs/program.c",
+                "--settings-file", "${workspaceFolder}/cmd/repl-settings.yaml"
             ],
             "cwd": "${workspaceFolder}",
             "console": "integratedTerminal",

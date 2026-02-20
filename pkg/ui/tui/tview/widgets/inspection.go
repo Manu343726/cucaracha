@@ -3,7 +3,7 @@ package widgets
 import (
 	"fmt"
 
-	"github.com/Manu343726/cucaracha/pkg/ui"
+	debuggerUI "github.com/Manu343726/cucaracha/pkg/ui/debugger"
 	"github.com/Manu343726/cucaracha/pkg/ui/tui/tview/themes"
 	tvlib "github.com/rivo/tview"
 )
@@ -11,11 +11,11 @@ import (
 // Stack is a widget for displaying the call stack
 type Stack struct {
 	*tvlib.TextView
-	result *ui.StackResult
+	result *debuggerUI.StackResult
 }
 
 // NewStack creates a new Stack widget
-func NewStack(result *ui.StackResult) *Stack {
+func NewStack(result *debuggerUI.StackResult) *Stack {
 	tv := tvlib.NewTextView()
 	tv.SetDynamicColors(true)
 	tv.SetBorder(true)
@@ -29,7 +29,7 @@ func NewStack(result *ui.StackResult) *Stack {
 }
 
 // SetResult sets the result for this widget
-func (s *Stack) SetResult(result *ui.StackResult) {
+func (s *Stack) SetResult(result *debuggerUI.StackResult) {
 	s.result = result
 	s.refresh()
 }
@@ -60,11 +60,11 @@ func (s *Stack) refresh() {
 // Registers is a widget for displaying CPU registers
 type Registers struct {
 	*tvlib.TextView
-	result *ui.RegistersResult
+	result *debuggerUI.RegistersResult
 }
 
 // NewRegisters creates a new Registers widget
-func NewRegisters(result *ui.RegistersResult) *Registers {
+func NewRegisters(result *debuggerUI.RegistersResult) *Registers {
 	tv := tvlib.NewTextView()
 	tv.SetDynamicColors(true)
 	tv.SetBorder(true)
@@ -78,7 +78,7 @@ func NewRegisters(result *ui.RegistersResult) *Registers {
 }
 
 // SetResult sets the result for this widget
-func (r *Registers) SetResult(result *ui.RegistersResult) {
+func (r *Registers) SetResult(result *debuggerUI.RegistersResult) {
 	r.result = result
 	r.refresh()
 }
@@ -107,11 +107,11 @@ func (r *Registers) refresh() {
 // Memory is a widget for displaying memory contents
 type Memory struct {
 	*tvlib.TextView
-	result *ui.MemoryResult
+	result *debuggerUI.MemoryResult
 }
 
 // NewMemory creates a new Memory widget
-func NewMemory(result *ui.MemoryResult) *Memory {
+func NewMemory(result *debuggerUI.MemoryResult) *Memory {
 	tv := tvlib.NewTextView()
 	tv.SetDynamicColors(true)
 	tv.SetBorder(true)
@@ -125,7 +125,7 @@ func NewMemory(result *ui.MemoryResult) *Memory {
 }
 
 // SetResult sets the result for this widget
-func (m *Memory) SetResult(result *ui.MemoryResult) {
+func (m *Memory) SetResult(result *debuggerUI.MemoryResult) {
 	m.result = result
 	m.refresh()
 }

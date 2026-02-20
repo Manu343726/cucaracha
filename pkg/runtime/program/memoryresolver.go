@@ -3,8 +3,10 @@ package program
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 
 	"github.com/Manu343726/cucaracha/pkg/hw/memory"
+	"github.com/Manu343726/cucaracha/pkg/utils/logging"
 )
 
 var (
@@ -17,6 +19,8 @@ var (
 // ResolveMemory assigns memory addresses to all instructions and globals in a ProgramFile.
 // It returns a new ProgramFile with all addresses resolved
 func ResolveMemory(pf ProgramFile, memoryLayout *memory.MemoryLayout) (ProgramFile, error) {
+	log := log().Child(pf.FileName()).Child("ResolveMemory")
+
 	srcInstructions := pf.Instructions()
 	srcGlobals := pf.Globals()
 	srcFunctions := pf.Functions()
@@ -27,7 +31,7 @@ func ResolveMemory(pf ProgramFile, memoryLayout *memory.MemoryLayout) (ProgramFi
 	codeStart := memoryLayout.CodeBase
 
 	if codeSize >= memoryLayout.CodeSize {
-		return nil, fmt.Errorf("%w: code size %d exceeds allocated code section size %d", ErrProgramTooLarge, codeSize, memoryLayout.CodeSize)
+		return nil, log.Errorf("%w: code size %d exceeds allocated code section size %d", ErrProgramTooLarge, codeSize, memoryLayout.CodeSize)
 	}
 
 	// Calculate data size
@@ -37,8 +41,10 @@ func ResolveMemory(pf ProgramFile, memoryLayout *memory.MemoryLayout) (ProgramFi
 	}
 
 	if memoryLayout.DataBase+dataSize > memoryLayout.Data().End() {
-		return nil, fmt.Errorf("%w: data size %d exceeds allocated data section size %d", ErrProgramTooLarge, dataSize, memoryLayout.Data().Size)
+		return nil, log.Errorf("%w: data size %d exceeds allocated data section size %d", ErrProgramTooLarge, dataSize, memoryLayout.Data().Size)
 	}
+
+	log.Debug("relocating instructions...", logging.Address("code_start", codeStart), slog.Uint64("code_size", uint64(codeSize)))
 
 	// Create resolved instructions with addresses
 	resolvedInstructions := make([]Instruction, len(srcInstructions))
@@ -52,9 +58,14 @@ func ResolveMemory(pf ProgramFile, memoryLayout *memory.MemoryLayout) (ProgramFi
 			Instruction: inst.Instruction,
 			Symbols:     make([]SymbolReference, len(inst.Symbols)),
 		}
+
+		log.Debug("instruction relocated", slog.Int("index", i), logging.Address("address", addr), slog.String("instruction", fmt.Sprintf("{%s}", inst.Text)))
+
 		// Copy symbols initially (will update references later)
 		copy(resolvedInstructions[i].Symbols, inst.Symbols)
 	}
+
+	log.Debug("relocating globals...", logging.Address("data_start", memoryLayout.DataBase), slog.Uint64("data_size", uint64(dataSize)))
 
 	// Create resolved globals with addresses
 	resolvedGlobals := make([]Global, len(srcGlobals))
@@ -68,6 +79,9 @@ func ResolveMemory(pf ProgramFile, memoryLayout *memory.MemoryLayout) (ProgramFi
 			InitialData: g.InitialData,
 			Type:        g.Type,
 		}
+
+		log.Debug("global relocated", slog.String("global", g.Name), logging.Address("address", addr), slog.Uint64("size", uint64(g.Size)))
+
 		currentDataAddr += uint32(g.Size)
 	}
 
@@ -113,33 +127,40 @@ func ResolveMemory(pf ProgramFile, memoryLayout *memory.MemoryLayout) (ProgramFi
 
 			lookupName := sym.BaseName()
 
-			// Look up symbol and set pointer
-			if fn, ok := functionPtrMap[lookupName]; ok {
-				resolved.Function = fn
-			} else if g, ok := globalPtrs[lookupName]; ok {
-				resolved.Global = g
-			} else if lbl, ok := labelPtrs[lookupName]; ok {
-				resolved.Label = lbl
-			} else if sym.Function != nil || sym.Global != nil || sym.Label != nil {
-				// Symbol was already resolved, keep the reference type but update pointers
-				if sym.Function != nil {
-					if fn, ok := functionPtrMap[lookupName]; ok {
-						resolved.Function = fn
-					}
-				}
-				if sym.Global != nil {
-					if g, ok := globalPtrs[lookupName]; ok {
-						resolved.Global = g
-					}
-				}
-				if sym.Label != nil {
-					if lbl, ok := labelPtrs[lookupName]; ok {
-						resolved.Label = lbl
-					}
-				}
+			if sym.Unresolved() {
+				return nil, log.Errorf("%w: symbol '%q' in instruction {%s} at address 0x%X is not resolved", ErrUnresolvedSymbol, sym.Name, resolvedInstructions[i].Instruction.String(), *resolvedInstructions[i].Address)
 			}
-			// Note: If symbol is still unresolved, we leave it unresolved
-			// The caller can check for unresolved symbols if needed
+
+			if sym.Function != nil {
+				if fn, ok := functionPtrMap[lookupName]; ok {
+					// Functions don't have their own address, so we derive it from the first instruction in the function's instruction range
+					// So technically we resolved the function symbol address before when relocating instructions.
+					// Here we just set the resolved reference to point to the resolved function (a copy from the source function) so that we don't have references to the original source function objects.
+					resolved.Function = fn
+					log.Debug("function reference updated", slog.String("function", fn.Name), logging.Address("instruction_address", *resolvedInstructions[i].Address), slog.String("instruction", fmt.Sprintf("{%s}", resolvedInstructions[i].Instruction.String())))
+				} else {
+					return nil, log.Errorf("%w: function symbol '%q' in instruction {%s} at address 0x%X could not be resolved", ErrUnresolvedSymbol, sym.Name, resolvedInstructions[i].Instruction.String(), *resolvedInstructions[i].Address)
+				}
+			} else if sym.Global != nil {
+				if g, ok := globalPtrs[lookupName]; ok {
+					resolved.Global = g
+					log.Debug("global reference updated", slog.String("global", g.Name), logging.Address("global_address", *g.Address), logging.Address("instruction_address", *resolvedInstructions[i].Address), slog.String("instruction", fmt.Sprintf("{%s}", resolvedInstructions[i].Instruction.String())))
+				} else {
+					return nil, log.Errorf("%w: global symbol '%q' in instruction {%s} at address 0x%X could not be resolved", ErrUnresolvedSymbol, sym.Name, resolvedInstructions[i].Instruction.String(), *resolvedInstructions[i].Address)
+				}
+			} else if sym.Label != nil {
+				if lbl, ok := labelPtrs[lookupName]; ok {
+					// Labels also don't have their own address, so we derive it from the instruction they reference (the instruction index is stored in the label)
+					// Similar to functions, we just update the reference to point to the resolved label object to avoid references to the original source label objects.
+					resolved.Label = lbl
+					log.Debug("label reference updated", slog.String("label", lbl.Name), logging.Address("instruction_address", *resolvedInstructions[i].Address), slog.String("instruction", fmt.Sprintf("{%s}", resolvedInstructions[i].Instruction.String())))
+				} else {
+					return nil, log.Errorf("%w: label symbol '%q' in instruction {%s} at address 0x%X could not be resolved", ErrUnresolvedSymbol, sym.Name, resolvedInstructions[i].Instruction.String(), *resolvedInstructions[i].Address)
+				}
+			} else {
+				// This should not happen - we should have caught unresolved symbols with the previous check
+				panic(fmt.Errorf("symbol '%q' in instruction {%s} at address 0x%X is not resolved", sym.Name, resolvedInstructions[i].Instruction.String(), *resolvedInstructions[i].Address))
+			}
 
 			resolvedInstructions[i].Symbols[j] = resolved
 		}
@@ -148,7 +169,7 @@ func ResolveMemory(pf ProgramFile, memoryLayout *memory.MemoryLayout) (ProgramFi
 	// Remap debug info addresses to match the relocated code
 	debugInfo := pf.DebugInfo()
 	if debugInfo != nil {
-		debugInfo = remapDebugInfoAddresses(debugInfo, codeStart)
+		debugInfo = relocateDebugInfoAddresses(debugInfo, codeStart)
 	}
 
 	// Create a new MemoryLayout with the actual used sizes
@@ -171,6 +192,25 @@ func ResolveMemory(pf ProgramFile, memoryLayout *memory.MemoryLayout) (ProgramFi
 		PeripheralBaseAddresses: memoryLayout.PeripheralBaseAddresses,
 	}
 
+	log.Debug("final program memory layout", slog.Uint64("TotalSize", uint64(resolvedLayout.TotalSize)))
+	log.Debug("final program memory layout", logging.Address("SystemDescriptorBase", resolvedLayout.SystemDescriptorBase))
+	log.Debug("final program memory layout", slog.Uint64("SystemDescriptorSize", uint64(resolvedLayout.SystemDescriptorSize)))
+	log.Debug("final program memory layout", logging.Address("VectorTableBase", resolvedLayout.VectorTableBase))
+	log.Debug("final program memory layout", slog.Uint64("VectorTableSize", uint64(resolvedLayout.VectorTableSize)))
+	log.Debug("final program memory layout", logging.Address("DataBase", resolvedLayout.DataBase))
+	log.Debug("final program memory layout", slog.Uint64("DataSize", uint64(resolvedLayout.DataSize)))
+	log.Debug("final program memory layout", logging.Address("CodeBase", resolvedLayout.CodeBase))
+	log.Debug("final program memory layout", slog.Uint64("CodeSize", uint64(resolvedLayout.CodeSize)))
+	log.Debug("final program memory layout", logging.Address("HeapBase", resolvedLayout.HeapBase))
+	log.Debug("final program memory layout", slog.Uint64("HeapSize", uint64(resolvedLayout.HeapSize)))
+	log.Debug("final program memory layout", logging.Address("StackBase", resolvedLayout.StackBase))
+	log.Debug("final program memory layout", slog.Uint64("StackSize", uint64(resolvedLayout.StackSize)))
+	log.Debug("final program memory layout", logging.Address("PeripheralBase", resolvedLayout.PeripheralBase))
+	log.Debug("final program memory layout", slog.Uint64("PeripheralSize", uint64(resolvedLayout.PeripheralSize)))
+	for i, addr := range resolvedLayout.PeripheralBaseAddresses {
+		log.Debug("final program memory layout", logging.Address("base_address", addr), slog.Int("peripheral_index", i))
+	}
+
 	return &ProgramFileContents{
 		FileNameValue:     pf.FileName(),
 		SourceFileValue:   pf.SourceFile(),
@@ -183,7 +223,7 @@ func ResolveMemory(pf ProgramFile, memoryLayout *memory.MemoryLayout) (ProgramFi
 	}, nil
 }
 
-// remapDebugInfoAddresses adjusts all addresses in debug info to account for code relocation.
+// relocateDebugInfoAddresses adjusts all addresses in debug info to account for code relocation.
 //
 // When DWARF debug information is parsed from an ELF object file, the addresses are
 // relative to the ELF file's virtual address layout (typically starting at 0x0 for
@@ -203,29 +243,36 @@ func ResolveMemory(pf ProgramFile, memoryLayout *memory.MemoryLayout) (ProgramFi
 //   - codeStart: The actual memory address where code is loaded (e.g., 0x10000)
 //
 // Returns a new DebugInfo with all addresses adjusted, or nil if original is nil.
-func remapDebugInfoAddresses(original *DebugInfo, codeStart uint32) *DebugInfo {
+func relocateDebugInfoAddresses(original *DebugInfo, codeStart uint32) *DebugInfo {
 	if original == nil {
 		return nil
 	}
 
-	remapped := NewDebugInfo()
-	remapped.CompilationUnit = original.CompilationUnit
-	remapped.Producer = original.Producer
-	remapped.SourceLibrary = original.SourceLibrary
+	log := log().Child("relocateDebugInfoAddresses")
 
-	// Remap instruction locations
+	relocated := NewDebugInfo()
+	relocated.CompilationUnit = original.CompilationUnit
+	relocated.Producer = original.Producer
+	relocated.SourceLibrary = original.SourceLibrary
+
+	// Relocate instruction locations
 	for addr, loc := range original.InstructionLocations {
-		remapped.InstructionLocations[codeStart+addr] = loc
+		relocated.InstructionLocations[codeStart+addr] = loc
+		log.Debug("instruction location relocated", logging.Address("original_address", addr), logging.Address("relocated_address", codeStart+addr), slog.String("source_location", loc.String()))
 	}
 
-	// Remap instruction variables
+	// Relocate instruction variables
 	for addr, vars := range original.InstructionVariables {
-		remapped.InstructionVariables[codeStart+addr] = vars
+		relocated.InstructionVariables[codeStart+addr] = vars
+
+		for _, v := range vars {
+			log.Debug("instruction variable relocated", logging.Address("original_address", addr), logging.Address("relocated_address", codeStart+addr), slog.String("variable", v.Name), slog.String("type", v.TypeName), slog.Bool("is_parameter", v.IsParameter), slog.Int("size", v.Size))
+		}
 	}
 
-	// Remap functions
+	// Relocate functions
 	for name, fn := range original.Functions {
-		remappedFn := &FunctionDebugInfo{
+		relocatedFn := &FunctionDebugInfo{
 			Name:           fn.Name,
 			StartAddress:   codeStart + fn.StartAddress,
 			EndAddress:     codeStart + fn.EndAddress,
@@ -235,18 +282,23 @@ func remapDebugInfoAddresses(original *DebugInfo, codeStart uint32) *DebugInfo {
 			Parameters:     fn.Parameters,
 			LocalVariables: fn.LocalVariables,
 		}
-		// Remap scopes
+
+		log.Debug("function debug info relocated", slog.String("function", fn.Name), logging.Address("original_start_address", fn.StartAddress), logging.Address("relocated_start_address", relocatedFn.StartAddress), logging.Address("original_end_address", fn.EndAddress), logging.Address("relocated_end_address", relocatedFn.EndAddress), slog.String("source_file", fn.SourceFile), slog.Int("start_line", fn.StartLine), slog.Int("end_line", fn.EndLine))
+
+		// Relocate scopes
 		for _, scope := range fn.Scopes {
-			remappedFn.Scopes = append(remappedFn.Scopes, ScopeInfo{
+			relocatedFn.Scopes = append(relocatedFn.Scopes, ScopeInfo{
 				StartAddress: codeStart + scope.StartAddress,
 				EndAddress:   codeStart + scope.EndAddress,
 				Variables:    scope.Variables,
 			})
+
+			log.Debug("function scope relocated", slog.String("function", fn.Name), logging.Address("original_scope_start_address", scope.StartAddress), logging.Address("relocated_scope_start_address", codeStart+scope.StartAddress), logging.Address("original_scope_end_address", scope.EndAddress), logging.Address("relocated_scope_end_address", codeStart+scope.EndAddress), slog.Int("variable_count", len(scope.Variables)))
 		}
-		remapped.Functions[name] = remappedFn
+		relocated.Functions[name] = relocatedFn
 	}
 
-	return remapped
+	return relocated
 }
 
 // alignAddress aligns an address to the given alignment

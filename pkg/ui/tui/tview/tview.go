@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/Manu343726/cucaracha/pkg/ui"
+	debuggerUI "github.com/Manu343726/cucaracha/pkg/ui/debugger"
 	"github.com/Manu343726/cucaracha/pkg/ui/tui/tview/themes"
 	"github.com/Manu343726/cucaracha/pkg/ui/tui/tview/widgets"
 	"github.com/gdamore/tcell/v2"
@@ -13,13 +13,13 @@ import (
 
 // DebuggerTUI is the main tview implementation of the Cucaracha debugger TUI
 type DebuggerTUI struct {
-	debugger *ui.AsyncDebuggerUI
+	debugger *debuggerUI.AsyncDebuggerUI
 
 	// Main application
 	app *tvlib.Application
 
 	// Configuration for auto-loading
-	loadArgs *ui.LoadArgs
+	loadArgs *debuggerUI.LoadArgs
 
 	// Active widgets
 	commandsTerminal *widgets.CommandsTerminal
@@ -57,12 +57,13 @@ const (
 )
 
 // NewDebuggerTUI creates a new debugger TUI using tview
-func NewDebuggerTUI(debugger ui.Debugger, opts ...NewDebuggerTUIOpt) *tvlib.Application {
+func NewDebuggerTUI(debugger debuggerUI.Debugger, opts ...NewDebuggerTUIOpt) *tvlib.Application {
 	// Create theme manager
 	themeManager := themes.NewManager()
 
 	app := tvlib.NewApplication()
-	asyncDebugger := ui.NewAsyncDebuggerUI(debugger)
+	commandBased := debuggerUI.MakeCommandBased(debugger)
+	asyncDebugger := debuggerUI.NewAsyncDebuggerUI(commandBased)
 
 	tui := &DebuggerTUI{
 		debugger:         asyncDebugger,
@@ -119,7 +120,7 @@ func NewDebuggerTUI(debugger ui.Debugger, opts ...NewDebuggerTUIOpt) *tvlib.Appl
 // debuggerTUIConfig holds configuration options for the TUI
 type debuggerTUIConfig struct {
 	catchPanics bool
-	loadArgs    *ui.LoadArgs
+	loadArgs    *debuggerUI.LoadArgs
 }
 
 // NewDebuggerTUIOpt is a functional option for configuring the debugger TUI
@@ -132,7 +133,7 @@ func WithoutCatchPanics() NewDebuggerTUIOpt {
 	}
 }
 
-func WithLoadArgs(args *ui.LoadArgs) NewDebuggerTUIOpt {
+func WithLoadArgs(args *debuggerUI.LoadArgs) NewDebuggerTUIOpt {
 	return func(c *debuggerTUIConfig) {
 		c.loadArgs = args
 	}
@@ -140,31 +141,31 @@ func WithLoadArgs(args *ui.LoadArgs) NewDebuggerTUIOpt {
 
 // registerCallbacks registers callbacks for command results
 func (m *DebuggerTUI) registerCallbacks() {
-	m.commandsTerminal.RegisterCallback(ui.DebuggerCommandSource, func(result *ui.DebuggerCommandResult) {
+	m.commandsTerminal.RegisterCallback(debuggerUI.DebuggerCommandSource, func(result *debuggerUI.DebuggerCommandResult) {
 		if result.SourceResult != nil && result.SourceResult.Error == nil {
 			m.sourceFile.SetResult(result.SourceResult)
 		}
 	})
 
-	m.commandsTerminal.RegisterCallback(ui.DebuggerCommandCurrentSource, func(result *ui.DebuggerCommandResult) {
+	m.commandsTerminal.RegisterCallback(debuggerUI.DebuggerCommandCurrentSource, func(result *debuggerUI.DebuggerCommandResult) {
 		if result.CurrentSourceResult != nil && result.CurrentSourceResult.Error == nil {
 			m.sourceSnippet.SetResult(result.CurrentSourceResult)
 		}
 	})
 
-	m.commandsTerminal.RegisterCallback(ui.DebuggerCommandStack, func(result *ui.DebuggerCommandResult) {
+	m.commandsTerminal.RegisterCallback(debuggerUI.DebuggerCommandStack, func(result *debuggerUI.DebuggerCommandResult) {
 		if result.StackResult != nil && result.StackResult.Error == nil {
 			m.stack.SetResult(result.StackResult)
 		}
 	})
 
-	m.commandsTerminal.RegisterCallback(ui.DebuggerCommandRegisters, func(result *ui.DebuggerCommandResult) {
+	m.commandsTerminal.RegisterCallback(debuggerUI.DebuggerCommandRegisters, func(result *debuggerUI.DebuggerCommandResult) {
 		if result.RegistersResult != nil && result.RegistersResult.Error == nil {
 			m.registers.SetResult(result.RegistersResult)
 		}
 	})
 
-	m.commandsTerminal.RegisterCallback(ui.DebuggerCommandMemory, func(result *ui.DebuggerCommandResult) {
+	m.commandsTerminal.RegisterCallback(debuggerUI.DebuggerCommandMemory, func(result *debuggerUI.DebuggerCommandResult) {
 		if result.MemoryResult != nil && result.MemoryResult.Error == nil {
 			m.memory.SetResult(result.MemoryResult)
 		}
@@ -184,10 +185,10 @@ func (m *DebuggerTUI) registerCallbacks() {
 	})
 
 	lastEvent := time.Now()
-	eventsBuffer := make([]*ui.DebuggerEvent, 0)
+	eventsBuffer := make([]*debuggerUI.DebuggerEvent, 0)
 
 	// Set debugger event callback
-	m.debugger.SetEventCallback(func(event *ui.DebuggerEvent) {
+	m.debugger.SetEventCallback(func(event *debuggerUI.DebuggerEvent) {
 		// Throttle event updates to avoid overwhelming the UI
 		if time.Since(lastEvent) < 100*time.Millisecond {
 			eventsBuffer = append(eventsBuffer, event)
@@ -199,7 +200,7 @@ func (m *DebuggerTUI) registerCallbacks() {
 			for _, event := range eventsBuffer {
 				m.events.AddEvent(event)
 			}
-			eventsBuffer = make([]*ui.DebuggerEvent, 0)
+			eventsBuffer = make([]*debuggerUI.DebuggerEvent, 0)
 		})
 	})
 }
@@ -379,10 +380,10 @@ func (m *DebuggerTUI) setupInputHandling() {
 			}
 		case tcell.KeyCtrlC:
 			// Send interrupt command to the debugger
-			interruptCmd := &ui.DebuggerCommand{
-				Command: ui.DebuggerCommandInterrupt,
+			interruptCmd := &debuggerUI.DebuggerCommand{
+				Command: debuggerUI.DebuggerCommandInterrupt,
 			}
-			m.debugger.Execute(interruptCmd, func(result *ui.DebuggerCommandResult, err error) {
+			m.debugger.Execute(interruptCmd, func(result *debuggerUI.DebuggerCommandResult, err error) {
 				m.app.QueueUpdateDraw(func() {
 					if err != nil {
 						m.commandsTerminal.AddOutput(m.formatError(fmt.Sprintf("Interrupt error: %v", err)))
@@ -441,7 +442,7 @@ func (m *DebuggerTUI) GetSourceFileWidget() *widgets.SourceFile {
 	return m.sourceFile
 }
 
-func (m *DebuggerTUI) handleLoadResult(result *ui.DebuggerCommandResult, err error) {
+func (m *DebuggerTUI) handleLoadResult(result *debuggerUI.DebuggerCommandResult, err error) {
 	if err != nil {
 		m.commandsTerminal.AddOutput(m.formatError(fmt.Sprintf("unexpected error running load command: %v", err)))
 		return
@@ -510,10 +511,10 @@ func (m *DebuggerTUI) initializeFromOptions() {
 		return
 	}
 
-	m.debugger.Execute(&ui.DebuggerCommand{
-		Command:  ui.DebuggerCommandLoad,
+	m.debugger.Execute(&debuggerUI.DebuggerCommand{
+		Command:  debuggerUI.DebuggerCommandLoad,
 		LoadArgs: m.loadArgs,
-	}, func(result *ui.DebuggerCommandResult, err error) {
+	}, func(result *debuggerUI.DebuggerCommandResult, err error) {
 		m.app.QueueUpdateDraw(func() {
 			m.handleLoadResult(result, err)
 		})

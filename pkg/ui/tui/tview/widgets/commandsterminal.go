@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Manu343726/cucaracha/pkg/ui"
+	debuggerUI "github.com/Manu343726/cucaracha/pkg/ui/debugger"
 	"github.com/Manu343726/cucaracha/pkg/ui/tui/tview/themes"
 	"github.com/Manu343726/cucaracha/pkg/utils/logging"
 	"github.com/gdamore/tcell/v2"
@@ -29,11 +29,11 @@ func parseID(s string) int {
 }
 
 // CommandCallback is called when a command is executed
-type CommandCallback func(result *ui.DebuggerCommandResult)
+type CommandCallback func(result *debuggerUI.DebuggerCommandResult)
 
 // CommandExecutor executes commands in the debugger
 type CommandExecutor interface {
-	Execute(cmd *ui.DebuggerCommand, callback ui.AsyncDebuggerCommandResultCallback)
+	Execute(cmd *debuggerUI.DebuggerCommand, callback debuggerUI.AsyncDebuggerCommandResultCallback)
 }
 
 // CommandInfo describes a debugger command
@@ -54,10 +54,10 @@ type CommandsTerminal struct {
 	history             []string
 	historyIdx          int
 	executor            CommandExecutor
-	commandCallbacks    map[ui.DebuggerCommandId][]CommandCallback
+	commandCallbacks    map[debuggerUI.DebuggerCommandId][]CommandCallback
 	outputLines         []string
 	commandDescriptions map[string]CommandInfo
-	pendingCommand      *ui.DebuggerCommand
+	pendingCommand      *debuggerUI.DebuggerCommand
 	filePickerCallback  func(action string)
 	themeCallback       func(string)
 	focusable           bool
@@ -88,7 +88,7 @@ func NewCommandsTerminal(executor CommandExecutor, app *tvlib.Application) *Comm
 		history:             []string{},
 		historyIdx:          -1,
 		executor:            executor,
-		commandCallbacks:    make(map[ui.DebuggerCommandId][]CommandCallback),
+		commandCallbacks:    make(map[debuggerUI.DebuggerCommandId][]CommandCallback),
 		outputLines:         []string{},
 		commandDescriptions: initCommandDescriptions(),
 		pendingCommand:      nil,
@@ -162,17 +162,17 @@ func initCommandDescriptions() map[string]CommandInfo {
 }
 
 // RegisterCommandCallback registers a callback for a command ID
-func (ct *CommandsTerminal) RegisterCommandCallback(cmdID ui.DebuggerCommandId, callback CommandCallback) {
+func (ct *CommandsTerminal) RegisterCommandCallback(cmdID debuggerUI.DebuggerCommandId, callback CommandCallback) {
 	ct.commandCallbacks[cmdID] = append(ct.commandCallbacks[cmdID], callback)
 }
 
 // RegisterCallback is an alias for RegisterCommandCallback for compatibility
-func (ct *CommandsTerminal) RegisterCallback(cmdID ui.DebuggerCommandId, callback CommandCallback) {
+func (ct *CommandsTerminal) RegisterCallback(cmdID debuggerUI.DebuggerCommandId, callback CommandCallback) {
 	ct.RegisterCommandCallback(cmdID, callback)
 }
 
 // displayResult displays a command result
-func (ct *CommandsTerminal) displayResult(result *ui.DebuggerCommandResult) {
+func (ct *CommandsTerminal) displayResult(result *debuggerUI.DebuggerCommandResult) {
 	if ct.theme != nil {
 		ct.displayOutput(ct.theme.FormatSuccess(result.Command.String()))
 	} else {
@@ -181,7 +181,7 @@ func (ct *CommandsTerminal) displayResult(result *ui.DebuggerCommandResult) {
 }
 
 // executeCommand executes a parsed command
-func (ct *CommandsTerminal) executeCommand(cmd *ui.DebuggerCommand) {
+func (ct *CommandsTerminal) executeCommand(cmd *debuggerUI.DebuggerCommand) {
 	if ct.executor == nil {
 		if ct.theme != nil {
 			ct.displayOutput(ct.theme.FormatError("No executor available"))
@@ -193,7 +193,7 @@ func (ct *CommandsTerminal) executeCommand(cmd *ui.DebuggerCommand) {
 
 	log().Debug("executing command", "command", cmd.Command.String(), "args", cmd)
 
-	ct.executor.Execute(cmd, func(result *ui.DebuggerCommandResult, err error) {
+	ct.executor.Execute(cmd, func(result *debuggerUI.DebuggerCommandResult, err error) {
 		ct.app.QueueUpdateDraw(func() {
 			log().Debug("command executed", "command", cmd.Command.String(), "result", result, "error", err)
 
@@ -221,14 +221,14 @@ func (ct *CommandsTerminal) executeCommand(cmd *ui.DebuggerCommand) {
 }
 
 // parseCommand parses a command string into a DebuggerCommand
-func (ct *CommandsTerminal) parseCommand(input string) (*ui.DebuggerCommand, error) {
+func (ct *CommandsTerminal) parseCommand(input string) (*debuggerUI.DebuggerCommand, error) {
 	parts := strings.Fields(input)
 	if len(parts) == 0 {
 		return nil, fmt.Errorf("Invalid command '%s'", input)
 	}
 
 	cmdName := parts[0]
-	cmdID, err := ui.DebuggerCommandIdFromString(cmdName)
+	cmdID, err := debuggerUI.DebuggerCommandIdFromString(cmdName)
 	if err != nil {
 		return nil, err
 	}
@@ -236,17 +236,17 @@ func (ct *CommandsTerminal) parseCommand(input string) (*ui.DebuggerCommand, err
 	return ct.parseCommandArgs(cmdID, parts[1:])
 }
 
-func (ct *CommandsTerminal) parseStepCommandArgs(args []string) (*ui.DebuggerCommand, error) {
-	return &ui.DebuggerCommand{
-		Command: ui.DebuggerCommandStep,
-		StepArgs: &ui.StepArgs{
-			StepMode:  ui.StepModeInto,
-			CountMode: ui.StepCountSourceLines,
+func (ct *CommandsTerminal) parseStepCommandArgs(args []string) (*debuggerUI.DebuggerCommand, error) {
+	return &debuggerUI.DebuggerCommand{
+		Command: debuggerUI.DebuggerCommandStep,
+		StepArgs: &debuggerUI.StepArgs{
+			StepMode:  debuggerUI.StepModeInto,
+			CountMode: debuggerUI.StepCountSourceLines,
 		},
 	}, nil
 }
 
-func (ct *CommandsTerminal) parseSourceCommandArgs(args []string) (*ui.DebuggerCommand, error) {
+func (ct *CommandsTerminal) parseSourceCommandArgs(args []string) (*debuggerUI.DebuggerCommand, error) {
 	if len(args) < 1 {
 		return nil, fmt.Errorf("source command requires a file:line argument")
 	}
@@ -261,7 +261,7 @@ func (ct *CommandsTerminal) parseSourceCommandArgs(args []string) (*ui.DebuggerC
 		return nil, fmt.Errorf("invalid line number: %v", err)
 	}
 
-	sourceArgs := &ui.SourceArgs{
+	sourceArgs := &debuggerUI.SourceArgs{
 		File: fileLine[0],
 		Line: lineNum,
 	}
@@ -277,43 +277,43 @@ func (ct *CommandsTerminal) parseSourceCommandArgs(args []string) (*ui.DebuggerC
 	}
 
 	if len(args) >= 3 {
-		mode, err := ui.SourceContextModeFromString(args[2])
+		mode, err := debuggerUI.SourceContextModeFromString(args[2])
 		if err != nil {
 			return nil, fmt.Errorf("invalid source context mode: %v", err)
 		}
 		sourceArgs.ContextMode = mode
 	} else {
-		sourceArgs.ContextMode = ui.SourceContextTop
+		sourceArgs.ContextMode = debuggerUI.SourceContextTop
 	}
 
-	return &ui.DebuggerCommand{
-		Command:    ui.DebuggerCommandSource,
+	return &debuggerUI.DebuggerCommand{
+		Command:    debuggerUI.DebuggerCommandSource,
 		SourceArgs: sourceArgs,
 	}, nil
 }
 
-func (ct *CommandsTerminal) parseCommandArgs(cmdID ui.DebuggerCommandId, args []string) (*ui.DebuggerCommand, error) {
+func (ct *CommandsTerminal) parseCommandArgs(cmdID debuggerUI.DebuggerCommandId, args []string) (*debuggerUI.DebuggerCommand, error) {
 	switch cmdID {
-	case ui.DebuggerCommandStep:
+	case debuggerUI.DebuggerCommandStep:
 		return ct.parseStepCommandArgs(args)
-	case ui.DebuggerCommandSource:
+	case debuggerUI.DebuggerCommandSource:
 		return ct.parseSourceCommandArgs(args)
-	case ui.DebuggerCommandEvaluateExpression:
-		return &ui.DebuggerCommand{
-			Command: ui.DebuggerCommandEvaluateExpression,
-			EvalArgs: &ui.EvalArgs{
+	case debuggerUI.DebuggerCommandEvaluateExpression:
+		return &debuggerUI.DebuggerCommand{
+			Command: debuggerUI.DebuggerCommandEvaluateExpression,
+			EvalArgs: &debuggerUI.EvalArgs{
 				Expression: strings.Join(args, " "),
 			},
 		}, nil
-	case ui.DebuggerCommandMemory:
-		return &ui.DebuggerCommand{
-			Command: ui.DebuggerCommandMemory,
-			MemoryArgs: &ui.MemoryArgs{
+	case debuggerUI.DebuggerCommandMemory:
+		return &debuggerUI.DebuggerCommand{
+			Command: debuggerUI.DebuggerCommandMemory,
+			MemoryArgs: &debuggerUI.MemoryArgs{
 				AddressExpr: strings.Join(args, " "),
 			},
 		}, nil
 	default:
-		return &ui.DebuggerCommand{
+		return &debuggerUI.DebuggerCommand{
 			Command: cmdID,
 		}, nil
 	}

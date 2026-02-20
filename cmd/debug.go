@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/Manu343726/cucaracha/pkg/debugger"
-	"github.com/Manu343726/cucaracha/pkg/ui"
+	debuggerUI "github.com/Manu343726/cucaracha/pkg/ui/debugger"
 	"github.com/Manu343726/cucaracha/pkg/ui/repl"
 	"github.com/Manu343726/cucaracha/pkg/ui/tui/tview"
 	"github.com/spf13/cobra"
@@ -34,10 +34,9 @@ Use --system to specify a system configuration file (uses embedded default if no
 Use --script to run a script file instead of interactive mode.`,
 	Args: cobra.MaximumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		// Create the underlying debugger and wrap it for UI
-		underlying := debugger.NewDebugger()
-		uiDebugger := debugger.NewDebuggerForUI(underlying)
-		var loadArgs ui.LoadArgs
+		// Create the underlying debugger
+		debugger := debugger.NewDebugger()
+		var loadArgs debuggerUI.LoadArgs
 
 		// Extract program path if provided
 		if len(args) > 0 {
@@ -58,7 +57,7 @@ Use --script to run a script file instead of interactive mode.`,
 		}
 
 		// Parse runtime type
-		runtimeType, err := ui.RuntimeTypeFromString(debugRuntime)
+		runtimeType, err := debuggerUI.RuntimeTypeFromString(debugRuntime)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error: invalid runtime type: %v\n", err)
 			os.Exit(1)
@@ -69,7 +68,7 @@ Use --script to run a script file instead of interactive mode.`,
 		if !useTUI {
 			// Use REPL mode
 			// Only pass loadArgs if we have something to load
-			var loadArgsPtr *ui.LoadArgs
+			var loadArgsPtr *debuggerUI.LoadArgs
 			if loadArgs.ProgramPath != nil || loadArgs.SystemConfigPath != nil || loadArgs.FullDescriptorPath != nil || loadArgs.Runtime != nil {
 				loadArgsPtr = &loadArgs
 			}
@@ -90,7 +89,7 @@ Use --script to run a script file instead of interactive mode.`,
 			// If a script file is provided, run in script mode
 			if scriptFile != "" {
 				// For script mode, use the specified output format
-				replInstance = repl.NewREPLWithOutputFormat(uiDebugger, nil, os.Stdout, outputFormat)
+				replInstance = repl.NewREPLWithOutputFormat(debugger, nil, os.Stdout, outputFormat)
 
 				// Apply settings: load from file first, then apply CLI overrides
 				if settingsFile != "" {
@@ -112,7 +111,7 @@ Use --script to run a script file instead of interactive mode.`,
 				}
 			} else {
 				// Interactive mode - always use human readable
-				replInstance = repl.NewREPLWithLoadArgs(uiDebugger, loadArgsPtr)
+				replInstance = repl.NewREPLWithLoadArgs(debugger, loadArgsPtr)
 
 				// Apply settings: load from file first, then apply CLI overrides
 				if settingsFile != "" {
@@ -140,7 +139,7 @@ Use --script to run a script file instead of interactive mode.`,
 			}
 
 			// Create the TUI with the underlying debugger
-			program := tview.NewDebuggerTUI(uiDebugger,
+			program := tview.NewDebuggerTUI(debugger,
 				tview.WithoutCatchPanics(),
 				tview.WithLoadArgs(&loadArgs),
 			)

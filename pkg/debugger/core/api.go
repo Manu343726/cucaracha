@@ -233,4 +233,7 @@ type Debugger interface {
 
 	// Program information
 	Program() program.ProgramFile
+
+	// Control flow analysis
+	BuildControlFlowGraph(region *memory.Range) (*ControlFlowGraph, error)
 }

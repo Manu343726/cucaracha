@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/Manu343726/cucaracha/pkg/debugger"
-	"github.com/Manu343726/cucaracha/pkg/ui"
+	debuggerUI "github.com/Manu343726/cucaracha/pkg/ui/debugger"
 	"github.com/Manu343726/cucaracha/pkg/ui/repl"
 	"github.com/Manu343726/cucaracha/pkg/ui/tui/tview"
 	"github.com/spf13/cobra"
@@ -23,10 +23,9 @@ Use --runtime to specify the runtime (default: interpreter).
 Use --system to specify a system configuration file (uses embedded default if not provided).`,
 	Args: cobra.MaximumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		// Create the underlying debugger and wrap it for UI
+		// Create the underlying debugger
 		underlying := debugger.NewDebugger()
-		uiDebugger := debugger.NewDebuggerForUI(underlying)
-		var loadArgs ui.LoadArgs
+		var loadArgs debuggerUI.LoadArgs
 
 		// Extract program path if provided
 		if len(args) > 0 {
@@ -47,7 +46,7 @@ Use --system to specify a system configuration file (uses embedded default if no
 		}
 
 		// Parse runtime type
-		runtimeType, err := ui.RuntimeTypeFromString(debugRuntime)
+		runtimeType, err := debuggerUI.RuntimeTypeFromString(debugRuntime)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error: invalid runtime type: %v\n", err)
 			os.Exit(1)
@@ -57,7 +56,7 @@ Use --system to specify a system configuration file (uses embedded default if no
 		// Use REPL if --tui flag is not provided, otherwise use TUI
 		if !useTUI {
 			// Use REPL mode
-			replInstance := repl.NewREPL(uiDebugger)
+			replInstance := repl.NewREPL(underlying)
 
 			// Apply settings: load from file first, then apply CLI overrides
 			if settingsFile != "" {
@@ -84,7 +83,7 @@ Use --system to specify a system configuration file (uses embedded default if no
 			}
 
 			// Create the TUI with the underlying debugger
-			program := tview.NewDebuggerTUI(uiDebugger,
+			program := tview.NewDebuggerTUI(underlying,
 				tview.WithoutCatchPanics(),
 				tview.WithLoadArgs(&loadArgs),
 			)

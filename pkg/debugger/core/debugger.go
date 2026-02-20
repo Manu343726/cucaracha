@@ -4,7 +4,9 @@ package core
 
 import (
 	"fmt"
+	"iter"
 	"log/slog"
+	"maps"
 	"slices"
 	"sort"
 
@@ -14,7 +16,9 @@ import (
 	"github.com/Manu343726/cucaracha/pkg/runtime"
 	"github.com/Manu343726/cucaracha/pkg/runtime/program"
 	"github.com/Manu343726/cucaracha/pkg/runtime/program/sourcecode"
+	"github.com/Manu343726/cucaracha/pkg/utils"
 	"github.com/Manu343726/cucaracha/pkg/utils/contract"
+	"github.com/Manu343726/cucaracha/pkg/utils/logging"
 )
 
 // debugger provides debugging capabilities for the interpreter
@@ -50,7 +54,8 @@ type debugger struct {
 	eventsQueue *InternalEventsQueue
 
 	// Execution state
-	lastResult *ExecutionResult
+	lastResult         *ExecutionResult
+	lastSourceLocation *sourcecode.Location
 }
 
 // NewDebugger creates a new debugger for the given runtime
@@ -86,8 +91,6 @@ func (d *debugger) monitorRunnerEvents() {
 }
 
 func (d *debugger) handleRunnerEvent(event runtime.RunnerEvent) {
-	d.Log().Debug("received runner event", slog.Any("type", event.Type))
-
 	// Convert runner event to debugger event and trigger callback
 	debugEvent := &Event{
 		Result: &ExecutionResult{},
@@ -97,7 +100,6 @@ func (d *debugger) handleRunnerEvent(event runtime.RunnerEvent) {
 	case runtime.RunnerEventBreakpointHit:
 		if addr, ok := event.Data.(uint32); ok {
 			debugEvent.Event = EventBreakpointHit
-			debugEvent.Result.LastPC = addr
 			debugEvent.Result.StopReason = StopBreakpoint
 
 			// Find the corresponding breakpoint in the debugger's breakpoint list
@@ -127,9 +129,23 @@ func (d *debugger) handleRunnerEvent(event runtime.RunnerEvent) {
 			debugEvent.Event = EventStepped
 			debugEvent.Result.StopReason = StopStep
 			debugEvent.Result.CyclesExecuted = int64(stepInfo.CyclesUsed)
+			debugEvent.Result.LastPC = stepInfo.InstructionAddress
 
-			// Note: PC will be updated from CPU state if needed
-			// This event is always triggered, even if breakpoint/watchpoint was hit
+			if stepInfo.InstructionAddress != stepInfo.NextInstructionAddress {
+				newLocation, err := program.SourceLocationAtInstructionAddress(d.programFile, stepInfo.InstructionAddress)
+				if err != nil {
+					log().Warn("failed to get source location for last executed instruction", logging.Address("address", stepInfo.InstructionAddress), slog.Any("error", err))
+					break
+				}
+
+				lastSourceLocation := d.lastSourceLocation
+				d.lastSourceLocation = newLocation
+				debugEvent.Result.SourceLocation = newLocation
+
+				if lastSourceLocation == nil || *lastSourceLocation != *newLocation {
+					d.handleSourceLocationChange(debugEvent.Result)
+				}
+			}
 		}
 
 	case runtime.RunnerEventRuntimeError:
@@ -148,16 +164,15 @@ func (d *debugger) handleRunnerEvent(event runtime.RunnerEvent) {
 		debugEvent.Result.StopReason = StopHalt
 
 	default:
-		d.Log().Warn("unknown runner event type", slog.Any("type", event.Type))
+		d.Log().Warn("unknown runner event type", slog.String("type", event.Type.String()))
 		return
 	}
 
-	// Store the result and trigger callback
+	//log().Debug("runner event", slog.String("runner_event", spew.Sdump(event)), slog.String("debug_event", spew.Sdump(debugEvent)))
+
 	d.lastResult = debugEvent.Result
 
-	if d.eventCallback != nil {
-		d.eventCallback(debugEvent)
-	}
+	d.fireEvent(debugEvent)
 }
 
 func (d *debugger) Runtime() runtime.Runtime {
@@ -223,6 +238,11 @@ func (d *debugger) AddBreakpoint(addr uint32) (*Breakpoint, error) {
 	d.nextBreakpointID++
 	d.breakpoints[bp.ID] = bp
 	d.breakpointAddrs[addr] = bp
+
+	if sourceLocation, err := program.SourceLocationAtInstructionAddress(d.programFile, addr); err == nil {
+		d.Log().Debug("breakpoint added", logging.Address("address", addr), sourceLocation.LoggingAttribute("source_location"))
+	}
+
 	return bp, nil
 }
 
@@ -238,6 +258,10 @@ func (d *debugger) RemoveBreakpoint(id int) (*Breakpoint, error) {
 
 	if err := d.runtime.ClearBreakpoint(bp.Address); err != nil {
 		return nil, fmt.Errorf("failed to remove breakpoint at address 0x%X: %w", bp.Address, err)
+	}
+
+	if sourceLocation, err := program.SourceLocationAtInstructionAddress(d.programFile, bp.Address); err == nil {
+		d.Log().Debug("breakpoint removed", logging.Address("address", bp.Address), sourceLocation.LoggingAttribute("source_location"))
 	}
 
 	return bp, nil
@@ -499,60 +523,219 @@ func (d *debugger) StepOver() *ExecutionResult {
 	return d.Step()
 }
 
-// isCallInstruction checks if the instruction at addr is a function call
-// A branch is a call if the branch target is a function symbol
-func (d *debugger) isCallInstruction(addr uint32) (bool, error) {
+// For a given instruction address, returns all possible next instruction addresses (e.g., branches or fallthrough)
+func (d *debugger) nextInstructionAddresses(addr uint32) ([]uint32, error) {
+	log := d.Log().Child("nextInstructionAddresses").WithAttrs(logging.Address("address", addr))
+
 	instr, err := cpu.DecodeInstruction(d.runtime.Memory(), addr)
 	if err != nil {
-		return false, fmt.Errorf("failed to decode instruction at 0x%X: %w", addr, err)
+		return nil, log.Errorf("failed to decode instruction at 0x%X: %w", addr, err)
 	}
 
-	callOpcodes := map[instructions.OpCode]struct{}{
-		instructions.OpCode_JMP:  {},
-		instructions.OpCode_CJMP: {},
-	}
+	log = log.WithAttrs(instr.LoggingAttribute("instruction"))
 
-	if _, isCall := callOpcodes[instr.Descriptor.OpCode.OpCode]; !isCall {
-		return false, nil
-	}
-
-	var operandValue instructions.OperandValue
-
+	var nextAddrs []uint32
 	switch instr.Descriptor.OpCode.OpCode {
 	case instructions.OpCode_JMP:
 		if len(instr.OperandValues) < 1 {
-			panic("JMP instruction missing operand???")
+			log.Panic("JMP instruction at 0x%X missing operand???", addr)
 		}
 
-		operandValue = instr.OperandValues[0]
+		operandValue := instr.OperandValues[0]
+		if operandValue.Kind() != instructions.OperandKind_Register {
+			log.Panic("JMP instruction at 0x%X has non-register operand???", addr)
+		}
+
+		targetReg := operandValue.Register()
+		if targetReg == nil {
+			log.Panic("JMP instruction at 0x%X has nil register operand???", addr)
+		}
+
+		targetAddr, err := d.runtime.CPU().Registers().ReadByDescriptor(targetReg)
+		if err != nil {
+			return nil, log.Errorf("failed to read jump target register %s for JMP instruction at 0x%X: %w", targetReg.Name(), addr, err)
+		}
+
+		log.Debug("unconditional jump target decoded", logging.Address("target_address", targetAddr))
+
+		nextAddrs = append(nextAddrs, targetAddr)
+
 	case instructions.OpCode_CJMP:
 		if len(instr.OperandValues) < 2 {
-			panic("CJMP instruction missing operands???")
+			log.Panic("CJMP instruction at 0x%X missing operands???", addr)
 		}
 
-		operandValue = instr.OperandValues[1]
+		operandValue := instr.OperandValues[1]
+		if operandValue.Kind() != instructions.OperandKind_Register {
+			log.Panic("CJMP instruction at 0x%X has non-register jump target operand???", addr)
+		}
+
+		targetReg := operandValue.Register()
+		if targetReg == nil {
+			log.Panic("CJMP instruction at 0x%X has nil register jump target operand???", addr)
+		}
+
+		targetAddr, err := d.runtime.CPU().Registers().ReadByDescriptor(targetReg)
+		if err != nil {
+			return nil, log.Errorf("failed to read jump target register %s for CJMP instruction at 0x%X: %w", targetReg.Name(), addr, err)
+		}
+
+		nextAddrs = append(nextAddrs, targetAddr)
+
+		log.Debug("conditional jump target decoded", logging.Address("target_address", targetAddr))
+
+		// CJMP can also fall through to the next instruction
+		fallthrough
+	default:
+		// Add fallthrough address for non-jump instructions and CJMP (which can also fall through)
+		nextAddrs = append(nextAddrs, addr+4)
+		log.Debug("fallthrough to next instruction", logging.Address("next_address", addr+4))
 	}
 
-	if operandValue.Kind() != instructions.OperandKind_Register {
-		panic("branch target operand is not a register???")
+	return nextAddrs, nil
+}
+
+// Stores a graph of source instructions addresses -> jump target instruction addresses for all instructions within a code region.
+//
+// Sources are only tracked within the code region covered by the graph, but targets can be outside the region.
+type ControlFlowGraph struct {
+	sourceToTarget  map[uint32]uint32
+	targetToSources map[uint32][]uint32
+}
+
+// Returns the branch target address for a given source instruction address, or nil if the instruction at that address is not a branch or is outside the graph's code region.
+func (c *ControlFlowGraph) Target(addr uint32) *uint32 {
+	if target, exists := c.sourceToTarget[addr]; exists {
+		return &target
+	}
+	return nil
+}
+
+// Returns the source instruction addresses that can branch to the given target address, or nil if there are no such instructions or the target is outside the graph's code region.
+func (c *ControlFlowGraph) Sources(addr uint32) []uint32 {
+	if sources, exists := c.targetToSources[addr]; exists {
+		return sources
+	}
+	return nil
+}
+
+// Returns all source instruction addresses in the graph's code region that have a branch target within the graph's code region.
+func (c *ControlFlowGraph) AllSources() iter.Seq[uint32] {
+	return maps.Keys(c.sourceToTarget)
+}
+
+// Returns all target instruction addresses in the graph that are branched to from a source instruction within the graph's code region.
+func (c *ControlFlowGraph) AllTargets() iter.Seq[uint32] {
+	return maps.Keys(c.targetToSources)
+}
+
+// Returns a control flow graph of the instructions within a given code region
+func (d *debugger) BuildControlFlowGraph(region *memory.Range) (*ControlFlowGraph, error) {
+	log := d.Log().Child("BuildControlFlowGraph").WithAttrs(region.AddressRangeLoggingAttribute("region"))
+
+	sourceToTarget := make(map[uint32]uint32)
+	targetToSources := make(map[uint32][]uint32)
+
+	for addr := range region.Addresses(4) {
+		targets, err := d.nextInstructionAddresses(addr)
+		if err != nil {
+			return nil, log.Errorf("failed to get next instruction addresses for instruction at 0x%X: %v", addr, err)
+		}
+
+		for _, target := range targets {
+			sourceToTarget[addr] = target
+			targetToSources[target] = append(targetToSources[target], addr)
+
+			log.Debug("edge", logging.Address("source", addr), logging.Address("target", target))
+		}
 	}
 
-	targetReg := operandValue.Register()
-	if targetReg == nil {
-		panic("branch target operand register is nil???")
-	}
+	return &ControlFlowGraph{
+		sourceToTarget:  sourceToTarget,
+		targetToSources: targetToSources,
+	}, nil
+}
 
-	targetAddress, err := d.runtime.CPU().Registers().ReadByDescriptor(targetReg)
+// For a given instruction address, returns the source code locations of all possible next instructions (e.g., branches or fallthrough)
+func (d *debugger) nextSourceLocations(addr uint32) ([]*sourcecode.Location, error) {
+	log := d.Log().Child("nextSourceLocations").WithAttrs(logging.Address("address", addr))
+
+	originalSourceLocation, err := program.SourceLocationAtInstructionAddress(d.programFile, addr)
 	if err != nil {
-		return false, fmt.Errorf("failed to read branch target register %s: %w", targetReg.Name(), err)
+		return nil, log.Errorf("failed to get source location for instruction at 0x%X: %w", addr, err)
 	}
 
-	function, err := program.FunctionAtAddress(d.programFile, targetAddress)
+	log = log.WithAttrs(originalSourceLocation.LoggingAttribute("original_source_location"))
+
+	addresses, err := d.nextInstructionAddresses(addr)
 	if err != nil {
-		return false, fmt.Errorf("failed to get instruction at branch target address 0x%X: %w", targetAddress, err)
+		return nil, log.Errorf("failed to get next instruction addresses for instruction at 0x%X: %w", addr, err)
 	}
 
-	return function != nil, nil
+	locations, err := utils.MapMayFail(addresses, func(nextAddr uint32) (*sourcecode.Location, error) {
+		loc, err := program.SourceLocationAtInstructionAddress(d.programFile, nextAddr)
+		if err != nil {
+			return nil, log.Errorf("failed to get source location for next instruction address 0x%X: %w", nextAddr, err)
+		}
+
+		log.Debug("possible target source location", logging.Address("next_instruction_address", nextAddr), loc.LoggingAttribute("target_source_location"))
+		return loc, nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return utils.Filter(utils.Set(locations), func(loc *sourcecode.Location) bool {
+		// Filter out locations that are the same as the original instruction's source location, since we only want to stop at a new source location.
+		return *loc != *originalSourceLocation
+	}), nil
+}
+
+// For a given instruction address, returns all the possible next source code locations (e.g., branches or fallthrough) first instruction addresses.
+// This is used for determining where to stop when stepping through source code lines.
+func (d *debugger) nextSourceLocationInstructionAddresses(addr uint32) ([]uint32, error) {
+	log := d.Log().Child("nextSourceLocationInstructionAddresses").WithAttrs(logging.Address("address", addr))
+
+	locations, err := d.nextSourceLocations(addr)
+	if err != nil {
+		return nil, log.Errorf("failed to get next source locations for instruction at 0x%X: %w", addr, err)
+	}
+
+	return utils.MapMayFail(locations, func(loc *sourcecode.Location) (uint32, error) {
+		if addr, err := program.InstructionAddressAtSourceLocation(d.programFile, loc); err != nil {
+			return 0, log.Errorf("failed to get instruction address for source location %s:%d:%d: %w", loc.File.Name(), loc.Line, loc.Column, err)
+		} else {
+			return addr, nil
+		}
+	})
+}
+
+// isCallInstruction checks if the instruction at addr is a function call
+// A branch is a call if the branch target is a function symbol
+func (d *debugger) isCallInstruction(addr uint32) (bool, error) {
+	log := d.Log().Child("isCallInstruction").WithAttrs(logging.Address("address", addr))
+
+	nextAddrs, err := d.nextInstructionAddresses(addr)
+	if err != nil {
+		return false, log.Errorf("failed to get next instruction addresses for instruction at 0x%X: %w", addr, err)
+	}
+
+	if len(nextAddrs) <= 0 {
+		return false, log.Errorf("no next instruction addresses found for instruction at 0x%X", addr)
+	}
+
+	// If you look at nextInstructionAddresses(), the target address of a jump instruction (either JMP or CJMP) will always be the first address in the returned list. So we can just check if that address is a function symbol to determine if this is a call instruction.
+	targetAddr := nextAddrs[0]
+
+	function, err := program.FunctionAtAddress(d.programFile, targetAddr)
+	if err != nil {
+		log.Debug("no function symbol found at jump target address, not a call instruction", logging.Address("target_address", targetAddr))
+		return false, nil
+	}
+
+	log.Debug("function symbol found at jump target address, this is a call instruction", logging.Address("target_address", targetAddr), slog.String("function_name", function.Name))
+	return true, nil
 }
 
 // StepOut executes until returning from the current function
@@ -612,40 +795,92 @@ func (d *debugger) CurrentSourceLocation() (*sourcecode.Location, error) {
 
 func (d *debugger) handleSourceLocationChange(result *ExecutionResult) {
 	d.fireEvent(&Event{Event: EventSourceLocationChanged, Result: result})
+
+	d.Log().Debug("source location changed", result.SourceLocation.LoggingAttribute("new_source_location"), logging.Address("pc", result.LastPC))
 }
 
 func (d *debugger) StepIntoSource() *ExecutionResult {
-	sourceCodeChangeHandler := NewEventHandler(func(event *Event) bool {
-		// On source line change, stop execution and report as step
-		event.Result.StopReason = StopStep
-		return false
-	})
+	log := d.Log().Child("StepIntoSource")
 
-	d.eventsQueue.Subscribe(EventSourceLocationChanged, sourceCodeChangeHandler)
-	defer d.eventsQueue.Unsubscribe(sourceCodeChangeHandler)
+	pc, err := d.readPC()
+	if err != nil {
+		return d.reportExecutionError(log.Errorf("failed to read PC register before StepIntoSource: %w", err))
+	}
+
+	log = log.WithAttrs(logging.Address("starting_instruction_address", pc))
+
+	var targetAddrs []uint32
+
+	for {
+		var err error
+		targetAddrs, err = d.nextSourceLocationInstructionAddresses(pc)
+		if err != nil {
+			return d.reportExecutionError(log.Errorf("failed to get next source location instruction addresses before StepIntoSource: %w", err))
+		}
+
+		if len(targetAddrs) == 0 {
+			log.Warn("no next source location instruction addresses found after instruction, trying next instruction", logging.Address("instruction_address", pc), logging.Address("next_instruction_address", pc+4))
+			pc += 4
+			continue
+		} else {
+			break
+		}
+	}
+
+	log.Debug("next source location instruction addresses", logging.Addresses("addresses", targetAddrs))
+
+	// Add temporary breakpoints at all possible next source location instruction addresses
+	var breakpoints map[int]*Breakpoint = make(map[int]*Breakpoint)
+	for _, targetAddr := range targetAddrs {
+		bp, err := d.AddBreakpoint(targetAddr)
+		if err != nil {
+			// Clean up any breakpoints we added before returning error
+			for id := range breakpoints {
+				d.RemoveBreakpoint(id)
+			}
+			return d.reportExecutionError(log.Errorf("failed to add temporary breakpoint at 0x%X: %w", targetAddr, err))
+		}
+		breakpoints[bp.ID] = bp
+
+		d.eventsQueue.SubscribeOnce(EventBreakpointHit, NewEventHandler(func(event *Event) bool {
+			if event.Result.Breakpoint.ID == bp.ID {
+				// On hitting one of our temporary breakpoints, remove all of them and stop execution
+				// If go closures capture by value, then we have a nice bug here
+				for id := range breakpoints {
+					d.RemoveBreakpoint(id)
+				}
+				return false
+			}
+			return true
+		}))
+	}
+
+	// Continue execution
 
 	return d.Continue()
 }
 
 func (d *debugger) StepOverSource() *ExecutionResult {
+	log := d.Log().Child("StepOverSource")
+
 	currentSourceLocation, err := d.CurrentSourceLocation()
 	if err != nil {
-		return d.reportExecutionError(fmt.Errorf("failed to get current source location before StepOverSource: %w", err))
+		return d.reportExecutionError(log.Errorf("failed to get current source location before StepOverSource: %w", err))
 	}
 
 	instructionRanges, err := program.InstructionAddressesAtSourceLocation(d.programFile, currentSourceLocation)
 	if err != nil {
-		return d.reportExecutionError(fmt.Errorf("failed to get instruction addresses at source location before StepOverSource: %w", err))
+		return d.reportExecutionError(log.Errorf("failed to get instruction addresses at source location before StepOverSource: %w", err))
 	}
 
 	if len(instructionRanges) == 0 {
-		return d.reportExecutionError(fmt.Errorf("no instruction addresses found at current source location before StepOverSource"))
+		return d.reportExecutionError(log.Errorf("no instruction addresses found at current source location before StepOverSource"))
 	}
 
 	for _, instrRange := range instructionRanges {
 		for addr := instrRange.Start; addr < instrRange.End(); addr += 4 {
 			if isCall, err := d.isCallInstruction(addr); err != nil {
-				return d.reportExecutionError(fmt.Errorf("failed to determine if instruction at 0x%X is a call: %w", addr, err))
+				return d.reportExecutionError(log.Errorf("failed to determine if instruction at 0x%X is a call: %w", addr, err))
 			} else if isCall {
 				// Set temporary breakpoint at return address (addr + 4)
 				returnAddr := addr + 4
@@ -653,14 +888,14 @@ func (d *debugger) StepOverSource() *ExecutionResult {
 				// Add temporary breakpoint
 				bp, err := d.AddBreakpoint(returnAddr)
 				if err != nil {
-					return d.reportExecutionError(fmt.Errorf("failed to add temporary breakpoint at return address 0x%X: %w", returnAddr, err))
+					return d.reportExecutionError(log.Errorf("failed to add temporary breakpoint at return address 0x%X: %w", returnAddr, err))
 				}
 
 				// Continue execution
 				result := d.Continue()
 
 				if result.StopReason == StopNone {
-					panic("Continue returned with no stop reason???")
+					log.Panic("Continue returned with no stop reason???")
 				}
 
 				// Remove temporary breakpoint
@@ -673,7 +908,7 @@ func (d *debugger) StepOverSource() *ExecutionResult {
 
 				pc, err := cpu.ReadPC(d.runtime.CPU().Registers())
 				if err != nil {
-					return d.reportExecutionError(fmt.Errorf("failed to read PC register after StepOverSource: %w", err))
+					return d.reportExecutionError(log.Errorf("failed to read PC register after StepOverSource: %w", err))
 				}
 
 				// If we stopped at our temporary breakpoint, report as step

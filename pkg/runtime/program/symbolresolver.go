@@ -2,13 +2,18 @@ package program
 
 import (
 	"fmt"
+	"log/slog"
 	"strings"
+
+	"github.com/Manu343726/cucaracha/pkg/utils/logging"
 )
 
 // ResolveSymbols resolves all symbol references in the given ProgramFile.
 // It returns a new ProgramFile with all symbols resolved, or an error if any
 // symbol could not be resolved.
 func ResolveSymbols(pf ProgramFile) (ProgramFile, error) {
+	log := log().Child(pf.FileName()).Child("ResolveSymbols")
+
 	// Build lookup maps for symbols
 	functions := pf.Functions()
 	globals := pf.Globals()
@@ -78,11 +83,15 @@ func ResolveSymbols(pf ProgramFile) (ProgramFile, error) {
 			// Try function first
 			if fn, ok := functionPtrs[lookupName]; ok {
 				resolved.Function = fn
+				log.Debug("resolved symbol as function", slog.String("symbol", sym.Name), slog.String("function", fn.Name), logging.Address("instruction_address", *inst.Address), slog.String("instruction", fmt.Sprintf("{%s}", inst.Text)))
 			} else if g, ok := resolvedGlobalPtrs[lookupName]; ok {
 				resolved.Global = g
+				log.Debug("resolved symbol as global", slog.String("symbol", sym.Name), slog.String("global", g.Name), logging.Address("instruction_address", *inst.Address), slog.String("instruction", fmt.Sprintf("{%s}", inst.Text)))
 			} else if lbl, ok := resolvedLabelPtrs[lookupName]; ok {
 				resolved.Label = lbl
+				log.Debug("resolved symbol as label", slog.String("symbol", sym.Name), slog.String("label", lbl.Name), logging.Address("instruction_address", *inst.Address), slog.String("instruction", fmt.Sprintf("{%s}", inst.Text)))
 			} else {
+				log.Debug("failed to resolve symbol", slog.String("symbol", sym.Name), logging.Address("instruction_address", *inst.Address), slog.String("instruction", fmt.Sprintf("{%s}", inst.Text)))
 				unresolvedSymbols = append(unresolvedSymbols, fmt.Sprintf("%s (instruction %d, line %d)", sym.Name, i, inst.LineNumber))
 			}
 
@@ -91,7 +100,7 @@ func ResolveSymbols(pf ProgramFile) (ProgramFile, error) {
 	}
 
 	if len(unresolvedSymbols) > 0 {
-		return nil, fmt.Errorf("unresolved symbols: %s", strings.Join(unresolvedSymbols, ", "))
+		return nil, log.Errorf("unresolved symbols: %s", strings.Join(unresolvedSymbols, ", "))
 	}
 
 	return &ProgramFileContents{

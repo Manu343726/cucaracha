@@ -3,13 +3,14 @@ package repl
 import (
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 
-	"github.com/Manu343726/cucaracha/pkg/ui"
+	debuggerUI "github.com/Manu343726/cucaracha/pkg/ui/debugger"
 	"github.com/Manu343726/cucaracha/pkg/utils/logging"
 )
 
-func (r *REPL) printCommandResult(result *ui.DebuggerCommandResult) {
+func (r *REPL) printCommandResult(result *debuggerUI.DebuggerCommandResult) {
 	if result == nil {
 		r.printError("No result returned")
 		return
@@ -158,7 +159,7 @@ func (r *REPL) printError(msg string) {
 	r.write("Error: %s\n", msg)
 }
 
-func (r *REPL) printExecutionResult(result *ui.ExecutionResult) {
+func (r *REPL) printExecutionResult(result *debuggerUI.ExecutionResult) {
 	if result == nil {
 		r.printError("No execution result")
 		return
@@ -195,7 +196,7 @@ func (r *REPL) printExecutionResult(result *ui.ExecutionResult) {
 	}
 }
 
-func (r *REPL) printBreakResult(result *ui.BreakResult) {
+func (r *REPL) printBreakResult(result *debuggerUI.BreakResult) {
 	if result == nil {
 		r.printError("Failed to set breakpoint")
 		return
@@ -213,7 +214,7 @@ func (r *REPL) printBreakResult(result *ui.BreakResult) {
 	}
 }
 
-func (r *REPL) printWatchResult(result *ui.WatchResult) {
+func (r *REPL) printWatchResult(result *debuggerUI.WatchResult) {
 	if result == nil {
 		r.printError("Failed to set watchpoint")
 		return
@@ -231,7 +232,7 @@ func (r *REPL) printWatchResult(result *ui.WatchResult) {
 	}
 }
 
-func (r *REPL) printRemoveBreakpointResult(result *ui.RemoveBreakpointResult) {
+func (r *REPL) printRemoveBreakpointResult(result *debuggerUI.RemoveBreakpointResult) {
 	if result == nil {
 		r.printError("Failed to remove breakpoint")
 		return
@@ -245,7 +246,7 @@ func (r *REPL) printRemoveBreakpointResult(result *ui.RemoveBreakpointResult) {
 	r.write("Breakpoint removed\n")
 }
 
-func (r *REPL) printRemoveWatchpointResult(result *ui.RemoveWatchpointResult) {
+func (r *REPL) printRemoveWatchpointResult(result *debuggerUI.RemoveWatchpointResult) {
 	if result == nil {
 		r.printError("Failed to remove watchpoint")
 		return
@@ -259,7 +260,7 @@ func (r *REPL) printRemoveWatchpointResult(result *ui.RemoveWatchpointResult) {
 	r.write("Watchpoint removed\n")
 }
 
-func (r *REPL) printListResult(result *ui.ListResult) {
+func (r *REPL) printListResult(result *debuggerUI.ListResult) {
 	if result == nil {
 		r.printError("Failed to list breakpoints")
 		return
@@ -290,7 +291,7 @@ func (r *REPL) printListResult(result *ui.ListResult) {
 	}
 }
 
-func (r *REPL) printDisassemblyResult(result *ui.DisassemblyResult) {
+func (r *REPL) printDisassemblyResult(result *debuggerUI.DisassemblyResult) {
 	if result == nil {
 		r.printError("Failed to disassemble")
 		return
@@ -307,16 +308,160 @@ func (r *REPL) printDisassemblyResult(result *ui.DisassemblyResult) {
 	}
 
 	r.write("\nInstructions:\n")
+
+	// Get display flags from last disasm args, default to showing everything
+	showSource := true
+	showCFG := true
+	if r.lastDisasmArgs != nil {
+		showSource = r.lastDisasmArgs.ShowSource
+		showCFG = r.lastDisasmArgs.ShowCFG
+	}
+
+	// Build a set of branch targets from the CFG
+	branchTargets := make(map[uint32]bool)
+	if result.CFG != nil {
+		for target := range result.CFG.Edges {
+			branchTargets[target] = true
+		}
+	}
+
+	// First pass: calculate column widths
+	maxLocationWidth := 0
+	maxSourceWidth := 0
+	maxCFGWidth := 0
+
+	if showSource {
+		for _, inst := range result.Instructions {
+			if inst.SourceLine != nil && inst.SourceLine.Location != nil {
+				locationStr := fmt.Sprintf("%s:%d", inst.SourceLine.Location.File, inst.SourceLine.Location.Line)
+				if len(locationStr) > maxLocationWidth {
+					maxLocationWidth = len(locationStr)
+				}
+				if len(inst.SourceLine.Text) > maxSourceWidth {
+					maxSourceWidth = len(inst.SourceLine.Text)
+				}
+			}
+		}
+	}
+
+	if showCFG {
+		for _, inst := range result.Instructions {
+			// Calculate CFG column width
+			cfgStr := r.getCFGSymbol(inst, result.CFG)
+			if len(cfgStr) > maxCFGWidth {
+				maxCFGWidth = len(cfgStr)
+			}
+		}
+		// Ensure minimum width for CFG column
+		if maxCFGWidth < 3 {
+			maxCFGWidth = 3
+		}
+	}
+
+	// Second pass: print with aligned columns
+	var prevLocationStr string
 	for _, inst := range result.Instructions {
 		marker := " "
 		if inst.IsCurrentPC {
 			marker = ">"
 		}
-		r.write("%s 0x%08x: %s %s\n", marker, inst.Address, inst.Mnemonic, inst.Text)
+
+		// Get location and source information
+		var locationStr, sourceStr string
+		if inst.SourceLine != nil && inst.SourceLine.Location != nil {
+			locationStr = fmt.Sprintf("%s:%d", inst.SourceLine.Location.File, inst.SourceLine.Location.Line)
+			sourceStr = inst.SourceLine.Text
+		}
+
+		// Build the line with conditionally included columns
+		var line string
+
+		// Add location and code columns if enabled
+		if showSource {
+			// Add location column (only if different from previous)
+			showLocation := locationStr != prevLocationStr && locationStr != ""
+			if showLocation {
+				line += locationStr
+				prevLocationStr = locationStr
+			}
+			// Pad location column
+			for len(line) < maxLocationWidth {
+				line += " "
+			}
+
+			// Add spacing between columns
+			line += "    "
+
+			// Add source code column (only if we showed location)
+			if showLocation {
+				line += sourceStr
+			}
+			// Pad source column
+			for len(line) < maxLocationWidth+4+maxSourceWidth {
+				line += " "
+			}
+
+			// Add spacing between columns
+			line += "    "
+		}
+
+		// Add CFG column if enabled
+		if showCFG {
+			cfgStr := r.getCFGSymbol(inst, result.CFG)
+			line += cfgStr
+			// Pad CFG column
+			for len(line) < maxLocationWidth+4+maxSourceWidth+4+maxCFGWidth {
+				line += " "
+			}
+
+			// Add spacing between columns
+			line += "    "
+		}
+
+		// Add instruction
+		instrPart := fmt.Sprintf("%s 0x%08x: %s %s", marker, inst.Address, inst.Mnemonic, inst.Text)
+		line += instrPart
+
+		fmt.Fprintf(r.writer, "%s\n", line)
 	}
 }
 
-func (r *REPL) printCurrentInstructionResult(result *ui.CurrentInstructionResult) {
+// getCFGSymbol returns a string representing the control flow graph information for an instruction
+func (r *REPL) getCFGSymbol(inst *debuggerUI.Instruction, cfg *debuggerUI.ControlFlowGraph) string {
+	if cfg == nil {
+		return "○"
+	}
+
+	// Check if this instruction is a branch source (has an edge in the CFG)
+	_, isBranchSource := cfg.Edges[inst.Address]
+
+	// Check if this instruction is a branch target
+	isBranchTarget := false
+	for _, target := range cfg.Edges {
+		if target == inst.Address {
+			isBranchTarget = true
+			break
+		}
+	}
+
+	switch {
+	case isBranchSource && isBranchTarget:
+		// Both source and target of branches
+		return "⟲↔"
+	case isBranchSource:
+		// Branch source - shows arrow pointing to target
+		target := cfg.Edges[inst.Address]
+		return fmt.Sprintf("→%X", target&0xFFFF) // Show last 4 hex digits
+	case isBranchTarget:
+		// Branch target - shows incoming arrow
+		return "←"
+	default:
+		// Regular fall-through instruction
+		return "○"
+	}
+}
+
+func (r *REPL) printCurrentInstructionResult(result *debuggerUI.CurrentInstructionResult) {
 	if result == nil {
 		r.printError("Failed to get current instruction")
 		return
@@ -328,14 +473,28 @@ func (r *REPL) printCurrentInstructionResult(result *ui.CurrentInstructionResult
 	}
 
 	if result.Instruction != nil {
-		r.write("Current: 0x%08x: %s %s\n",
+		output := fmt.Sprintf("Current: 0x%08x: %s %s",
 			result.Instruction.Address,
 			result.Instruction.Mnemonic,
 			result.Instruction.Text)
+
+		// Append source location and source line information if available
+		if result.Instruction.SourceLine != nil {
+			if result.Instruction.SourceLine.Location != nil {
+				output += fmt.Sprintf(" (%s:%d", result.Instruction.SourceLine.Location.File, result.Instruction.SourceLine.Location.Line)
+				if result.Instruction.SourceLine.Text != "" {
+					output += fmt.Sprintf(" - %s", result.Instruction.SourceLine.Text)
+				}
+				output += ")"
+			}
+		}
+
+		// Use standard output pattern to avoid vet warnings
+		fmt.Fprintf(r.writer, "%s\n", output)
 	}
 }
 
-func (r *REPL) printMemoryResult(result *ui.MemoryResult) {
+func (r *REPL) printMemoryResult(result *debuggerUI.MemoryResult) {
 	if result == nil {
 		r.printError("Failed to read memory")
 		return
@@ -366,7 +525,7 @@ func (r *REPL) printMemoryResult(result *ui.MemoryResult) {
 	}
 }
 
-func (r *REPL) printSourceResult(result *ui.SourceResult) {
+func (r *REPL) printSourceResult(result *debuggerUI.SourceResult) {
 	if result == nil {
 		r.printError("Failed to read source")
 		return
@@ -396,7 +555,7 @@ func (r *REPL) printSourceResult(result *ui.SourceResult) {
 	}
 }
 
-func (r *REPL) printInfoResult(result *ui.InfoResult) {
+func (r *REPL) printInfoResult(result *debuggerUI.InfoResult) {
 	if result == nil {
 		r.printError("Failed to get info")
 		return
@@ -473,7 +632,7 @@ func (r *REPL) printInfoResult(result *ui.InfoResult) {
 	}
 }
 
-func (r *REPL) printRegistersResult(result *ui.RegistersResult) {
+func (r *REPL) printRegistersResult(result *debuggerUI.RegistersResult) {
 	if result == nil {
 		r.printError("Failed to get registers")
 		return
@@ -497,7 +656,7 @@ func (r *REPL) printRegistersResult(result *ui.RegistersResult) {
 	}
 }
 
-func (r *REPL) printStackResult(result *ui.StackResult) {
+func (r *REPL) printStackResult(result *debuggerUI.StackResult) {
 	if result == nil {
 		r.printError("Failed to get stack")
 		return
@@ -527,7 +686,7 @@ func (r *REPL) printStackResult(result *ui.StackResult) {
 	}
 }
 
-func (r *REPL) printVarsResult(result *ui.VarsResult) {
+func (r *REPL) printVarsResult(result *debuggerUI.VarsResult) {
 	if result == nil {
 		r.printError("Failed to get variables")
 		return
@@ -551,7 +710,7 @@ func (r *REPL) printVarsResult(result *ui.VarsResult) {
 	}
 }
 
-func (r *REPL) printSymbolsResult(result *ui.SymbolsResult) {
+func (r *REPL) printSymbolsResult(result *debuggerUI.SymbolsResult) {
 	if result == nil {
 		r.printError("Failed to list symbols")
 		return
@@ -633,7 +792,7 @@ func (r *REPL) printSymbolsResult(result *ui.SymbolsResult) {
 	}
 }
 
-func (r *REPL) printEvalResult(result *ui.EvalResult) {
+func (r *REPL) printEvalResult(result *debuggerUI.EvalResult) {
 	if result == nil {
 		r.printError("Failed to evaluate expression")
 		return
@@ -647,7 +806,7 @@ func (r *REPL) printEvalResult(result *ui.EvalResult) {
 	r.write("Result: 0x%x (%s)\n", result.Value, result.ValueString)
 }
 
-func (r *REPL) printLoadProgramResult(result *ui.LoadProgramResult) {
+func (r *REPL) printLoadProgramResult(result *debuggerUI.LoadProgramResult) {
 	if result == nil {
 		r.printError("Failed to load program")
 		return
@@ -661,7 +820,7 @@ func (r *REPL) printLoadProgramResult(result *ui.LoadProgramResult) {
 	r.write("Program loaded successfully\n")
 }
 
-func (r *REPL) printLoadSystemResult(result *ui.LoadSystemResult) {
+func (r *REPL) printLoadSystemResult(result *debuggerUI.LoadSystemResult) {
 	if result == nil {
 		r.printError("Failed to load system")
 		return
@@ -675,7 +834,7 @@ func (r *REPL) printLoadSystemResult(result *ui.LoadSystemResult) {
 	r.write("System loaded successfully\n")
 }
 
-func (r *REPL) printLoadRuntimeResult(result *ui.LoadRuntimeResult) {
+func (r *REPL) printLoadRuntimeResult(result *debuggerUI.LoadRuntimeResult) {
 	if result == nil {
 		r.printError("Failed to load runtime")
 		return
@@ -689,7 +848,7 @@ func (r *REPL) printLoadRuntimeResult(result *ui.LoadRuntimeResult) {
 	r.write("Runtime loaded successfully\n")
 }
 
-func (r *REPL) printLoadResult(result *ui.LoadResult) {
+func (r *REPL) printLoadResult(result *debuggerUI.LoadResult) {
 	if result == nil {
 		r.printError("Failed to load")
 		return
@@ -755,19 +914,79 @@ func (r *REPL) finishCommandOutput(success bool, err error) {
 
 func (r *REPL) printAllSettings() {
 	r.write("\nAvailable Settings:\n\n")
-	for _, setting := range r.settings.List() {
-		r.write("  %s\n", setting.Name)
-		r.write("    %s\n", setting.Description)
-		r.write("    Default: %v\n\n", setting.DefaultValue)
+
+	categoryTree := r.settings.ListByCategory()
+
+	// Print root-level settings first if any
+	if len(categoryTree.Settings) > 0 {
+		for _, setting := range categoryTree.Settings {
+			r.write("  %s\n", setting.Name)
+			r.write("    %s\n", setting.Description)
+			r.write("    Default: %v\n\n", setting.DefaultValue)
+		}
 	}
+
+	// Print categories in hierarchical order
+	r.settings.IterateCategories(func(path []string, category *SettingCategory, indent string) {
+		if len(category.Settings) > 0 || category.Description != "" {
+			// Print category header with description if available
+			categoryPath := strings.Join(path, ".")
+			r.write("%s[%s]\n", indent, categoryPath)
+			if category.Description != "" {
+				r.write("%s  %s\n", indent, category.Description)
+			}
+
+			// Print settings in this category
+			settingNames := make([]string, 0, len(category.Settings))
+			for name := range category.Settings {
+				settingNames = append(settingNames, name)
+			}
+			sort.Strings(settingNames)
+
+			for _, settingName := range settingNames {
+				setting := category.Settings[settingName]
+				r.write("%s  %s\n", indent, setting.Name)
+				r.write("%s    %s\n", indent, setting.Description)
+				r.write("%s    Default: %v\n\n", indent, setting.DefaultValue)
+			}
+		}
+	})
 }
 
 func (r *REPL) printCurrentSettings() {
 	r.write("\nCurrent Settings:\n\n")
-	for _, setting := range r.settings.List() {
-		r.write("  %s = %v\n", setting.Name, setting.Value)
+
+	categoryTree := r.settings.ListByCategory()
+
+	// Print root-level settings first if any
+	if len(categoryTree.Settings) > 0 {
+		for _, setting := range categoryTree.Settings {
+			r.write("  %s = %v\n", setting.Name, setting.Value)
+		}
+		r.write("\n")
 	}
-	r.write("\n")
+
+	// Print categories in hierarchical order
+	r.settings.IterateCategories(func(path []string, category *SettingCategory, indent string) {
+		if len(category.Settings) > 0 {
+			// Print category header
+			categoryPath := strings.Join(path, ".")
+			r.write("%s[%s]\n", indent, categoryPath)
+
+			// Print settings in this category
+			settingNames := make([]string, 0, len(category.Settings))
+			for name := range category.Settings {
+				settingNames = append(settingNames, name)
+			}
+			sort.Strings(settingNames)
+
+			for _, settingName := range settingNames {
+				setting := category.Settings[settingName]
+				r.write("%s  %s = %v\n", indent, setting.Name, setting.Value)
+			}
+			r.write("\n")
+		}
+	})
 }
 
 func (r *REPL) printEvent(eventType string, details map[string]interface{}) {
@@ -782,10 +1001,15 @@ func (r *REPL) write(format string, args ...interface{}) {
 	if r.outputFormat == MachineReadable && r.commandStarted {
 		fmt.Fprintf(&r.outputBuffer, format, args...)
 	} else {
+		// If waiting for input, move output above the prompt line
+		if r.waitingForInput {
+			// Go to start of line, clear the line (clearing the prompt), then move to new line
+			fmt.Fprintf(r.writer, "\r\033[K\n")
+		}
 		fmt.Fprintf(r.writer, format, args...)
 	}
 }
 
 func (r *REPL) printLogEntry(entry logging.UILogEntry) {
-	r.write(entry.String())
+	fmt.Fprintf(r.writer, "%s\n", entry.String())
 }

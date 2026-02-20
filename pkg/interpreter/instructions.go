@@ -133,8 +133,8 @@ func (*cpuInstructionsImplementation) LD(i *Interpreter, operands []*uint32) err
 }
 
 func (*cpuInstructionsImplementation) ST(i *Interpreter, operands []*uint32) error {
-	address := *operands[0]
-	value := *operands[1]
+	address := *operands[1]
+	value := *operands[0]
 
 	if err := memory.WriteUint32(i.Memory(), address, value); err != nil {
 		return fmt.Errorf("error executing ST: failed to write memory at address 0x%X: %w", address, err)

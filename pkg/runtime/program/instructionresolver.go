@@ -3,9 +3,12 @@ package program
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 
 	"github.com/Manu343726/cucaracha/pkg/hw/cpu/mc/instructions"
+	"github.com/Manu343726/cucaracha/pkg/utils/contract"
+	"github.com/Manu343726/cucaracha/pkg/utils/logging"
 )
 
 var (
@@ -17,11 +20,15 @@ var (
 
 // InstructionResolver resolves instructions in a ProgramFile, filling in
 // Raw and Instruction fields from Text, or vice versa.
-type InstructionResolver struct{}
+type InstructionResolver struct {
+	contract.Base
+}
 
 // NewInstructionResolver creates a new instruction resolver
 func NewInstructionResolver() *InstructionResolver {
-	return &InstructionResolver{}
+	return &InstructionResolver{
+		Base: contract.NewBase(log().Child("InstructionResolver")),
+	}
 }
 
 // ResolveInstructions processes all instructions in the program file and ensures each has:
@@ -35,9 +42,11 @@ func NewInstructionResolver() *InstructionResolver {
 // - Any symbol reference is not resolved (Function, Global, or Label pointer is nil)
 // - Memory layout is not resolved (addresses are not assigned)
 func (r *InstructionResolver) ResolveInstructions(pf ProgramFile) (ProgramFile, error) {
+	log := r.Log().Child(pf.FileName()).Child("ResolveInstructions")
+
 	// Check that memory layout is resolved
 	if pf.MemoryLayout() == nil {
-		return nil, fmt.Errorf("%w: memory layout must be resolved before instruction resolution", ErrUnresolvedMemory)
+		return nil, log.Errorf("%w: memory layout must be resolved before instruction resolution", ErrUnresolvedMemory)
 	}
 
 	// Copy instructions for modification
@@ -47,14 +56,14 @@ func (r *InstructionResolver) ResolveInstructions(pf ProgramFile) (ProgramFile, 
 	// Check that all instructions have addresses
 	for i, instr := range instructions {
 		if instr.Address == nil {
-			return nil, fmt.Errorf("%w: instruction %d has no address assigned", ErrUnresolvedMemory, i)
+			return nil, log.Errorf("%w: instruction %d has no address assigned", ErrUnresolvedMemory, i)
 		}
 	}
 
 	// Check that all globals have addresses
 	for i, g := range pf.Globals() {
 		if g.Address == nil {
-			return nil, fmt.Errorf("%w: global %q (index %d) has no address assigned", ErrUnresolvedMemory, g.Name, i)
+			return nil, log.Errorf("%w: global %q (index %d) has no address assigned", ErrUnresolvedMemory, g.Name, i)
 		}
 	}
 
@@ -80,10 +89,12 @@ func (r *InstructionResolver) ResolveInstructions(pf ProgramFile) (ProgramFile, 
 
 // resolveInstruction resolves a single instruction
 func (r *InstructionResolver) resolveInstruction(instr *Instruction, index int) error {
+	log := r.Log().Child(fmt.Sprintf("resolveInstruction.%d", index))
+
 	// First, check that all symbol references are resolved
 	for _, sym := range instr.Symbols {
 		if sym.Unresolved() {
-			return fmt.Errorf("%w: instruction %d references unresolved symbol %q", ErrUnresolvedSymbol, index, sym.Name)
+			return log.Errorf("%w: instruction %d references unresolved symbol %q", ErrUnresolvedSymbol, index, sym.Name)
 		}
 	}
 
@@ -95,23 +106,28 @@ func (r *InstructionResolver) resolveInstruction(instr *Instruction, index int) 
 	if hasText && !hasRaw && !hasDecoded {
 		raw, decoded, err := r.parseInstructionText(instr.Text, instr.Symbols)
 		if err != nil {
-			return fmt.Errorf("%w at instruction %d: %v", ErrInstructionParsing, index, err)
+			return log.Errorf("%w at instruction %d: %v", ErrInstructionParsing, index, err)
 		}
 		instr.Raw = raw
 		instr.Instruction = decoded
+
+		log.Debug("instruction decoded from assembly text", slog.String("text", instr.Text), slog.String("raw", raw.String()), slog.String("decoded", decoded.String()))
+
 		return nil
 	}
 
 	// Case 2: Has Raw but no text - generate text from Raw
 	if hasRaw && !hasText {
 		instr.Text = r.generateTextFromRaw(instr.Raw, instr.Symbols)
+
+		log.Debug("instruction assembly text generated from raw", slog.String("raw", instr.Raw.String()), slog.String("text", instr.Text))
 	}
 
 	// Case 3: Has Raw but no Instruction - decode from Raw
 	if hasRaw && !hasDecoded {
 		decoded, err := instr.Raw.Decode()
 		if err != nil {
-			return fmt.Errorf("%w at instruction %d: failed to decode raw instruction: %v", ErrInstructionResolution, index, err)
+			return log.Errorf("%w at instruction %d: failed to decode raw instruction: %v", ErrInstructionResolution, index, err)
 		}
 		instr.Instruction = decoded
 	}
@@ -120,16 +136,20 @@ func (r *InstructionResolver) resolveInstruction(instr *Instruction, index int) 
 	if hasDecoded && !hasRaw {
 		raw := instr.Instruction.Raw()
 		instr.Raw = raw
+
+		log.Debug("raw instruction generated from decoded instruction", slog.String("decoded", instr.Instruction.String()), slog.String("raw", raw.String()))
 	}
 
 	// Case 5: Has Instruction but no text - generate text from Instruction
 	if hasDecoded && !hasText {
 		instr.Text = r.generateTextFromInstruction(instr.Instruction, instr.Symbols)
+
+		log.Debug("instruction assembly text generated from decoded instruction", slog.String("decoded", instr.Instruction.String()), slog.String("text", instr.Text))
 	}
 
 	// Verify we now have all three
 	if instr.Text == "" || instr.Raw == nil || instr.Instruction == nil {
-		return fmt.Errorf("%w at instruction %d: could not fully resolve instruction (text=%v, raw=%v, decoded=%v)",
+		return log.Errorf("%w at instruction %d: could not fully resolve instruction (text=%v, raw=%v, decoded=%v)",
 			ErrInstructionResolution, index, instr.Text != "", instr.Raw != nil, instr.Instruction != nil)
 	}
 
@@ -260,6 +280,8 @@ func (r *InstructionResolver) isSymbolReference(opStr string) bool {
 
 // resolveSymbolOperand resolves a symbol reference to an immediate value
 func (r *InstructionResolver) resolveSymbolOperand(opStr string, opDesc *instructions.OperandDescriptor, symbols []SymbolReference) (instructions.OperandValue, error) {
+	log := r.Log().Child("resolveSymbolOperand").WithAttrs(slog.String("operand", opStr))
+
 	// Extract base name and usage
 	baseName := opStr
 	var usage SymbolReferenceUsage = SymbolUsageFull
@@ -284,18 +306,20 @@ func (r *InstructionResolver) resolveSymbolOperand(opStr string, opDesc *instruc
 	}
 
 	if !found {
-		return instructions.OperandValue{}, fmt.Errorf("symbol %q not found or not resolved", opStr)
+		return instructions.OperandValue{}, log.Errorf("symbol %q not found or not resolved", opStr)
 	}
 
 	// Apply @lo/@hi masking
-	var value int32
+	var value uint32
 	switch usage {
 	case SymbolUsageLo:
-		value = int32(addr & 0xFFFF)
+		value = uint32(addr & 0xFFFF)
+		log.Debug("symbol reference uses low bits", slog.String("symbol", baseName), logging.Address("address", addr), logging.Address("lo_address", value))
 	case SymbolUsageHi:
-		value = int32((addr >> 16) & 0xFFFF)
+		value = uint32((addr >> 16) & 0xFFFF)
+		log.Debug("symbol reference uses high bits", slog.String("symbol", baseName), logging.Address("address", addr), logging.Address("hi_address", value))
 	default:
-		value = int32(addr)
+		value = uint32(addr)
 	}
 
 	return opDesc.ParseValue(fmt.Sprintf("%d", value))

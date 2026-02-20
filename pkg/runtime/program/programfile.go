@@ -2,9 +2,11 @@ package program
 
 import (
 	"fmt"
+	"log/slog"
 
 	"github.com/Manu343726/cucaracha/pkg/hw/cpu/mc/instructions"
 	"github.com/Manu343726/cucaracha/pkg/hw/memory"
+	"github.com/Manu343726/cucaracha/pkg/utils/logging"
 )
 
 // GlobalType is an enum for global symbol types
@@ -255,6 +257,9 @@ func Resolve(pf ProgramFile, memoryLayout *memory.MemoryLayout) (ProgramFile, er
 	return instructionResolved, nil
 }
 
+// The name of the function that serves as the program entry point. By convention, this is "main" in C-like languages.
+const ProgramEntryPointFunctionName = "main"
+
 // Returns the program entry point address, or an error if not found
 //
 // The entry point is defined as the address of the first instruction
@@ -264,24 +269,28 @@ func Resolve(pf ProgramFile, memoryLayout *memory.MemoryLayout) (ProgramFile, er
 // Also the result only will be correct if the program file was resolved with the same
 // memory layout as the runtime where the entry point will be used.
 func ProgramEntryPoint(p ProgramFile) (uint32, error) {
-	mainFunc, exists := p.Functions()["main"]
+	log := log().Child("ProgramEntryPoint")
+
+	mainFunc, exists := p.Functions()[ProgramEntryPointFunctionName]
 	if !exists {
-		return 0, fmt.Errorf("entry point 'main' function not found")
+		return 0, log.Errorf("entry point 'main' function not found")
 	}
 
 	if len(mainFunc.InstructionRanges) == 0 {
-		return 0, fmt.Errorf("entry point 'main' function has no instructions")
+		return 0, log.Errorf("entry point 'main' function has no instructions")
 	}
 
 	firstRange := mainFunc.InstructionRanges[0]
 	if firstRange.Count == 0 {
-		return 0, fmt.Errorf("entry point 'main' function has no instructions")
+		return 0, log.Errorf("entry point 'main' function has no instructions")
 	}
 
 	firstInstr := p.Instructions()[firstRange.Start]
 	if firstInstr.Address == nil {
-		return 0, fmt.Errorf("entry point 'main' function instruction has no resolved address")
+		return 0, log.Errorf("entry point 'main' function instruction has no resolved address")
 	}
+
+	log.Debug("found program entry point", slog.String("function", ProgramEntryPointFunctionName), logging.Address("address", *firstInstr.Address))
 
 	return *firstInstr.Address, nil
 }

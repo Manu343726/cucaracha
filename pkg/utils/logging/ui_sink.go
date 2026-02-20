@@ -5,8 +5,11 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"sort"
 	"sync"
 	"time"
+
+	"github.com/Manu343726/cucaracha/pkg/utils"
 )
 
 // UILogEntry represents a log entry captured by the UI sink.
@@ -20,17 +23,22 @@ type UILogEntry struct {
 
 func (e UILogEntry) String() string {
 	var buf bytes.Buffer
-	fmt.Fprintf(&buf, "[%s][%s][%s] %s\n", e.Time.Format("2006-01-02 15:04:05"), e.Level, e.Logger, e.Message)
+	fmt.Fprintf(&buf, "[%s][%s][%s] %s", e.Time.Format("2006-01-02 15:04:05"), e.Level, e.Logger, e.Message)
+
+	keyValues := utils.ZipMap(e.Attrs)
+	sort.Slice(keyValues, func(i, j int) bool {
+		return keyValues[i].First < keyValues[j].First
+	})
 
 	// Show attributes as (key1=value1, key2=value2, ...)  after the message if there are any
 	if len(e.Attrs) > 0 {
-		buf.WriteString("(")
+		buf.WriteString(" (")
 		first := true
-		for k, v := range e.Attrs {
+		for _, kv := range keyValues {
 			if !first {
 				buf.WriteString(", ")
 			}
-			fmt.Fprintf(&buf, "%s=%s", k, v)
+			fmt.Fprintf(&buf, "%s=%s", kv.First, kv.Second)
 			first = false
 		}
 		buf.WriteString(")")

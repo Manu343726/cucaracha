@@ -68,14 +68,11 @@ func (s Slice) ReadInto(buffer []byte) error {
 		return fmt.Errorf("buffer too small for slice read: buffer size %d bytes, slice size %d bytes", len(buffer), s.r.Size)
 	}
 
-	for i := uint32(0); i < s.r.Size; i++ {
-		b, err := s.m.ReadByte(s.r.Start + i)
-		if err != nil {
-			return fmt.Errorf("slice read failed at offset 0x%X: %w", i, err)
-		}
-		buffer[i] = b
+	data, err := s.m.Read(s.r.Start, int(s.r.Size))
+	if err != nil {
+		return fmt.Errorf("slice read failed: %w", err)
 	}
-
+	copy(buffer, data)
 	return nil
 }
 
@@ -89,10 +86,8 @@ func (s Slice) Write(buffer []byte) error {
 		return fmt.Errorf("buffer too small for slice write: buffer size %d bytes, slice size %d bytes", len(buffer), s.r.Size)
 	}
 
-	for i := uint32(0); i < s.r.Size; i++ {
-		if err := s.m.WriteByte(s.r.Start+i, buffer[i]); err != nil {
-			return fmt.Errorf("slice write failed at offset 0x%X: %w", i, err)
-		}
+	if err := s.m.Write(s.r.Start, buffer[:s.r.Size]); err != nil {
+		return fmt.Errorf("slice write failed: %w", err)
 	}
 
 	return nil
@@ -124,12 +119,13 @@ func (s Slice) ReadAsUint32() (uint32, error) {
 		return 0, fmt.Errorf("slice too large for uint32 read: slice size %d bytes", s.r.Size)
 	}
 
+	data, err := s.m.Read(s.r.Start, int(s.r.Size))
+	if err != nil {
+		return 0, fmt.Errorf("slice uint32 read failed: %w", err)
+	}
+
 	var value uint32
-	for i := uint32(0); i < s.r.Size; i++ {
-		b, err := s.m.ReadByte(s.r.Start + i)
-		if err != nil {
-			return 0, fmt.Errorf("slice uint32 read failed at offset 0x%X: %w", i, err)
-		}
+	for i, b := range data {
 		value |= uint32(b) << (8 * i)
 	}
 

@@ -8,7 +8,7 @@ import (
 	"github.com/Manu343726/cucaracha/pkg/hw/memory"
 	"github.com/Manu343726/cucaracha/pkg/runtime/program"
 	"github.com/Manu343726/cucaracha/pkg/runtime/program/sourcecode"
-	"github.com/Manu343726/cucaracha/pkg/ui"
+	uiDebugger "github.com/Manu343726/cucaracha/pkg/ui/debugger"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -66,7 +66,7 @@ func TestSourceLocationToUI_WithDifferentFiles(t *testing.T) {
 // Tests for SourceLocationFromUI
 
 func TestSourceLocationFromUI_WithValidLocation(t *testing.T) {
-	loc := &ui.SourceLocation{
+	loc := &uiDebugger.SourceLocation{
 		File: "test.c",
 		Line: 42,
 	}
@@ -88,7 +88,7 @@ func TestSourceLocationFromUI_WithDifferentLines(t *testing.T) {
 	lines := []int{0, 1, 10, 100, 1000, 999999}
 
 	for _, line := range lines {
-		loc := &ui.SourceLocation{File: "test.c", Line: line}
+		loc := &uiDebugger.SourceLocation{File: "test.c", Line: line}
 		result := SourceLocationFromUI(loc)
 
 		require.NotNil(t, result)
@@ -160,7 +160,7 @@ func TestMemoryRangeToUI_WithDifferentRanges(t *testing.T) {
 // Tests for MemoryRangeFromUI
 
 func TestMemoryRangeFromUI_WithValidRange(t *testing.T) {
-	region := &ui.MemoryRegion{
+	region := &uiDebugger.MemoryRegion{
 		Start: 0x1000,
 		Size:  0x100,
 	}
@@ -194,19 +194,19 @@ func TestMemoryRangeRoundtrip(t *testing.T) {
 // Tests for WatchpointTypeFromUI
 
 func TestWatchpointTypeFromUI_Read(t *testing.T) {
-	result := WatchpointTypeFromUI(ui.WatchpointTypeRead)
+	result := WatchpointTypeFromUI(uiDebugger.WatchpointTypeRead)
 
 	assert.Equal(t, core.WatchRead, result)
 }
 
 func TestWatchpointTypeFromUI_Write(t *testing.T) {
-	result := WatchpointTypeFromUI(ui.WatchpointTypeWrite)
+	result := WatchpointTypeFromUI(uiDebugger.WatchpointTypeWrite)
 
 	assert.Equal(t, core.WatchWrite, result)
 }
 
 func TestWatchpointTypeFromUI_ReadWrite(t *testing.T) {
-	result := WatchpointTypeFromUI(ui.WatchpointTypeReadWrite)
+	result := WatchpointTypeFromUI(uiDebugger.WatchpointTypeReadWrite)
 
 	assert.Equal(t, core.WatchReadWrite, result)
 }
@@ -214,12 +214,12 @@ func TestWatchpointTypeFromUI_ReadWrite(t *testing.T) {
 func TestWatchpointTypeFromUI_AllTypes(t *testing.T) {
 	tests := []struct {
 		name     string
-		uiType   ui.WatchpointType
+		uiType   uiDebugger.WatchpointType
 		expected core.WatchpointType
 	}{
-		{"read", ui.WatchpointTypeRead, core.WatchRead},
-		{"write", ui.WatchpointTypeWrite, core.WatchWrite},
-		{"read write", ui.WatchpointTypeReadWrite, core.WatchReadWrite},
+		{"read", uiDebugger.WatchpointTypeRead, core.WatchRead},
+		{"write", uiDebugger.WatchpointTypeWrite, core.WatchWrite},
+		{"read write", uiDebugger.WatchpointTypeReadWrite, core.WatchReadWrite},
 	}
 
 	for _, tt := range tests {
@@ -238,7 +238,7 @@ func TestWatchpointTypeFromUI_InvalidType_Panics(t *testing.T) {
 		}
 	}()
 
-	WatchpointTypeFromUI(ui.WatchpointType(999))
+	WatchpointTypeFromUI(uiDebugger.WatchpointType(999))
 }
 
 // Tests for WatchpointTypeToUI
@@ -246,30 +246,30 @@ func TestWatchpointTypeFromUI_InvalidType_Panics(t *testing.T) {
 func TestWatchpointTypeToUI_Read(t *testing.T) {
 	result := WatchpointTypeToUI(core.WatchRead)
 
-	assert.Equal(t, ui.WatchpointTypeRead, result)
+	assert.Equal(t, uiDebugger.WatchpointTypeRead, result)
 }
 
 func TestWatchpointTypeToUI_Write(t *testing.T) {
 	result := WatchpointTypeToUI(core.WatchWrite)
 
-	assert.Equal(t, ui.WatchpointTypeWrite, result)
+	assert.Equal(t, uiDebugger.WatchpointTypeWrite, result)
 }
 
 func TestWatchpointTypeToUI_ReadWrite(t *testing.T) {
 	result := WatchpointTypeToUI(core.WatchReadWrite)
 
-	assert.Equal(t, ui.WatchpointTypeReadWrite, result)
+	assert.Equal(t, uiDebugger.WatchpointTypeReadWrite, result)
 }
 
 func TestWatchpointTypeToUI_AllTypes(t *testing.T) {
 	tests := []struct {
 		name     string
 		coreType core.WatchpointType
-		expected ui.WatchpointType
+		expected uiDebugger.WatchpointType
 	}{
-		{"read", core.WatchRead, ui.WatchpointTypeRead},
-		{"write", core.WatchWrite, ui.WatchpointTypeWrite},
-		{"read write", core.WatchReadWrite, ui.WatchpointTypeReadWrite},
+		{"read", core.WatchRead, uiDebugger.WatchpointTypeRead},
+		{"write", core.WatchWrite, uiDebugger.WatchpointTypeWrite},
+		{"read write", core.WatchReadWrite, uiDebugger.WatchpointTypeReadWrite},
 	}
 
 	for _, tt := range tests {
@@ -321,7 +321,7 @@ func TestWatchpointToUI_WithValidWatchpoint(t *testing.T) {
 	assert.Equal(t, 123, result.ID)
 	assert.Equal(t, uint32(0x1000), result.Range.Start)
 	assert.Equal(t, uint32(0x10), result.Range.Size)
-	assert.Equal(t, ui.WatchpointTypeRead, result.Type)
+	assert.Equal(t, uiDebugger.WatchpointTypeRead, result.Type)
 	assert.True(t, result.Enabled)
 }
 
@@ -343,7 +343,7 @@ func TestWatchpointToUI_WithDisabledWatchpoint(t *testing.T) {
 
 	require.NotNil(t, result)
 	assert.False(t, result.Enabled)
-	assert.Equal(t, ui.WatchpointTypeWrite, result.Type)
+	assert.Equal(t, uiDebugger.WatchpointTypeWrite, result.Type)
 }
 
 func TestWatchpointToUI_WithDifferentTypes(t *testing.T) {
@@ -377,10 +377,10 @@ func TestWatchpointToUI_WithDifferentTypes(t *testing.T) {
 // Tests for WatchpointFromUI
 
 func TestWatchpointFromUI_WithValidWatchpoint(t *testing.T) {
-	wp := &ui.Watchpoint{
+	wp := &uiDebugger.Watchpoint{
 		ID:      123,
-		Range:   &ui.MemoryRegion{Start: 0x1000, Size: 0x10},
-		Type:    ui.WatchpointTypeRead,
+		Range:   &uiDebugger.MemoryRegion{Start: 0x1000, Size: 0x10},
+		Type:    uiDebugger.WatchpointTypeRead,
 		Enabled: true,
 	}
 
@@ -401,10 +401,10 @@ func TestWatchpointFromUI_WithNilWatchpoint(t *testing.T) {
 }
 
 func TestWatchpointFromUI_WithDisabledWatchpoint(t *testing.T) {
-	wp := &ui.Watchpoint{
+	wp := &uiDebugger.Watchpoint{
 		ID:      456,
-		Range:   &ui.MemoryRegion{Start: 0x2000, Size: 0x20},
-		Type:    ui.WatchpointTypeWrite,
+		Range:   &uiDebugger.MemoryRegion{Start: 0x2000, Size: 0x20},
+		Type:    uiDebugger.WatchpointTypeWrite,
 		Enabled: false,
 	}
 
@@ -492,7 +492,7 @@ func TestBreakpointToUI_WithDifferentAddresses(t *testing.T) {
 // Tests for BreakpointFromUI
 
 func TestBreakpointFromUI_WithValidBreakpoint(t *testing.T) {
-	bp := &ui.Breakpoint{
+	bp := &uiDebugger.Breakpoint{
 		ID:      111,
 		Address: 0x5000,
 		Enabled: true,
@@ -513,7 +513,7 @@ func TestBreakpointFromUI_WithNilBreakpoint(t *testing.T) {
 }
 
 func TestBreakpointFromUI_WithDisabledBreakpoint(t *testing.T) {
-	bp := &ui.Breakpoint{
+	bp := &uiDebugger.Breakpoint{
 		ID:      222,
 		Address: 0x6000,
 		Enabled: false,
@@ -548,23 +548,23 @@ func TestBreakpointRoundtrip(t *testing.T) {
 func TestInstructionOperandKindToUI_Register(t *testing.T) {
 	result := InstructionOperandKindToUI(instructions.OperandKind_Register)
 
-	assert.Equal(t, ui.OperandKindRegister, result)
+	assert.Equal(t, uiDebugger.OperandKindRegister, result)
 }
 
 func TestInstructionOperandKindToUI_Immediate(t *testing.T) {
 	result := InstructionOperandKindToUI(instructions.OperandKind_Immediate)
 
-	assert.Equal(t, ui.OperandKindImmediate, result)
+	assert.Equal(t, uiDebugger.OperandKindImmediate, result)
 }
 
 func TestInstructionOperandKindToUI_AllTypes(t *testing.T) {
 	tests := []struct {
 		name     string
 		kind     instructions.OperandKind
-		expected ui.InstructionOperandKind
+		expected uiDebugger.InstructionOperandKind
 	}{
-		{"register", instructions.OperandKind_Register, ui.OperandKindRegister},
-		{"immediate", instructions.OperandKind_Immediate, ui.OperandKindImmediate},
+		{"register", instructions.OperandKind_Register, uiDebugger.OperandKindRegister},
+		{"immediate", instructions.OperandKind_Immediate, uiDebugger.OperandKindImmediate},
 	}
 
 	for _, tt := range tests {

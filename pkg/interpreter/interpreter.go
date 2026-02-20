@@ -12,6 +12,7 @@ import (
 	"github.com/Manu343726/cucaracha/pkg/hw/peripheral"
 	"github.com/Manu343726/cucaracha/pkg/system"
 	"github.com/Manu343726/cucaracha/pkg/utils/contract"
+	"github.com/Manu343726/cucaracha/pkg/utils/logging"
 )
 
 // --- Interpreter ---
@@ -29,6 +30,9 @@ type Interpreter struct {
 	// Track timing for speed control
 	cycleAccumulator int64     // Accumulated cycles since last timing reset
 	timingStartTime  time.Time // When timing measurement started
+
+	breakpoints       map[uint32]struct{} // Set of breakpoint addresses
+	lastBreakpointHit *uint32
 }
 
 // Creates a new interpreter with the given system configuration.
@@ -38,8 +42,9 @@ func NewInterpreter(system *system.SystemDescriptor) (*Interpreter, error) {
 		return nil, fmt.Errorf("failed to setup CPU state: %w", err)
 	}
 	interp := &Interpreter{
-		Base:  contract.NewBase(log().Child("interpreter")),
-		state: state,
+		Base:        contract.NewBase(log().Child("interpreter")),
+		state:       state,
+		breakpoints: make(map[uint32]struct{}),
 	}
 	return interp, nil
 }
@@ -47,14 +52,26 @@ func NewInterpreter(system *system.SystemDescriptor) (*Interpreter, error) {
 func (i *Interpreter) SetBreakpoint(addr uint32) error {
 	i.Log().Debug("SetBreakpoint", slog.Uint64("addr", uint64(addr)))
 
-	// TODO: Implement breakpoint logic
+	if _, exists := i.breakpoints[addr]; exists {
+		return i.Log().Errorf("breakpoint already exists at address 0x%X", addr)
+	}
+
+	i.breakpoints[addr] = struct{}{}
+
+	i.Log().Info("breakpoint set", logging.Address("address", addr))
 	return nil
 }
 
 func (i *Interpreter) ClearBreakpoint(addr uint32) error {
 	i.Log().Debug("ClearBreakpoint", slog.Uint64("addr", uint64(addr)))
 
-	// TODO: Implement breakpoint logic
+	if _, exists := i.breakpoints[addr]; !exists {
+		return i.Log().Errorf("no breakpoint found at address 0x%X", addr)
+	}
+
+	delete(i.breakpoints, addr)
+
+	i.Log().Info("breakpoint cleared", logging.Address("address", addr))
 	return nil
 }
 
@@ -138,14 +155,35 @@ func (i *Interpreter) Peripherals() map[string]peripheral.Peripheral {
 func (i *Interpreter) Step() (*cpu.StepInfo, error) {
 	log := i.Log().Child("Step")
 
-	// Check for pending interrupts before executing
-	if err := i.checkInterrupts(); err != nil {
-		return nil, log.Errorf("Interrupt handling failed: %v", err)
-	}
-
 	if i.state.Halted {
 		log.Debug("CPU is halted")
 		return nil, log.Errorf("CPU is halted")
+	}
+
+	// Save current PC for detecting branches
+	oldPC, err := cpu.ReadPC(i.Registers())
+	if err != nil {
+		return nil, log.Errorf("failed to read PC: %v", err)
+	}
+
+	log = log.WithAttrs(logging.Address("pc", oldPC))
+
+	if i.lastBreakpointHit != nil && *i.lastBreakpointHit == oldPC {
+		log.Info("resuming from breakpoint")
+		i.lastBreakpointHit = nil
+	} else if _, isBreakpoint := i.breakpoints[oldPC]; isBreakpoint {
+		i.lastBreakpointHit = &oldPC
+
+		info := &cpu.StepInfo{
+			CyclesUsed:             0,
+			Halted:                 i.IsHalted(),
+			InstructionAddress:     oldPC,
+			NextInstructionAddress: oldPC,
+			BreakpointHit:          &oldPC,
+		}
+
+		log.Debug("finished (breakpoint hit)", slog.Uint64("cycles", uint64(info.CyclesUsed)), slog.Bool("halted", info.Halted))
+		return info, nil
 	}
 
 	instruction, err := cpu.DecodeCurrentInstruction(i.Registers(), i.Memory())
@@ -153,10 +191,12 @@ func (i *Interpreter) Step() (*cpu.StepInfo, error) {
 		return nil, log.Errorf("failed to decode instruction: %v", err)
 	}
 
-	// Save current PC for detecting branches
-	oldPC, err := cpu.ReadPC(i.Registers())
-	if err != nil {
-		return nil, log.Errorf("failed to read PC: %v", err)
+	log = log.WithAttrs(instruction.LoggingAttribute("instruction"))
+	log.Debug("executing")
+
+	// Check for pending interrupts before executing
+	if err := i.checkInterrupts(); err != nil {
+		return nil, log.Errorf("Interrupt handling failed: %v", err)
 	}
 
 	// Execute the instruction
@@ -167,6 +207,11 @@ func (i *Interpreter) Step() (*cpu.StepInfo, error) {
 	// Advance PC one instruction if it wasn't changed by the instruction itself (e.g., JMP)
 	if err := cpu.AdvancePCIfEqual(i.Registers(), oldPC, 1); err != nil {
 		return nil, log.Errorf("failed to advance PC: %w", err)
+	}
+
+	newPC, err := cpu.ReadPC(i.Registers())
+	if err != nil {
+		return nil, log.Errorf("failed to read new PC: %v", err)
 	}
 
 	// Clock peripherals
@@ -183,11 +228,13 @@ func (i *Interpreter) Step() (*cpu.StepInfo, error) {
 	i.state.IntController.Poll()
 
 	info := &cpu.StepInfo{
-		CyclesUsed: instruction.Descriptor.Cycles,
-		Halted:     i.IsHalted(),
+		CyclesUsed:             instruction.Descriptor.Cycles,
+		Halted:                 i.IsHalted(),
+		InstructionAddress:     oldPC,
+		NextInstructionAddress: newPC,
 	}
 
-	log.Debug("finished", slog.Uint64("cycles", uint64(info.CyclesUsed)), slog.Bool("halted", info.Halted))
+	log.Debug("finished", slog.Uint64("cycles", uint64(info.CyclesUsed)), slog.Bool("halted", info.Halted), logging.Address("next_pc", newPC))
 	return info, nil
 }
 

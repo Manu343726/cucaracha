@@ -10,6 +10,8 @@ import (
 
 // Saves the system descriptor in runtime memory
 func LoadSystemDescriptor(r Runtime, s *system.SystemDescriptor) error {
+	log().Debug("loading system descriptor")
+
 	if err := system.EncodeSystemDescriptor(s, memory.NewMemoryWriter(memory.MemorySlice(r.Memory()))); err != nil {
 		return fmt.Errorf("failed to save system descriptor to memory: %w", err)
 	}

@@ -1,13 +1,19 @@
 package interpreter
 
 import (
+	"log/slog"
+
 	"github.com/Manu343726/cucaracha/pkg/hw/cpu"
 	"github.com/Manu343726/cucaracha/pkg/hw/cpu/mc"
 	"github.com/Manu343726/cucaracha/pkg/hw/cpu/mc/registers"
+	"github.com/Manu343726/cucaracha/pkg/utils/contract"
+	"github.com/Manu343726/cucaracha/pkg/utils/logging"
 )
 
 // Holds CPU register values
 type Registers struct {
+	contract.Base
+
 	registers map[registers.RegisterClass][]uint32
 }
 
@@ -18,6 +24,7 @@ func NewRegisters() cpu.Registers {
 	}
 
 	return &Registers{
+		Base:      contract.NewBase(log().Child("Registers")),
 		registers: registers,
 	}
 }
@@ -29,6 +36,8 @@ func (r *Registers) Reset() error {
 		}
 		r.registers[class] = regs
 	}
+
+	r.Log().Debug("reset")
 
 	return nil
 }
@@ -57,29 +66,37 @@ func (r *Registers) lookupByDescriptor(regDesc *registers.RegisterDescriptor) *u
 }
 
 func (r *Registers) ReadByDescriptor(regDesc *registers.RegisterDescriptor) (uint32, error) {
-	return *r.lookupByDescriptor(regDesc), nil
+	value := *r.lookupByDescriptor(regDesc)
+
+	r.Log().Debug("read", slog.String("register", regDesc.Name()), logging.Hex("value", value))
+	return value, nil
 }
 
 func (r *Registers) WriteByDescriptor(regDesc *registers.RegisterDescriptor, value uint32) error {
+	r.Log().Debug("write", slog.String("register", regDesc.Name()), logging.Hex("value", value))
 	*r.lookupByDescriptor(regDesc) = value
 	return nil
 }
 
 func (r *Registers) Read(idx uint32) (uint32, error) {
-	_, value, err := r.lookup(idx)
+	d, value, err := r.lookup(idx)
 	if err != nil {
+		r.Log().Debug("read by index failed", slog.Uint64("index", uint64(idx)), logging.Hex("value", *value), slog.String("error", err.Error()))
 		return 0, err
 	}
 
+	r.Log().Debug("read", slog.String("register", d.Name()), logging.Hex("value", *value))
 	return *value, nil
 }
 
 func (r *Registers) Write(idx uint32, value uint32) error {
-	_, regValue, err := r.lookup(idx)
+	d, regValue, err := r.lookup(idx)
 	if err != nil {
+		r.Log().Debug("write by index failed", slog.Uint64("index", uint64(idx)), logging.Hex("value", *regValue), slog.String("error", err.Error()))
 		return err
 	}
 
+	r.Log().Debug("write", slog.String("register", d.Name()), logging.Hex("value", value))
 	*regValue = value
 	return nil
 }

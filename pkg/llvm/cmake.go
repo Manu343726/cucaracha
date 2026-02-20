@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -12,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/Manu343726/cucaracha/pkg/utils/contract"
+	"github.com/Manu343726/cucaracha/pkg/utils/logging"
 )
 
 // CMakeGenerator represents a CMake generator type
@@ -467,32 +469,36 @@ func (c *CMake) Configure(config *CMakeConfig) (*ConfigureResult, error) {
 		CacheFile: filepath.Join(config.BuildDir, "CMakeCache.txt"),
 	}
 
-	// Set up output
+	// Log the configure command
+	c.Log().Info("Configuring CMake", slog.String("command", result.Command))
+
+	// Set up output with logging
 	var stdoutBuf, stderrBuf strings.Builder
+
+	// Determine log level based on verbose flag
+	logLvl := slog.LevelDebug
 	if config.Verbose {
-		cmd.Stdout = io.MultiWriter(os.Stderr, &stdoutBuf)
-		cmd.Stderr = io.MultiWriter(os.Stderr, &stderrBuf)
-		fmt.Fprintf(os.Stderr, "Running: %s\n", result.Command)
-	} else {
-		if config.Stdout != nil {
-			cmd.Stdout = io.MultiWriter(config.Stdout, &stdoutBuf)
-		} else {
-			cmd.Stdout = &stdoutBuf
-		}
-		if config.Stderr != nil {
-			cmd.Stderr = io.MultiWriter(config.Stderr, &stderrBuf)
-		} else {
-			cmd.Stderr = &stderrBuf
-		}
+		logLvl = slog.LevelInfo
 	}
+
+	stdoutLogger := logging.NewLoggingWriter(c.Log(), logLvl)
+	stderrLogger := logging.NewLoggingWriter(c.Log(), slog.LevelWarn)
+
+	// Configure stdout: log + buffer
+	cmd.Stdout = io.MultiWriter(stdoutLogger, &stdoutBuf)
+	cmd.Stderr = io.MultiWriter(stderrLogger, &stderrBuf)
 
 	// Execute
 	if err := cmd.Run(); err != nil {
+		stdoutLogger.Flush()
+		stderrLogger.Flush()
 		result.Stdout = stdoutBuf.String()
 		result.Stderr = stderrBuf.String()
 		return result, c.Log().Errorf("cmake configure failed: %w\n%s", err, result.Stderr)
 	}
 
+	stdoutLogger.Flush()
+	stderrLogger.Flush()
 	result.Stdout = stdoutBuf.String()
 	result.Stderr = stderrBuf.String()
 	return result, nil
@@ -554,32 +560,36 @@ func (c *CMake) Build(config *CMakeConfig) (*BuildResult, error) {
 		Command: fmt.Sprintf("%s %s", c.cmakePath, strings.Join(args, " ")),
 	}
 
-	// Set up output
+	// Log the build command
+	c.Log().Info("Building with CMake", slog.String("command", result.Command))
+
+	// Set up output with logging
 	var stdoutBuf, stderrBuf strings.Builder
+
+	// Determine log level based on verbose flag
+	logLvl := slog.LevelDebug
 	if config.Verbose {
-		cmd.Stdout = io.MultiWriter(os.Stderr, &stdoutBuf)
-		cmd.Stderr = io.MultiWriter(os.Stderr, &stderrBuf)
-		fmt.Fprintf(os.Stderr, "Running: %s\n", result.Command)
-	} else {
-		if config.Stdout != nil {
-			cmd.Stdout = io.MultiWriter(config.Stdout, &stdoutBuf)
-		} else {
-			cmd.Stdout = &stdoutBuf
-		}
-		if config.Stderr != nil {
-			cmd.Stderr = io.MultiWriter(config.Stderr, &stderrBuf)
-		} else {
-			cmd.Stderr = &stderrBuf
-		}
+		logLvl = slog.LevelInfo
 	}
+
+	stdoutLogger := logging.NewLoggingWriter(c.Log(), logLvl)
+	stderrLogger := logging.NewLoggingWriter(c.Log(), slog.LevelWarn)
+
+	// Configure stdout: log + buffer
+	cmd.Stdout = io.MultiWriter(stdoutLogger, &stdoutBuf)
+	cmd.Stderr = io.MultiWriter(stderrLogger, &stderrBuf)
 
 	// Execute
 	if err := cmd.Run(); err != nil {
+		stdoutLogger.Flush()
+		stderrLogger.Flush()
 		result.Stdout = stdoutBuf.String()
 		result.Stderr = stderrBuf.String()
 		return result, c.Log().Errorf("cmake build failed: %w\n%s", err, result.Stderr)
 	}
 
+	stdoutLogger.Flush()
+	stderrLogger.Flush()
 	result.Stdout = stdoutBuf.String()
 	result.Stderr = stderrBuf.String()
 	return result, nil
@@ -766,17 +776,27 @@ func (c *CMake) ConfigureAndBuildWithPreset(llvmRoot string, configurePreset *Co
 	cmd.Dir = llvmDir
 
 	var configureOutput strings.Builder
+
+	// Determine log level based on verbose flag
+	logLvl := slog.LevelDebug
 	if verbose {
-		cmd.Stdout = io.MultiWriter(os.Stdout, &configureOutput)
-		cmd.Stderr = io.MultiWriter(os.Stderr, &configureOutput)
-	} else {
-		cmd.Stdout = &configureOutput
-		cmd.Stderr = &configureOutput
+		logLvl = slog.LevelInfo
 	}
 
+	stdoutLogger := logging.NewLoggingWriter(c.Log(), logLvl)
+	stderrLogger := logging.NewLoggingWriter(c.Log(), slog.LevelWarn)
+
+	cmd.Stdout = io.MultiWriter(stdoutLogger, &configureOutput)
+	cmd.Stderr = io.MultiWriter(stderrLogger, &configureOutput)
+
 	if err := cmd.Run(); err != nil {
+		stdoutLogger.Flush()
+		stderrLogger.Flush()
 		return nil, fmt.Errorf("configure failed: %w\nOutput: %s", err, configureOutput.String())
 	}
+
+	stdoutLogger.Flush()
+	stderrLogger.Flush()
 
 	// Determine build directory from preset
 	buildDir := resolveBinaryDir(configurePreset.BinaryDir, llvmDir)
@@ -809,17 +829,27 @@ func (c *CMake) ConfigureAndBuildWithPreset(llvmRoot string, configurePreset *Co
 	buildCmd.Dir = llvmDir
 
 	var buildOutput strings.Builder
+
+	// Set up logger for build step (loggers already declared in configure step)
+	buildLogLvl := slog.LevelDebug
 	if verbose {
-		buildCmd.Stdout = io.MultiWriter(os.Stdout, &buildOutput)
-		buildCmd.Stderr = io.MultiWriter(os.Stderr, &buildOutput)
-	} else {
-		buildCmd.Stdout = &buildOutput
-		buildCmd.Stderr = &buildOutput
+		buildLogLvl = slog.LevelInfo
 	}
 
+	buildStdoutLogger := logging.NewLoggingWriter(c.Log(), buildLogLvl)
+	buildStderrLogger := logging.NewLoggingWriter(c.Log(), slog.LevelWarn)
+
+	buildCmd.Stdout = io.MultiWriter(buildStdoutLogger, &buildOutput)
+	buildCmd.Stderr = io.MultiWriter(buildStderrLogger, &buildOutput)
+
 	if err := buildCmd.Run(); err != nil {
+		buildStdoutLogger.Flush()
+		buildStderrLogger.Flush()
 		return nil, c.Log().Errorf("build failed: %w\nOutput: %s", err, buildOutput.String())
 	}
+
+	buildStdoutLogger.Flush()
+	buildStderrLogger.Flush()
 
 	return &BuildResult{
 		Command: fmt.Sprintf("%s %s && %s %s", c.cmakePath, strings.Join(configureArgs, " "), c.cmakePath, strings.Join(buildArgs, " ")),

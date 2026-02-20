@@ -3,6 +3,7 @@ package llvm
 import (
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -10,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/Manu343726/cucaracha/pkg/utils/contract"
+	"github.com/Manu343726/cucaracha/pkg/utils/logging"
 )
 
 // OutputFormat specifies the output format for compilation
@@ -150,6 +152,9 @@ type DiscoverClangOptions struct {
 	// AutoBuild enables automatic building of clang if llvm-project is found but clang isn't built
 	AutoBuild bool
 
+	// ForceRebuild forces a rebuild of clang even if it's already built
+	ForceRebuild bool
+
 	// Verbose enables verbose output during discovery and building
 	Verbose bool
 }
@@ -175,50 +180,48 @@ func DiscoverClang(config *ClangConfig, opts ...*DiscoverClangOptions) (*ClangTo
 		options = &DiscoverClangOptions{}
 	}
 
-	toolchain := &ClangToolchain{
-		Base:   contract.NewBase(log.Child("ClangToolchain")),
-		config: config,
-	}
-
 	// 1. Check explicit ClangPath
 	if config.ClangPath != "" {
 		if _, err := os.Stat(config.ClangPath); err == nil {
-			toolchain.clangPath = config.ClangPath
-			toolchain.llvmRoot = config.LLVMRoot
-			return toolchain, nil
+			return NewClangToolchain(config, config.ClangPath, config.LLVMRoot, false), nil
 		}
+
 		return nil, log.Errorf("specified clang path not found: %s", config.ClangPath)
 	}
 
-	// 2. Check project build directory
-	projectClang, llvmRoot := findProjectClang(config)
-	if projectClang != "" {
-		toolchain.clangPath = projectClang
-		toolchain.llvmRoot = llvmRoot
-		toolchain.isSystem = false
-		return toolchain, nil
+	// 2. Check project build directory (unless force rebuild is enabled)
+	if !options.ForceRebuild {
+		if projectClang, err := findProjectClang(config); err != nil {
+			if options.Verbose {
+				log.Info("error searching for clang in project build directories", "error", err)
+			}
+		} else {
+			return NewClangToolchain(config, projectClang.ClangPath, projectClang.LLVMRoot, false), nil
+		}
+
 	}
 
 	// 3. If AutoBuild is enabled and llvm-project exists, build clang
-	if options.AutoBuild {
+	if options.AutoBuild || options.ForceRebuild {
 		llvmProjectPath := FindLLVMProject()
 		if llvmProjectPath != "" {
-			if options.Verbose {
-				log.Info("llvm-project found, building clang...", "llvmRoot", llvmProjectPath)
-			}
-
-			toolchain.llvmRoot = llvmProjectPath
-			toolchain.config.LLVMRoot = llvmProjectPath
-
-			if err := toolchain.BuildClang(options.Verbose); err != nil {
-				// Building failed, continue to try system clang
+			if options.ForceRebuild {
 				if options.Verbose {
-					log.Warn("Failed to build clang", "error", err)
+					log.Info("force rebuild enabled, rebuilding clang...", "llvmRoot", llvmProjectPath)
 				}
 			} else {
-				// Successfully built
-				return toolchain, nil
+				if options.Verbose {
+					log.Info("llvm-project found, building clang...", "llvmRoot", llvmProjectPath)
+				}
 			}
+
+			toolchain := NewClangToolchain(config, "", llvmProjectPath, false)
+
+			if err := toolchain.BuildClang(options.Verbose, options.ForceRebuild); err != nil {
+				return nil, log.Errorf("Failed to build clang: %v", err)
+			}
+
+			return toolchain, nil
 		}
 	}
 
@@ -227,12 +230,9 @@ func DiscoverClang(config *ClangConfig, opts ...*DiscoverClangOptions) (*ClangTo
 	if systemClang != "" {
 		// Verify it supports cucaracha target
 		if supportsCucarachaTarget(systemClang) {
-			toolchain.clangPath = systemClang
-			toolchain.isSystem = true
-			return toolchain, nil
+			return NewClangToolchain(config, systemClang, "", true), nil
 		}
-		// System clang found but doesn't support cucaracha
-		log.Warn("System clang found but does not support cucaracha target", "clangPath", systemClang)
+
 		// If llvm-project exists, suggest building
 		if llvmRoot := FindLLVMProject(); llvmRoot != "" {
 			return nil, log.Errorf("system clang at %s does not support cucaracha target; "+
@@ -252,8 +252,14 @@ func DiscoverClang(config *ClangConfig, opts ...*DiscoverClangOptions) (*ClangTo
 	return nil, log.Errorf("could not find clang with cucaracha support; please build LLVM with -DLLVM_EXPERIMENTAL_TARGETS_TO_BUILD=Cucaracha")
 }
 
+type ProjectClangPaths struct {
+	ClangPath  string
+	LLVMBinDir string
+	LLVMRoot   string
+}
+
 // findProjectClang looks for clang in the project's LLVM build directory
-func findProjectClang(config *ClangConfig) (clangPath, llvmRoot string) {
+func findProjectClang(config *ClangConfig) (*ProjectClangPaths, error) {
 	// Determine project root
 	projectRoot := config.ProjectRoot
 
@@ -336,14 +342,17 @@ func findProjectClang(config *ClangConfig) (clangPath, llvmRoot string) {
 
 				for _, path := range paths {
 					if _, err := os.Stat(path); err == nil {
-						return path, absRoot
+						return &ProjectClangPaths{
+							ClangPath: path,
+							LLVMRoot:  absRoot,
+						}, nil
 					}
 				}
 			}
 		}
 	}
 
-	return "", ""
+	return nil, fmt.Errorf("clang not found in project build directories")
 }
 
 // findSystemClang looks for clang in the system PATH
@@ -510,27 +519,37 @@ func (t *ClangToolchain) Compile(inputPath string, opts *CompileOptions) (*Compi
 	log.Debug("call options", "options", *opts, "input", inputPath, "output", outputPath)
 	log.Debug("clang command", "command", result.Command)
 
-	// Execute - in verbose mode, stream output directly to stderr
-	var output []byte
-	var err error
+	// Set up output with logging
+	var stdoutBuf, stderrBuf strings.Builder
 
+	// Determine log level based on verbose flag
+	logLvl := slog.LevelDebug
 	if opts.Verbose {
-		// Stream output directly to stderr for real-time visibility
-		var stdoutBuf, stderrBuf strings.Builder
-		cmd.Stdout = io.MultiWriter(os.Stderr, &stdoutBuf)
-		cmd.Stderr = io.MultiWriter(os.Stderr, &stderrBuf)
-		err = cmd.Run()
+		logLvl = slog.LevelInfo
+	}
+
+	stdoutLogger := logging.NewLoggingWriter(log, logLvl)
+	stderrLogger := logging.NewLoggingWriter(log, slog.LevelWarn)
+
+	// Configure stdout: log + buffer
+	cmd.Stdout = io.MultiWriter(stdoutLogger, &stdoutBuf)
+	cmd.Stderr = io.MultiWriter(stderrLogger, &stderrBuf)
+
+	// Execute
+	var output []byte
+	if err := cmd.Run(); err != nil {
+		stdoutLogger.Flush()
+		stderrLogger.Flush()
 		result.Stdout = stdoutBuf.String()
 		result.Stderr = stderrBuf.String()
 		output = []byte(result.Stdout + result.Stderr)
-	} else {
-		output, err = cmd.CombinedOutput()
-		result.Stderr = string(output)
-	}
-
-	if err != nil {
 		return result, log.Errorf("compilation failed: %v\n%s", err, output)
 	}
+
+	stdoutLogger.Flush()
+	stderrLogger.Flush()
+	result.Stdout = stdoutBuf.String()
+	result.Stderr = stderrBuf.String()
 
 	return result, nil
 }
@@ -575,15 +594,23 @@ func (t *ClangToolchain) Version() (string, error) {
 }
 
 // BuildClang attempts to build clang from the LLVM sources using the cmake.go API
-func (t *ClangToolchain) BuildClang(verbose bool) error {
+func (t *ClangToolchain) BuildClang(verbose bool, forceRebuild ...bool) error {
+	log := t.Log().Child("BuildClang")
+
 	if t.llvmRoot == "" {
-		return fmt.Errorf("LLVM root not set; cannot build clang")
+		return log.Errorf("LLVM root not set; cannot build clang")
+	}
+
+	// Parse forceRebuild parameter (defaults to false)
+	shouldForceRebuild := false
+	if len(forceRebuild) > 0 {
+		shouldForceRebuild = forceRebuild[0]
 	}
 
 	// Create CMake instance
 	cmake, err := NewCMake()
 	if err != nil {
-		return fmt.Errorf("cmake not available: %w", err)
+		return log.Errorf("cmake not available: %w", err)
 	}
 
 	// Determine build directory
@@ -597,6 +624,18 @@ func (t *ClangToolchain) BuildClang(verbose bool) error {
 	}
 
 	buildPath := filepath.Join(t.llvmRoot, buildDir)
+
+	// If force rebuild is enabled, clean the build directory first
+	if shouldForceRebuild {
+		if verbose {
+			log.Info("force rebuild enabled, cleaning build directory", "buildPath", buildPath)
+		}
+		if err := cmake.Clean(buildPath); err != nil {
+			if verbose {
+				log.Warn("failed to clean build directory", "error", err)
+			}
+		}
+	}
 
 	// Determine build configuration
 	buildConfig := t.config.BuildConfig
@@ -615,13 +654,17 @@ func (t *ClangToolchain) BuildClang(verbose bool) error {
 		Verbose:             verbose,
 	}
 
+	logLevel := slog.LevelDebug
+
 	// Build using cmake.go API
 	if verbose {
-		fmt.Fprintf(os.Stderr, "Building clang from %s...\n", t.llvmRoot)
+		logLevel = slog.LevelInfo
 	}
 
+	log.Log(logLevel, "starting", "llvmRoot", t.llvmRoot, "buildDir", buildPath, "buildType", buildConfig)
+
 	if _, err := cmake.BuildLLVM(llvmConfig); err != nil {
-		return fmt.Errorf("LLVM build failed: %w", err)
+		return log.Errorf("LLVM build failed: %w", err)
 	}
 
 	// Update clang path after successful build
@@ -642,76 +685,13 @@ func (t *ClangToolchain) BuildClang(verbose bool) error {
 			t.clangPath = path
 			t.isSystem = false
 			if verbose {
-				fmt.Fprintf(os.Stderr, "Clang built successfully: %s\n", path)
+				log.Info("Clang built successfully", "path", path)
 			}
 			return nil
 		}
 	}
 
-	return fmt.Errorf("build completed but clang not found at expected locations: %v", possiblePaths)
-}
-
-// runCMakeConfigure runs CMake configuration (legacy, kept for compatibility)
-func (t *ClangToolchain) runCMakeConfigure(buildPath, buildConfig string, verbose bool) error {
-	llvmPath := filepath.Join(t.llvmRoot, "llvm")
-
-	var args []string
-
-	if runtime.GOOS == "windows" {
-		args = []string{
-			"-G", "Visual Studio 17 2022",
-			"-A", "x64",
-		}
-	} else {
-		// Try to use Ninja if available
-		if _, err := exec.LookPath("ninja"); err == nil {
-			args = []string{"-G", "Ninja"}
-		} else {
-			args = []string{"-G", "Unix Makefiles"}
-		}
-	}
-
-	args = append(args,
-		"-DLLVM_ENABLE_PROJECTS=clang",
-		"-DLLVM_TARGETS_TO_BUILD=X86",
-		"-DLLVM_EXPERIMENTAL_TARGETS_TO_BUILD=Cucaracha",
-		fmt.Sprintf("-DCMAKE_BUILD_TYPE=%s", buildConfig),
-		llvmPath,
-	)
-
-	cmd := exec.Command("cmake", args...)
-	cmd.Dir = buildPath
-
-	if verbose {
-		fmt.Fprintf(os.Stderr, "Running: cmake %s\n", strings.Join(args, " "))
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-	}
-
-	return cmd.Run()
-}
-
-// runCMakeBuild runs CMake build
-func (t *ClangToolchain) runCMakeBuild(buildPath, buildConfig string, verbose bool) error {
-	args := []string{
-		"--build", ".",
-		"--target", "clang",
-		"--config", buildConfig,
-	}
-
-	// Add parallel jobs
-	args = append(args, "-j", fmt.Sprintf("%d", runtime.NumCPU()))
-
-	cmd := exec.Command("cmake", args...)
-	cmd.Dir = buildPath
-
-	if verbose {
-		fmt.Fprintf(os.Stderr, "Running: cmake %s\n", strings.Join(args, " "))
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-	}
-
-	return cmd.Run()
+	return log.Errorf("build completed but clang not found at expected locations: %v", possiblePaths)
 }
 
 // IsSourceFile returns true if the file extension indicates a C/C++ source file

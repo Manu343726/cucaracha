@@ -129,3 +129,18 @@ func Filter[T any](input []T, cond func(T) bool) []T {
 
 	return result
 }
+
+// Returns a new sequence with all duplicated items of a sequence removed
+func Set[T comparable](input []T) []T {
+	seen := make(map[T]struct{})
+	result := make([]T, 0, len(input))
+
+	for i := range input {
+		if _, ok := seen[input[i]]; !ok {
+			seen[input[i]] = struct{}{}
+			result = append(result, input[i])
+		}
+	}
+
+	return result
+}

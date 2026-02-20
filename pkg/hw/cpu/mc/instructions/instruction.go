@@ -2,9 +2,11 @@ package instructions
 
 import (
 	"fmt"
+	"log/slog"
 	"strings"
 
 	"github.com/Manu343726/cucaracha/pkg/hw/cpu/mc/registers"
+	"github.com/Manu343726/cucaracha/pkg/utils/logging"
 )
 
 // Stores a fully decoded instruction
@@ -48,6 +50,11 @@ func (i *Instruction) String() string {
 	}
 
 	return builder.String()
+}
+
+// Returns a logging attribute for the instruction, which includes its assembly representation.
+func (i *Instruction) LoggingAttribute(name string) slog.Attr {
+	return logging.Instruction(name, i.String())
 }
 
 func NewInstruction(descriptor *InstructionDescriptor, operands []OperandValue) (*Instruction, error) {

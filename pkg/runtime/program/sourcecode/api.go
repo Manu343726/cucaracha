@@ -1,6 +1,9 @@
 package sourcecode
 
-import "fmt"
+import (
+	"fmt"
+	"log/slog"
+)
 
 // Represents a location within a source file
 type Location struct {
@@ -24,6 +27,11 @@ func (s *Location) String() string {
 	}
 
 	return fmt.Sprintf("%s:%d", s.File.Path(), s.Line)
+}
+
+// Returns a slog attribute representing the source code location in a human-readable format.
+func (s *Location) LoggingAttribute(name string) slog.Attr {
+	return slog.String(name, s.String())
 }
 
 // Represents a range of lines within a source file

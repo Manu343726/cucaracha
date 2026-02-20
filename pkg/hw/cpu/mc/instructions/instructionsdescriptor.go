@@ -91,9 +91,10 @@ func (d *InstructionsDescriptor) Decode(binaryRepresentation uint32) (*Instructi
 		return nil, err
 	}
 
-	operandValues := make([]uint64, len(descriptor.Operands))
+	realOperands := descriptor.RealOperands()
+	operandValues := make([]uint64, len(realOperands))
 
-	for i, operand := range descriptor.Operands {
+	for i, operand := range realOperands {
 		operandValues[i] = uint64(view.Read(operand.EncodingPosition, operand.EncodingBits))
 	}
 
@@ -111,8 +112,14 @@ func (d *InstructionsDescriptor) Encode(instr *Instruction) (uint32, error) {
 	view := utils.CreateBitView(&result)
 	view.Write(uint32(instr.Descriptor.OpCode.BinaryRepresentation), instr.Descriptor.OpCode.EncodingPosition(), instr.Descriptor.OpCode.EncodingBits())
 
+	realOperands := instr.Descriptor.RealOperands()
+
+	if len(instr.OperandValues) != len(realOperands) {
+		return 0, fmt.Errorf("invalid number of operands for instruction %s: expected %v, got %v", instr.Descriptor.String(), len(realOperands), len(instr.OperandValues))
+	}
+
 	for i, operand := range instr.OperandValues {
-		operandDesc := instr.Descriptor.Operands[i]
+		operandDesc := realOperands[i]
 		view.Write(uint32(operand.Encode()), operandDesc.EncodingPosition, operandDesc.EncodingBits)
 	}
 

@@ -1,6 +1,12 @@
 package memory
 
-import "fmt"
+import (
+	"fmt"
+	"iter"
+	"log/slog"
+
+	"github.com/Manu343726/cucaracha/pkg/utils/logging"
+)
 
 // Contains addressing information of a continuous memory segment
 type Range struct {
@@ -17,8 +23,28 @@ func (r Range) End() uint32 {
 	return r.Start + r.Size
 }
 
+// Returns a sequence of addresses within the memory range, stepping by the given amount.
+func (r Range) Addresses(step uint32) iter.Seq[uint32] {
+	if step == 0 {
+		step = 1
+	}
+
+	return func(yield func(uint32) bool) {
+		for addr := r.Start; addr < r.End(); addr += step {
+			if !yield(addr) {
+				return
+			}
+		}
+	}
+}
+
 func (r Range) String() string {
 	return fmt.Sprintf("[0x%08X - 0x%08X, Size: %db, Flags: %s]", r.Start, r.End(), r.Size, r.Flags.String())
+}
+
+// Returns a slog attribute representing the memory range in a human-readable format.
+func (r Range) AddressRangeLoggingAttribute(name string) slog.Attr {
+	return logging.Stringf(name, "0x%08X-0x%08X", r.Start, r.End())
 }
 
 // Checks if this memory range overlaps with another.

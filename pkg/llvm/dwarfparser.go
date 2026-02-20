@@ -45,16 +45,21 @@ import (
 	"debug/elf"
 	"fmt"
 	"io"
+	"log/slog"
 	"sort"
 
 	"github.com/Manu343726/cucaracha/pkg/runtime/program"
 	"github.com/Manu343726/cucaracha/pkg/runtime/program/sourcecode"
+	"github.com/Manu343726/cucaracha/pkg/utils/contract"
+	"github.com/Manu343726/cucaracha/pkg/utils/logging"
 )
 
 // DWARFParser extracts debug information from DWARF sections in ELF files.
 // It uses Go's debug/dwarf package to parse the standard DWARF format and
 // converts the information into Cucaracha's program.DebugInfo structure.
 type DWARFParser struct {
+	contract.Base
+
 	elfFile   *elf.File
 	dwarfData *dwarf.Data
 	debugInfo *program.DebugInfo
@@ -68,6 +73,7 @@ func NewDWARFParser(elfFile *elf.File) (*DWARFParser, error) {
 	}
 
 	return &DWARFParser{
+		Base:      contract.NewBase(log().Child("DWARFParser")),
 		elfFile:   elfFile,
 		dwarfData: dwarfData,
 		debugInfo: program.NewDebugInfo(),
@@ -79,13 +85,13 @@ func (p *DWARFParser) Parse() (*program.DebugInfo, error) {
 	// Parse line number information
 	if err := p.parseLineInfo(); err != nil {
 		// Line info is optional, continue even if it fails
-		// fmt.Printf("Warning: failed to parse line info: %v\n", err)
+		p.Log().Warn("failed to parse line info", slog.Any("error", err))
 	}
 
 	// Parse compilation units and variable information
 	if err := p.parseCompilationUnits(); err != nil {
 		// Also optional
-		// fmt.Printf("Warning: failed to parse compilation units: %v\n", err)
+		p.Log().Warn("failed to parse compilation units", slog.Any("error", err))
 	}
 
 	return p.debugInfo, nil
@@ -96,6 +102,8 @@ func (p *DWARFParser) Parse() (*program.DebugInfo, error) {
 // propagates each entry to cover all instruction addresses (every 4 bytes)
 // until the next entry.
 func (p *DWARFParser) parseLineInfo() error {
+	log := p.Log().Child("parseLineInfo")
+
 	reader := p.dwarfData.Reader()
 
 	// Collect all line entries first, then propagate
@@ -121,6 +129,7 @@ func (p *DWARFParser) parseLineInfo() error {
 			// Get the line reader for this compilation unit
 			lineReader, err := p.dwarfData.LineReader(entry)
 			if err != nil {
+				log.Warn("failed to get line reader for compilation unit", slog.Any("error", err))
 				continue
 			}
 			if lineReader == nil {
@@ -135,6 +144,7 @@ func (p *DWARFParser) parseLineInfo() error {
 					break
 				}
 				if err != nil {
+					log.Warn("failed to read line entry", slog.Any("error", err))
 					break
 				}
 
@@ -166,6 +176,7 @@ func (p *DWARFParser) parseLineInfo() error {
 		sourceFile, err := p.debugInfo.SourceLibrary.File(entry.file)
 		if err != nil {
 			// Skip entries with unknown source files
+			log.Warn("failed to get source file for line entry", slog.String("file", entry.file), slog.String("error", err.Error()))
 			continue
 		}
 		loc := &sourcecode.Location{
@@ -186,6 +197,8 @@ func (p *DWARFParser) parseLineInfo() error {
 		// Fill in all instruction addresses from this entry to the next
 		for addr := entry.addr; addr < endAddr; addr += instrSize {
 			p.debugInfo.InstructionLocations[addr] = loc
+
+			log.Debug("mapped instruction address to source location", logging.Address("address", addr), logging.Stringf("location", "%s:%d:%d", loc.File.Name(), loc.Line, loc.Column))
 		}
 	}
 

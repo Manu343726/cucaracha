@@ -34,6 +34,13 @@ type InstructionDescriptor struct {
 	LLVM *LLVMInstructionDescriptor
 }
 
+// Returns the list of real operands of the instruction (i.e., excluding pseudo-operands used only for LLVM instruction selection)
+func (d *InstructionDescriptor) RealOperands() []*OperandDescriptor {
+	return utils.Filter(d.Operands, func(op *OperandDescriptor) bool {
+		return !op.LLVM_HideFromAsm
+	})
+}
+
 // Returns a human readable string representation of the instruction
 func (d *InstructionDescriptor) String() string {
 	var builder strings.Builder

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/Manu343726/cucaracha/pkg/ui"
+	debuggerUI "github.com/Manu343726/cucaracha/pkg/ui/debugger"
 	"github.com/Manu343726/cucaracha/pkg/ui/tui/tview/themes"
 	tvlib "github.com/rivo/tview"
 )
@@ -20,8 +20,8 @@ type Events struct {
 // eventEntry represents a single event in the display
 type eventEntry struct {
 	timestamp time.Time
-	eventType ui.DebuggerEventType
-	result    *ui.ExecutionResult
+	eventType debuggerUI.DebuggerEventType
+	result    *debuggerUI.ExecutionResult
 }
 
 // NewEvents creates a new Events widget
@@ -41,7 +41,7 @@ func NewEvents() *Events {
 }
 
 // AddEvent adds an event to the display
-func (e *Events) AddEvent(event *ui.DebuggerEvent) {
+func (e *Events) AddEvent(event *debuggerUI.DebuggerEvent) {
 	if event == nil {
 		return
 	}
@@ -156,50 +156,50 @@ func (e *Events) formatEventDetails(entry *eventEntry, eventTypeColorPtr *string
 	}
 
 	switch entry.eventType {
-	case ui.DebuggerEventStepped:
+	case debuggerUI.DebuggerEventStepped:
 		return fmt.Sprintf("[#%s]%s[#-:-] [#%s]PC: 0x%08x Steps: %d[#-:-]", eventTypeColor, "Stepped", detailColor, result.LastInstruction, result.Steps)
 
-	case ui.DebuggerEventBreakpointHit:
+	case debuggerUI.DebuggerEventBreakpointHit:
 		msg := "Breakpoint hit"
 		if result.Breakpoint != nil {
 			msg = fmt.Sprintf("Breakpoint %d hit", result.Breakpoint.ID)
 		}
 		return fmt.Sprintf("[#%s]%s[#-:-] [#%s]at 0x%08x[#-:-]", eventTypeColor, msg, detailColor, result.LastInstruction)
 
-	case ui.DebuggerEventWatchpointHit:
+	case debuggerUI.DebuggerEventWatchpointHit:
 		msg := "Watchpoint triggered"
 		if result.Watchpoint != nil {
 			msg = fmt.Sprintf("Watchpoint %d triggered", result.Watchpoint.ID)
 		}
 		return fmt.Sprintf("[#%s]%s[#-:-] [#%s]at 0x%08x[#-:-]", eventTypeColor, msg, detailColor, result.LastInstruction)
 
-	case ui.DebuggerEventProgramTerminated:
+	case debuggerUI.DebuggerEventProgramTerminated:
 		return fmt.Sprintf("[#%s]Normal termination[#-:-] [#%s]Steps: %d[#-:-]", eventTypeColor, detailColor, result.Steps)
 
-	case ui.DebuggerEventProgramHalted:
+	case debuggerUI.DebuggerEventProgramHalted:
 		return fmt.Sprintf("[#%s]CPU halted[#-:-] [#%s]at 0x%08x[#-:-]", eventTypeColor, detailColor, result.LastInstruction)
 
-	case ui.DebuggerEventError:
+	case debuggerUI.DebuggerEventError:
 		msg := "Error"
 		if result.Error != nil {
 			msg = fmt.Sprintf("Error: %v", result.Error)
 		}
 		return fmt.Sprintf("[#%s]%s[#-:-]", eventTypeColor, msg)
 
-	case ui.DebuggerEventSourceLocationChanged:
+	case debuggerUI.DebuggerEventSourceLocationChanged:
 		return fmt.Sprintf("[#%s]Source location changed[#-:-] [#%s]at 0x%08x[#-:-]", eventTypeColor, detailColor, result.LastInstruction)
 
-	case ui.DebuggerEventInterrupted:
+	case debuggerUI.DebuggerEventInterrupted:
 		return fmt.Sprintf("[#%s]Interrupted[#-:-] [#%s]at 0x%08x[#-:-]", eventTypeColor, detailColor, result.LastInstruction)
 
-	case ui.DebuggerEventLagging:
+	case debuggerUI.DebuggerEventLagging:
 		lagMsg := "lagging"
 		if result.LaggingCycles == 0 {
 			lagMsg = "on-time"
 		}
 		return fmt.Sprintf("[#%s]%s[#-:-] [#%s]by %d cycles[#-:-]", eventTypeColor, lagMsg, detailColor, result.LaggingCycles)
 
-	case ui.DebuggerEventProgramLoaded:
+	case debuggerUI.DebuggerEventProgramLoaded:
 		return fmt.Sprintf("[#%s]Program loaded[#-:-]", eventTypeColor)
 
 	default:
@@ -208,32 +208,32 @@ func (e *Events) formatEventDetails(entry *eventEntry, eventTypeColorPtr *string
 }
 
 // getEventTypeColor returns the appropriate color for an event type
-func (e *Events) getEventTypeColor(eventType ui.DebuggerEventType) string {
+func (e *Events) getEventTypeColor(eventType debuggerUI.DebuggerEventType) string {
 	if e.theme == nil || e.theme.Events == nil {
 		return "A6E22E" // Default Monokai green
 	}
 
 	var color interface{}
 	switch eventType {
-	case ui.DebuggerEventProgramLoaded:
+	case debuggerUI.DebuggerEventProgramLoaded:
 		color = e.theme.Events.ProgramLoaded
-	case ui.DebuggerEventStepped:
+	case debuggerUI.DebuggerEventStepped:
 		color = e.theme.Events.Stepped
-	case ui.DebuggerEventBreakpointHit:
+	case debuggerUI.DebuggerEventBreakpointHit:
 		color = e.theme.Events.BreakpointHit
-	case ui.DebuggerEventWatchpointHit:
+	case debuggerUI.DebuggerEventWatchpointHit:
 		color = e.theme.Events.WatchpointHit
-	case ui.DebuggerEventProgramTerminated:
+	case debuggerUI.DebuggerEventProgramTerminated:
 		color = e.theme.Events.ProgramTerminated
-	case ui.DebuggerEventProgramHalted:
+	case debuggerUI.DebuggerEventProgramHalted:
 		color = e.theme.Events.ProgramHalted
-	case ui.DebuggerEventError:
+	case debuggerUI.DebuggerEventError:
 		color = e.theme.Events.Error
-	case ui.DebuggerEventSourceLocationChanged:
+	case debuggerUI.DebuggerEventSourceLocationChanged:
 		color = e.theme.Events.SourceLocationChanged
-	case ui.DebuggerEventInterrupted:
+	case debuggerUI.DebuggerEventInterrupted:
 		color = e.theme.Events.Interrupted
-	case ui.DebuggerEventLagging:
+	case debuggerUI.DebuggerEventLagging:
 		color = e.theme.Events.Lagging
 	default:
 		return "A6E22E"

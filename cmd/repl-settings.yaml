@@ -1,3 +1,5 @@
-display.events: true
-show.logs:
+display.events: false
+display.logs:
   - "cucaracha"
+build.auto_clang: false
+build.force_clang: true

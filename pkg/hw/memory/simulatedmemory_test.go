@@ -15,43 +15,41 @@ func Test_SimulatedMemory_ReadWrite(t *testing.T) {
 	mem := NewSimulatedMemory(initialData)
 
 	// Test initial data
-	for addr, expected := range initialData {
-		value, err := mem.ReadByte(uint32(addr))
-		assert.NoError(t, err)
-		assert.Equal(t, expected, value)
-	}
+	data, err := mem.Read(0, len(initialData))
+	assert.NoError(t, err)
+	assert.Equal(t, initialData, data)
 
 	// Test write
-	mem.WriteByte(2, 0xFF)
-	value, err := mem.ReadByte(2)
+	err = mem.Write(2, []byte{0xFF})
 	assert.NoError(t, err)
-	assert.Equal(t, byte(0xFF), value)
+	value, err := mem.Read(2, 1)
+	assert.NoError(t, err)
+	assert.Equal(t, []byte{0xFF}, value)
 
 	// Test out-of-bounds read
-	value, err = mem.ReadByte(10)
+	value, err = mem.Read(10, 1)
 	assert.Error(t, err)
-	assert.Equal(t, byte(0x00), value)
 
 	// Test out-of-bounds write (should not panic)
-	err = mem.WriteByte(10, 0xAA)
+	err = mem.Write(10, []byte{0xAA})
 	assert.Error(t, err)
 	// Test size
 	assert.Equal(t, len(initialData), mem.Size())
 
 	// Test reset
 	mem.Reset()
-	for addr := range initialData {
-		value, err := mem.ReadByte(uint32(addr))
-		assert.NoError(t, err)
-		assert.Equal(t, byte(0x00), value)
+	data, err = mem.Read(0, len(initialData))
+	assert.NoError(t, err)
+	for _, b := range data {
+		assert.Equal(t, byte(0x00), b)
 	}
 
 	// Test write of out-of-bounds address
-	err = mem.WriteByte(uint32(len(initialData)+5), 0x55)
+	err = mem.Write(uint32(len(initialData)+5), []byte{0x55})
 	assert.Error(t, err)
 
 	// Test read of out-of-bounds address
-	_, err = mem.ReadByte(uint32(len(initialData) + 5))
+	_, err = mem.Read(uint32(len(initialData)+5), 1)
 	assert.Error(t, err)
 
 	// Test Ranges

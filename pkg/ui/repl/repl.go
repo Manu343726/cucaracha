@@ -9,7 +9,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/Manu343726/cucaracha/pkg/ui"
+	debuggerUI "github.com/Manu343726/cucaracha/pkg/ui/debugger"
 	"github.com/Manu343726/cucaracha/pkg/utils"
 	"github.com/Manu343726/cucaracha/pkg/utils/logging"
 	"github.com/chzyer/readline"
@@ -17,22 +17,24 @@ import (
 
 // REPL represents a debugger Read-Eval-Print Loop interface
 type REPL struct {
-	debugger       ui.Debugger
-	readline       *readline.Instance
-	writer         io.Writer
-	exit           bool
-	commands       map[string]CommandHandler
-	lastInput      string
-	loadArgs       *ui.LoadArgs
-	quiet          bool            // When true, no welcome/goodbye messages
-	outputFormat   OutputFormat    // Human readable or machine readable
-	outputBuffer   strings.Builder // Buffer for collecting output when in machine readable mode
-	commandStarted bool            // Track if we're in the middle of processing a command
-	scriptFile     string          // Current script file path (for location tracking)
-	scriptLine     int             // Current line number in script (for location tracking)
-	commandIndex   int             // Current command index (0-based)
-	settings       *Settings       // REPL settings (display.events, etc)
-	uiSink         *logging.Sink   // UI sink for capturing log entries
+	debugger        debuggerUI.CommandBasedDebugger
+	readline        *readline.Instance
+	writer          io.Writer
+	exit            bool
+	commands        map[string]CommandHandler
+	lastInput       string
+	loadArgs        *debuggerUI.LoadArgs
+	lastDisasmArgs  *debuggerUI.DisasmArgs // Store last disasm args for output formatting
+	quiet           bool                   // When true, no welcome/goodbye messages
+	outputFormat    OutputFormat           // Human readable or machine readable
+	outputBuffer    strings.Builder        // Buffer for collecting output when in machine readable mode
+	commandStarted  bool                   // Track if we're in the middle of processing a command
+	scriptFile      string                 // Current script file path (for location tracking)
+	scriptLine      int                    // Current line number in script (for location tracking)
+	commandIndex    int                    // Current command index (0-based)
+	settings        *Settings              // REPL settings (display.events, etc)
+	uiSink          *logging.Sink          // UI sink for capturing log entries
+	waitingForInput bool                   // Track if REPL is waiting for user input
 }
 
 // CommandHandler is a function that handles a debugger command
@@ -79,10 +81,10 @@ func createReadline(opts readlineOptions) *readline.Instance {
 }
 
 // newREPLInternal creates a new REPL instance with the provided configuration
-func newREPLInternal(debugger ui.Debugger, readline *readline.Instance, writer io.Writer,
-	loadArgs *ui.LoadArgs, quiet bool, outputFormat OutputFormat) *REPL {
+func newREPLInternal(debugger debuggerUI.Debugger, readline *readline.Instance, writer io.Writer,
+	loadArgs *debuggerUI.LoadArgs, quiet bool, outputFormat OutputFormat) *REPL {
 	repl := &REPL{
-		debugger:     debugger,
+		debugger:     debuggerUI.MakeCommandBased(debugger),
 		readline:     readline,
 		writer:       writer,
 		commands:     make(map[string]CommandHandler),
@@ -93,23 +95,35 @@ func newREPLInternal(debugger ui.Debugger, readline *readline.Instance, writer i
 	}
 
 	repl.registerCommands()
+
+	// Create UI sink with printLogEntry callback
+	// This is created early so that setting callbacks can use it before Run() is called
+	repl.uiSink = logging.NewUISink("ui-repl", slog.LevelDebug, 1000, repl.printLogEntry)
+
+	// Register setting change callbacks now that uiSink is initialized
+	// This must happen before settings are applied (which happens before Run())
+	if err := repl.registerSettingCallbacks(); err != nil {
+		// Log error but don't prevent REPL creation
+		slog.Error("failed to register setting callbacks", "error", err)
+	}
+
 	return repl
 }
 
 // NewREPL creates a new REPL instance
-func NewREPL(debugger ui.Debugger) *REPL {
+func NewREPL(debugger debuggerUI.Debugger) *REPL {
 	rl := createReadline(readlineOptions{useCustomConfig: false})
 	return newREPLInternal(debugger, rl, os.Stdout, nil, false, HumanReadable)
 }
 
 // NewREPLWithLoadArgs creates a new REPL instance with load arguments
-func NewREPLWithLoadArgs(debugger ui.Debugger, loadArgs *ui.LoadArgs) *REPL {
+func NewREPLWithLoadArgs(debugger debuggerUI.Debugger, loadArgs *debuggerUI.LoadArgs) *REPL {
 	rl := createReadline(readlineOptions{useCustomConfig: false})
 	return newREPLInternal(debugger, rl, os.Stdout, loadArgs, false, HumanReadable)
 }
 
 // NewREPLWithIO creates a new REPL instance with custom input/output
-func NewREPLWithIO(debugger ui.Debugger, reader io.Reader, writer io.Writer) *REPL {
+func NewREPLWithIO(debugger debuggerUI.Debugger, reader io.Reader, writer io.Writer) *REPL {
 	rl := createReadline(readlineOptions{
 		reader:          reader,
 		writer:          writer,
@@ -119,7 +133,7 @@ func NewREPLWithIO(debugger ui.Debugger, reader io.Reader, writer io.Writer) *RE
 }
 
 // NewREPLWithIOQuiet creates a new REPL instance with custom input/output in quiet mode (no welcome/goodbye messages)
-func NewREPLWithIOQuiet(debugger ui.Debugger, reader io.Reader, writer io.Writer) *REPL {
+func NewREPLWithIOQuiet(debugger debuggerUI.Debugger, reader io.Reader, writer io.Writer) *REPL {
 	rl := createReadline(readlineOptions{
 		reader:          reader,
 		writer:          writer,
@@ -129,7 +143,7 @@ func NewREPLWithIOQuiet(debugger ui.Debugger, reader io.Reader, writer io.Writer
 }
 
 // NewREPLWithOutputFormat creates a new REPL instance with a specific output format
-func NewREPLWithOutputFormat(debugger ui.Debugger, reader io.Reader, writer io.Writer, format OutputFormat) *REPL {
+func NewREPLWithOutputFormat(debugger debuggerUI.Debugger, reader io.Reader, writer io.Writer, format OutputFormat) *REPL {
 	// In machine-readable mode, suppress readline echo by using a discard writer
 	readlineStdout := writer
 	if format == MachineReadable {
@@ -230,23 +244,19 @@ func (r *REPL) Run() error {
 		}
 	}
 
-	// Create UI sink (but don't register it yet - will be applied to specific loggers)
-	r.uiSink = logging.NewUISink("ui-repl", slog.LevelDebug, 1000, r.printLogEntry)
-
-	// Set up event callback if display.events is enabled
-	displayEvents, _ := r.settings.GetBool(SettingKeyDisplayEvents)
-	if displayEvents {
-		r.debugger.SetEventCallback(func(event *ui.DebuggerEvent) {
-			r.handleDebuggerEvent(event)
-		})
-	}
+	r.debugger.SetEventCallback(func(event *debuggerUI.DebuggerEvent) {
+		r.handleDebuggerEvent(event)
+	})
 
 	if !r.quiet {
 		r.printWelcome()
 	}
 
 	for !r.exit {
+		r.waitingForInput = true
 		line, err := r.readline.Readline()
+		r.waitingForInput = false
+
 		if err != nil {
 			if err == readline.ErrInterrupt || err.Error() == "Interrupt" {
 				continue
@@ -284,7 +294,7 @@ func (r *REPL) initializeDebugger() error {
 	}
 
 	if r.loadArgs.Runtime == nil {
-		r.loadArgs.Runtime = utils.Ptr(ui.RuntimeTypeInterpreter)
+		r.loadArgs.Runtime = utils.Ptr(debuggerUI.RuntimeTypeInterpreter)
 	}
 
 	// Check if there's anything to load
@@ -293,8 +303,8 @@ func (r *REPL) initializeDebugger() error {
 		return nil
 	}
 
-	cmd := &ui.DebuggerCommand{
-		Command:  ui.DebuggerCommandLoad,
+	cmd := &debuggerUI.DebuggerCommand{
+		Command:  debuggerUI.DebuggerCommandLoad,
 		LoadArgs: r.loadArgs,
 	}
 
@@ -409,9 +419,9 @@ func (r *REPL) RunScript(scriptPath string) error {
 	return nil
 }
 
-// applyUILoggers applies the UI sink to the specified logger names.
-// This removes the UI sink from any previously configured loggers and applies it to the new list.
-func (r *REPL) applyUILoggers(loggerNames []string) error {
+// applyUILoggersImpl applies the UI sink to specified logger names without updating settings.
+// This is used by both the callback and the applyUILoggers method.
+func (r *REPL) applyUILoggersImpl(loggerNames []string) error {
 	if r.uiSink == nil {
 		return fmt.Errorf("UI sink not initialized")
 	}
@@ -429,6 +439,23 @@ func (r *REPL) applyUILoggers(loggerNames []string) error {
 		return fmt.Errorf("failed to apply UI sink to loggers: %w", err)
 	}
 
-	// Store the logger names in the setting
-	return r.settings.Set(SettingKeyShowLogs, loggerNames)
+	return nil
+}
+
+// registerSettingCallbacks registers callbacks for setting changes.
+// These callbacks are triggered whenever a setting value changes, either from
+// file loading or manual user input through the REPL.
+func (r *REPL) registerSettingCallbacks() error {
+	// Register callback for display.logs setting
+	if err := r.settings.SetChangeCallback(SettingKeyDisplayLogs, func(name string, newValue interface{}) error {
+		loggerNames, ok := newValue.([]string)
+		if !ok {
+			return fmt.Errorf("invalid value type for %s: expected []string", name)
+		}
+		return r.applyUILoggersImpl(loggerNames)
+	}); err != nil {
+		return err
+	}
+
+	return nil
 }

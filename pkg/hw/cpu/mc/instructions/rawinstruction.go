@@ -46,10 +46,11 @@ func (instr *RawInstruction) String() string {
 
 	builder.WriteString(fmt.Sprintf("%v ", instr.Descriptor.OpCode.Mnemonic))
 
-	for i, operand := range instr.Descriptor.Operands {
+	realOperands := instr.Descriptor.RealOperands()
+	for i, operand := range realOperands {
 		builder.WriteString(utils.FormatUintHex(instr.OperandValues[i], operand.EncodingBits/4))
 
-		if i < len(instr.OperandValues)-1 {
+		if i < len(realOperands)-1 {
 			builder.WriteString(", ")
 		}
 	}
@@ -64,7 +65,7 @@ func (instr *RawInstruction) Decode() (*Instruction, error) {
 		OperandValues: make([]OperandValue, len(instr.OperandValues)),
 	}
 
-	for j, operandDescriptor := range instr.Descriptor.Operands {
+	for j, operandDescriptor := range instr.Descriptor.RealOperands() {
 		value, err := operandDescriptor.DecodeValue(instr.OperandValues[j])
 
 		if err != nil {
@@ -79,8 +80,9 @@ func (instr *RawInstruction) Decode() (*Instruction, error) {
 
 // Returns the binary representation of the instruction, with the opcode and all operands encoded
 func (instr *RawInstruction) Encode() uint32 {
-	if len(instr.OperandValues) != len(instr.Descriptor.Operands) {
-		panic(fmt.Errorf("mistmatched operand values, the instruction must have %v operands, we have %v values", len(instr.Descriptor.Operands), len(instr.OperandValues)))
+	realOperands := instr.Descriptor.RealOperands()
+	if len(instr.OperandValues) != len(realOperands) {
+		panic(fmt.Errorf("mistmatched operand values, the instruction must have %v operands, we have %v values", len(realOperands), len(instr.OperandValues)))
 	}
 
 	var binaryRepresentation uint32 = 0
@@ -88,7 +90,7 @@ func (instr *RawInstruction) Encode() uint32 {
 
 	view.Write(uint32(instr.Descriptor.OpCode.BinaryRepresentation), 0, Opcodes.OpCodeBits())
 
-	for i, operand := range instr.Descriptor.Operands {
+	for i, operand := range realOperands {
 		view.Write(uint32(instr.OperandValues[i]), operand.EncodingPosition, operand.EncodingBits)
 	}
 

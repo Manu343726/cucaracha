@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Manu343726/cucaracha/pkg/ui"
+	debuggerUI "github.com/Manu343726/cucaracha/pkg/ui/debugger"
 	"github.com/Manu343726/cucaracha/pkg/utils/logging"
 )
 
@@ -13,7 +13,7 @@ import (
 // Execution Commands
 // ============================================================================
 
-func (r *REPL) handleCommand(args []string, parse func([]string) (*ui.DebuggerCommand, error), resultError func(*ui.DebuggerCommandResult) error) error {
+func (r *REPL) handleCommand(args []string, parse func([]string) (*debuggerUI.DebuggerCommand, error), resultError func(*debuggerUI.DebuggerCommandResult) error) error {
 	cmd, err := parse(args)
 	if err != nil {
 		return err
@@ -31,67 +31,67 @@ func (r *REPL) handleCommand(args []string, parse func([]string) (*ui.DebuggerCo
 }
 
 func (r *REPL) handleStep(args []string) error {
-	return r.handleCommand(args, func(args []string) (*ui.DebuggerCommand, error) {
-		stepArgs := &ui.StepArgs{
-			StepMode:  ui.StepModeInto,
-			CountMode: ui.StepCountSourceLines,
+	return r.handleCommand(args, func(args []string) (*debuggerUI.DebuggerCommand, error) {
+		stepArgs := &debuggerUI.StepArgs{
+			StepMode:  debuggerUI.StepModeInto,
+			CountMode: debuggerUI.StepCountSourceLines,
 		}
 
-		return &ui.DebuggerCommand{
-			Command:  ui.DebuggerCommandStep,
+		return &debuggerUI.DebuggerCommand{
+			Command:  debuggerUI.DebuggerCommandStep,
 			StepArgs: stepArgs,
 		}, nil
-	}, func(result *ui.DebuggerCommandResult) error {
+	}, func(result *debuggerUI.DebuggerCommandResult) error {
 		return result.StepResult.Error
 	})
 }
 
 func (r *REPL) handleContinue(args []string) error {
-	return r.handleCommand(args, func(args []string) (*ui.DebuggerCommand, error) {
-		return &ui.DebuggerCommand{
-			Command: ui.DebuggerCommandContinue,
+	return r.handleCommand(args, func(args []string) (*debuggerUI.DebuggerCommand, error) {
+		return &debuggerUI.DebuggerCommand{
+			Command: debuggerUI.DebuggerCommandContinue,
 		}, nil
-	}, func(result *ui.DebuggerCommandResult) error {
+	}, func(result *debuggerUI.DebuggerCommandResult) error {
 		return result.ContinueResult.Error
 	})
 }
 
 func (r *REPL) handleInterrupt(args []string) error {
-	return r.handleCommand(args, func(args []string) (*ui.DebuggerCommand, error) {
-		return &ui.DebuggerCommand{
-			Command: ui.DebuggerCommandInterrupt,
+	return r.handleCommand(args, func(args []string) (*debuggerUI.DebuggerCommand, error) {
+		return &debuggerUI.DebuggerCommand{
+			Command: debuggerUI.DebuggerCommandInterrupt,
 		}, nil
-	}, func(result *ui.DebuggerCommandResult) error {
+	}, func(result *debuggerUI.DebuggerCommandResult) error {
 		return result.InterruptResult.Error
 	})
 }
 
 func (r *REPL) handleRun(args []string) error {
-	return r.handleCommand(args, func(args []string) (*ui.DebuggerCommand, error) {
-		return &ui.DebuggerCommand{
-			Command: ui.DebuggerCommandContinue,
+	return r.handleCommand(args, func(args []string) (*debuggerUI.DebuggerCommand, error) {
+		return &debuggerUI.DebuggerCommand{
+			Command: debuggerUI.DebuggerCommandContinue,
 		}, nil
-	}, func(result *ui.DebuggerCommandResult) error {
+	}, func(result *debuggerUI.DebuggerCommandResult) error {
 		return result.ContinueResult.Error
 	})
 }
 
 func (r *REPL) handleReset(args []string) error {
-	return r.handleCommand(args, func(args []string) (*ui.DebuggerCommand, error) {
-		return &ui.DebuggerCommand{
-			Command: ui.DebuggerCommandReset,
+	return r.handleCommand(args, func(args []string) (*debuggerUI.DebuggerCommand, error) {
+		return &debuggerUI.DebuggerCommand{
+			Command: debuggerUI.DebuggerCommandReset,
 		}, nil
-	}, func(result *ui.DebuggerCommandResult) error {
+	}, func(result *debuggerUI.DebuggerCommandResult) error {
 		return result.ResetResult.Error
 	})
 }
 
 func (r *REPL) handleRestart(args []string) error {
-	return r.handleCommand(args, func(args []string) (*ui.DebuggerCommand, error) {
-		return &ui.DebuggerCommand{
-			Command: ui.DebuggerCommandRestart,
+	return r.handleCommand(args, func(args []string) (*debuggerUI.DebuggerCommand, error) {
+		return &debuggerUI.DebuggerCommand{
+			Command: debuggerUI.DebuggerCommandRestart,
 		}, nil
-	}, func(result *ui.DebuggerCommandResult) error {
+	}, func(result *debuggerUI.DebuggerCommandResult) error {
 		return result.RestartResult.Error
 	})
 }
@@ -101,7 +101,7 @@ func (r *REPL) handleRestart(args []string) error {
 // ============================================================================
 
 func (r *REPL) handleBreak(args []string) error {
-	return r.handleCommand(args, func(args []string) (*ui.DebuggerCommand, error) {
+	return r.handleCommand(args, func(args []string) (*debuggerUI.DebuggerCommand, error) {
 		if len(args) == 0 {
 			return nil, fmt.Errorf("break requires an address")
 		}
@@ -111,19 +111,19 @@ func (r *REPL) handleBreak(args []string) error {
 			return nil, err
 		}
 
-		return &ui.DebuggerCommand{
-			Command: ui.DebuggerCommandBreak,
-			BreakArgs: &ui.BreakArgs{
+		return &debuggerUI.DebuggerCommand{
+			Command: debuggerUI.DebuggerCommandBreak,
+			BreakArgs: &debuggerUI.BreakArgs{
 				Address: &addr,
 			},
 		}, nil
-	}, func(result *ui.DebuggerCommandResult) error {
+	}, func(result *debuggerUI.DebuggerCommandResult) error {
 		return result.BreakResult.Error
 	})
 }
 
 func (r *REPL) handleRemoveBreakpoint(args []string) error {
-	return r.handleCommand(args, func(args []string) (*ui.DebuggerCommand, error) {
+	return r.handleCommand(args, func(args []string) (*debuggerUI.DebuggerCommand, error) {
 		if len(args) == 0 {
 			return nil, fmt.Errorf("removebreakpoint requires a breakpoint ID")
 		}
@@ -133,19 +133,19 @@ func (r *REPL) handleRemoveBreakpoint(args []string) error {
 			return nil, fmt.Errorf("invalid breakpoint ID: %v", err)
 		}
 
-		return &ui.DebuggerCommand{
-			Command: ui.DebuggerCommandRemoveBreakpoint,
-			RemoveBreakpointArgs: &ui.RemoveBreakpointArgs{
+		return &debuggerUI.DebuggerCommand{
+			Command: debuggerUI.DebuggerCommandRemoveBreakpoint,
+			RemoveBreakpointArgs: &debuggerUI.RemoveBreakpointArgs{
 				ID: id,
 			},
 		}, nil
-	}, func(result *ui.DebuggerCommandResult) error {
+	}, func(result *debuggerUI.DebuggerCommandResult) error {
 		return result.RemoveBreakpointResult.Error
 	})
 }
 
 func (r *REPL) handleWatch(args []string) error {
-	return r.handleCommand(args, func(args []string) (*ui.DebuggerCommand, error) {
+	return r.handleCommand(args, func(args []string) (*debuggerUI.DebuggerCommand, error) {
 		if len(args) == 0 {
 			return nil, fmt.Errorf("watch requires an address")
 		}
@@ -156,24 +156,24 @@ func (r *REPL) handleWatch(args []string) error {
 		}
 
 		// Default to 4-byte watch
-		memRegion := &ui.MemoryRegion{
+		memRegion := &debuggerUI.MemoryRegion{
 			Start: addr,
 			Size:  4,
 		}
 
-		return &ui.DebuggerCommand{
-			Command: ui.DebuggerCommandWatch,
-			WatchArgs: &ui.WatchArgs{
+		return &debuggerUI.DebuggerCommand{
+			Command: debuggerUI.DebuggerCommandWatch,
+			WatchArgs: &debuggerUI.WatchArgs{
 				Range: memRegion,
 			},
 		}, nil
-	}, func(result *ui.DebuggerCommandResult) error {
+	}, func(result *debuggerUI.DebuggerCommandResult) error {
 		return result.WatchResult.Error
 	})
 }
 
 func (r *REPL) handleRemoveWatchpoint(args []string) error {
-	return r.handleCommand(args, func(args []string) (*ui.DebuggerCommand, error) {
+	return r.handleCommand(args, func(args []string) (*debuggerUI.DebuggerCommand, error) {
 		if len(args) == 0 {
 			return nil, fmt.Errorf("removewatchpoint requires a watchpoint ID")
 		}
@@ -183,23 +183,23 @@ func (r *REPL) handleRemoveWatchpoint(args []string) error {
 			return nil, fmt.Errorf("invalid watchpoint ID: %v", err)
 		}
 
-		return &ui.DebuggerCommand{
-			Command: ui.DebuggerCommandRemoveWatchpoint,
-			RemoveWatchpointArgs: &ui.RemoveWatchpointArgs{
+		return &debuggerUI.DebuggerCommand{
+			Command: debuggerUI.DebuggerCommandRemoveWatchpoint,
+			RemoveWatchpointArgs: &debuggerUI.RemoveWatchpointArgs{
 				ID: id,
 			},
 		}, nil
-	}, func(result *ui.DebuggerCommandResult) error {
+	}, func(result *debuggerUI.DebuggerCommandResult) error {
 		return result.RemoveWatchpointResult.Error
 	})
 }
 
 func (r *REPL) handleList(args []string) error {
-	return r.handleCommand(args, func(args []string) (*ui.DebuggerCommand, error) {
-		return &ui.DebuggerCommand{
-			Command: ui.DebuggerCommandList,
+	return r.handleCommand(args, func(args []string) (*debuggerUI.DebuggerCommand, error) {
+		return &debuggerUI.DebuggerCommand{
+			Command: debuggerUI.DebuggerCommandList,
 		}, nil
-	}, func(result *ui.DebuggerCommandResult) error {
+	}, func(result *debuggerUI.DebuggerCommandResult) error {
 		return result.ListResult.Error
 	})
 }
@@ -209,42 +209,63 @@ func (r *REPL) handleList(args []string) error {
 // ============================================================================
 
 func (r *REPL) handleDisasm(args []string) error {
-	return r.handleCommand(args, func(args []string) (*ui.DebuggerCommand, error) {
-		var disasmArgs ui.DisasmArgs
-		if len(args) > 0 {
-			disasmArgs.AddressExpr = args[0]
-		}
+	return r.handleCommand(args, func(args []string) (*debuggerUI.DebuggerCommand, error) {
+		var disasmArgs debuggerUI.DisasmArgs
+		// Set defaults to show everything
+		disasmArgs.ShowSource = true
+		disasmArgs.ShowCFG = true
 
-		if len(args) > 1 {
-			count, err := strconv.Atoi(args[1])
-			if err != nil {
-				return nil, fmt.Errorf("invalid count: %v", err)
+		// Parse positional and flag arguments
+		var positionalCount int
+		for _, arg := range args {
+			if arg == "-source" || arg == "-s" {
+				disasmArgs.ShowSource = true
+			} else if arg == "-no-source" || arg == "-ns" {
+				disasmArgs.ShowSource = false
+			} else if arg == "-cfg" || arg == "-g" {
+				disasmArgs.ShowCFG = true
+			} else if arg == "-no-cfg" || arg == "-ng" {
+				disasmArgs.ShowCFG = false
+			} else if positionalCount == 0 {
+				// First positional arg: address
+				disasmArgs.AddressExpr = arg
+				positionalCount++
+			} else if positionalCount == 1 {
+				// Second positional arg: count
+				count, err := strconv.Atoi(arg)
+				if err != nil {
+					return nil, fmt.Errorf("invalid count: %v", err)
+				}
+				disasmArgs.Count = count
+				positionalCount++
 			}
-			disasmArgs.Count = count
 		}
 
-		return &ui.DebuggerCommand{
-			Command:    ui.DebuggerCommandDisassemble,
+		// Store the args for use in output formatting
+		r.lastDisasmArgs = &disasmArgs
+
+		return &debuggerUI.DebuggerCommand{
+			Command:    debuggerUI.DebuggerCommandDisassemble,
 			DisasmArgs: &disasmArgs,
 		}, nil
-	}, func(result *ui.DebuggerCommandResult) error {
+	}, func(result *debuggerUI.DebuggerCommandResult) error {
 		return result.DisassemblyResult.Error
 	})
 }
 
 func (r *REPL) handleCurrent(args []string) error {
-	return r.handleCommand(args, func(args []string) (*ui.DebuggerCommand, error) {
-		return &ui.DebuggerCommand{
-			Command: ui.DebuggerCommandCurrentInstruction,
+	return r.handleCommand(args, func(args []string) (*debuggerUI.DebuggerCommand, error) {
+		return &debuggerUI.DebuggerCommand{
+			Command: debuggerUI.DebuggerCommandCurrentInstruction,
 		}, nil
-	}, func(result *ui.DebuggerCommandResult) error {
+	}, func(result *debuggerUI.DebuggerCommandResult) error {
 		return result.CurrentInstructionResult.Error
 	})
 }
 
 func (r *REPL) handleMemory(args []string) error {
-	return r.handleCommand(args, func(args []string) (*ui.DebuggerCommand, error) {
-		memArgs := &ui.MemoryArgs{}
+	return r.handleCommand(args, func(args []string) (*debuggerUI.DebuggerCommand, error) {
+		memArgs := &debuggerUI.MemoryArgs{}
 
 		if len(args) > 0 {
 			memArgs.AddressExpr = args[0]
@@ -258,115 +279,115 @@ func (r *REPL) handleMemory(args []string) error {
 			memArgs.Count = count
 		}
 
-		return &ui.DebuggerCommand{
-			Command:    ui.DebuggerCommandMemory,
+		return &debuggerUI.DebuggerCommand{
+			Command:    debuggerUI.DebuggerCommandMemory,
 			MemoryArgs: memArgs,
 		}, nil
-	}, func(result *ui.DebuggerCommandResult) error {
+	}, func(result *debuggerUI.DebuggerCommandResult) error {
 		return result.MemoryResult.Error
 	})
 }
 
 func (r *REPL) handleSource(args []string) error {
-	return r.handleCommand(args, func(args []string) (*ui.DebuggerCommand, error) {
-		sourceArgs := &ui.SourceArgs{}
+	return r.handleCommand(args, func(args []string) (*debuggerUI.DebuggerCommand, error) {
+		sourceArgs := &debuggerUI.SourceArgs{}
 
 		if len(args) > 0 {
 			sourceArgs.File = args[0]
 		}
 
-		return &ui.DebuggerCommand{
-			Command:    ui.DebuggerCommandSource,
+		return &debuggerUI.DebuggerCommand{
+			Command:    debuggerUI.DebuggerCommandSource,
 			SourceArgs: sourceArgs,
 		}, nil
-	}, func(result *ui.DebuggerCommandResult) error {
+	}, func(result *debuggerUI.DebuggerCommandResult) error {
 		return result.SourceResult.Error
 	})
 }
 
 func (r *REPL) handleInfo(args []string) error {
-	infoType := ui.InfoTypeGeneral
+	infoType := debuggerUI.InfoTypeGeneral
 	if len(args) > 0 {
 		var err error
-		infoType, err = ui.InfoTypeFromString(args[0])
+		infoType, err = debuggerUI.InfoTypeFromString(args[0])
 		if err != nil {
 			return err
 		}
 	}
 
-	return r.handleCommand(args, func(args []string) (*ui.DebuggerCommand, error) {
-		return &ui.DebuggerCommand{
-			Command: ui.DebuggerCommandInfo,
-			InfoArgs: &ui.InfoArgs{
+	return r.handleCommand(args, func(args []string) (*debuggerUI.DebuggerCommand, error) {
+		return &debuggerUI.DebuggerCommand{
+			Command: debuggerUI.DebuggerCommandInfo,
+			InfoArgs: &debuggerUI.InfoArgs{
 				Type: infoType,
 			},
 		}, nil
-	}, func(result *ui.DebuggerCommandResult) error {
+	}, func(result *debuggerUI.DebuggerCommandResult) error {
 		return result.InfoResult.Error
 	})
 }
 
 func (r *REPL) handleSymbols(args []string) error {
-	return r.handleCommand(args, func(args []string) (*ui.DebuggerCommand, error) {
-		symbolsArgs := &ui.SymbolsArgs{}
+	return r.handleCommand(args, func(args []string) (*debuggerUI.DebuggerCommand, error) {
+		symbolsArgs := &debuggerUI.SymbolsArgs{}
 
 		if len(args) > 0 {
 			symbolsArgs.SymbolName = &args[0]
 		}
 
-		return &ui.DebuggerCommand{
-			Command:     ui.DebuggerCommandSymbols,
+		return &debuggerUI.DebuggerCommand{
+			Command:     debuggerUI.DebuggerCommandSymbols,
 			SymbolsArgs: symbolsArgs,
 		}, nil
-	}, func(result *ui.DebuggerCommandResult) error {
+	}, func(result *debuggerUI.DebuggerCommandResult) error {
 		return result.SymbolsResult.Error
 	})
 }
 
 func (r *REPL) handleRegisters(args []string) error {
-	return r.handleCommand(args, func(args []string) (*ui.DebuggerCommand, error) {
-		return &ui.DebuggerCommand{
-			Command: ui.DebuggerCommandRegisters,
+	return r.handleCommand(args, func(args []string) (*debuggerUI.DebuggerCommand, error) {
+		return &debuggerUI.DebuggerCommand{
+			Command: debuggerUI.DebuggerCommandRegisters,
 		}, nil
-	}, func(result *ui.DebuggerCommandResult) error {
+	}, func(result *debuggerUI.DebuggerCommandResult) error {
 		return result.RegistersResult.Error
 	})
 }
 
 func (r *REPL) handleStack(args []string) error {
-	return r.handleCommand(args, func(args []string) (*ui.DebuggerCommand, error) {
-		return &ui.DebuggerCommand{
-			Command: ui.DebuggerCommandStack,
+	return r.handleCommand(args, func(args []string) (*debuggerUI.DebuggerCommand, error) {
+		return &debuggerUI.DebuggerCommand{
+			Command: debuggerUI.DebuggerCommandStack,
 		}, nil
-	}, func(result *ui.DebuggerCommandResult) error {
+	}, func(result *debuggerUI.DebuggerCommandResult) error {
 		return result.StackResult.Error
 	})
 }
 
 func (r *REPL) handleVars(args []string) error {
-	return r.handleCommand(args, func(args []string) (*ui.DebuggerCommand, error) {
-		return &ui.DebuggerCommand{
-			Command: ui.DebuggerCommandVariables,
+	return r.handleCommand(args, func(args []string) (*debuggerUI.DebuggerCommand, error) {
+		return &debuggerUI.DebuggerCommand{
+			Command: debuggerUI.DebuggerCommandVariables,
 		}, nil
-	}, func(result *ui.DebuggerCommandResult) error {
+	}, func(result *debuggerUI.DebuggerCommandResult) error {
 		return result.VariablesResult.Error
 	})
 }
 
 func (r *REPL) handleEval(args []string) error {
-	return r.handleCommand(args, func(args []string) (*ui.DebuggerCommand, error) {
+	return r.handleCommand(args, func(args []string) (*debuggerUI.DebuggerCommand, error) {
 		if len(args) == 0 {
 			return nil, fmt.Errorf("eval requires an expression")
 		}
 
 		expression := strings.Join(args, " ")
-		return &ui.DebuggerCommand{
-			Command: ui.DebuggerCommandEvaluateExpression,
-			EvalArgs: &ui.EvalArgs{
+		return &debuggerUI.DebuggerCommand{
+			Command: debuggerUI.DebuggerCommandEvaluateExpression,
+			EvalArgs: &debuggerUI.EvalArgs{
 				Expression: expression,
 			},
 		}, nil
-	}, func(result *ui.DebuggerCommandResult) error {
+	}, func(result *debuggerUI.DebuggerCommandResult) error {
 		return result.EvalResult.Error
 	})
 }
@@ -376,74 +397,102 @@ func (r *REPL) handleEval(args []string) error {
 // ============================================================================
 
 func (r *REPL) handleLoad(args []string) error {
-	return r.handleCommand(args, func(args []string) (*ui.DebuggerCommand, error) {
+	return r.handleCommand(args, func(args []string) (*debuggerUI.DebuggerCommand, error) {
 		if len(args) == 0 {
 			return nil, fmt.Errorf("load requires a file path")
 		}
 
-		return &ui.DebuggerCommand{
-			Command: ui.DebuggerCommandLoadProgramFromFile,
-			LoadProgramArgs: &ui.LoadProgramArgs{
-				FilePath: args[0],
+		// Read the auto_build_clang setting
+		autoBuildClang, err := r.settings.GetBool(SettingKeyBuildAutoClang)
+		if err != nil {
+			autoBuildClang = true // Default to true if setting not found
+		}
+
+		// Read the force_rebuild_clang setting
+		forceRebuildClang, err := r.settings.GetBool(SettingKeyBuildForceClang)
+		if err != nil {
+			forceRebuildClang = false // Default to false if setting not found
+		}
+
+		return &debuggerUI.DebuggerCommand{
+			Command: debuggerUI.DebuggerCommandLoadProgramFromFile,
+			LoadProgramArgs: &debuggerUI.LoadProgramArgs{
+				FilePath:          args[0],
+				AutoBuildClang:    &autoBuildClang,
+				ForceRebuildClang: &forceRebuildClang,
 			},
 		}, nil
-	}, func(result *ui.DebuggerCommandResult) error {
+	}, func(result *debuggerUI.DebuggerCommandResult) error {
 		return result.LoadProgramResult.Error
 	})
 }
 
 func (r *REPL) handleLoadProgram(args []string) error {
-	return r.handleCommand(args, func(args []string) (*ui.DebuggerCommand, error) {
+	return r.handleCommand(args, func(args []string) (*debuggerUI.DebuggerCommand, error) {
 		if len(args) == 0 {
 			return nil, fmt.Errorf("loadprogram requires a file path")
 		}
 
-		return &ui.DebuggerCommand{
-			Command: ui.DebuggerCommandLoadProgramFromFile,
-			LoadProgramArgs: &ui.LoadProgramArgs{
-				FilePath: args[0],
+		// Read the auto_build_clang setting
+		autoBuildClang, err := r.settings.GetBool(SettingKeyBuildAutoClang)
+		if err != nil {
+			autoBuildClang = true // Default to true if setting not found
+		}
+
+		// Read the force_rebuild_clang setting
+		forceRebuildClang, err := r.settings.GetBool(SettingKeyBuildForceClang)
+		if err != nil {
+			forceRebuildClang = false // Default to false if setting not found
+		}
+
+		return &debuggerUI.DebuggerCommand{
+			Command: debuggerUI.DebuggerCommandLoadProgramFromFile,
+			LoadProgramArgs: &debuggerUI.LoadProgramArgs{
+				FilePath:          args[0],
+				AutoBuildClang:    &autoBuildClang,
+				ForceRebuildClang: &forceRebuildClang,
 			},
 		}, nil
-	}, func(result *ui.DebuggerCommandResult) error {
+	}, func(result *debuggerUI.DebuggerCommandResult) error {
 		return result.LoadProgramResult.Error
 	})
 }
 
 func (r *REPL) handleLoadSystem(args []string) error {
-	return r.handleCommand(args, func(args []string) (*ui.DebuggerCommand, error) {
+	return r.handleCommand(args, func(args []string) (*debuggerUI.DebuggerCommand, error) {
 		if len(args) == 0 {
 			return nil, fmt.Errorf("loadsystem requires a file path")
 		}
 
-		return &ui.DebuggerCommand{
-			Command: ui.DebuggerCommandLoadSystemFromFile,
-			LoadSystemArgs: &ui.LoadSystemArgs{
+		return &debuggerUI.DebuggerCommand{
+			Command: debuggerUI.DebuggerCommandLoadSystemFromFile,
+			LoadSystemArgs: &debuggerUI.LoadSystemArgs{
 				FilePath: args[0],
 			},
 		}, nil
-	}, func(result *ui.DebuggerCommandResult) error {
+	}, func(result *debuggerUI.DebuggerCommandResult) error {
 		return result.LoadSystemResult.Error
 	})
 }
 
 func (r *REPL) handleLoadRuntime(args []string) error {
-	return r.handleCommand(args, func(args []string) (*ui.DebuggerCommand, error) {
+	return r.handleCommand(args, func(args []string) (*debuggerUI.DebuggerCommand, error) {
 		if len(args) == 0 {
 			return nil, fmt.Errorf("loadruntime requires a runtime name")
 		}
 
-		runtimeType, err := ui.RuntimeTypeFromString(args[0])
+		runtimeType, err := debuggerUI.RuntimeTypeFromString(args[0])
 		if err != nil {
 			return nil, err
 		}
 
-		return &ui.DebuggerCommand{
-			Command: ui.DebuggerCommandLoadRuntime,
-			LoadRuntimeArgs: &ui.LoadRuntimeArgs{
+		return &debuggerUI.DebuggerCommand{
+			Command: debuggerUI.DebuggerCommandLoadRuntime,
+			LoadRuntimeArgs: &debuggerUI.LoadRuntimeArgs{
 				Runtime: runtimeType,
 			},
 		}, nil
-	}, func(result *ui.DebuggerCommandResult) error {
+	}, func(result *debuggerUI.DebuggerCommandResult) error {
 		return result.LoadRuntimeResult.Error
 	})
 }
@@ -479,23 +528,25 @@ func (r *REPL) handleSet(args []string) error {
 
 	settingName := args[0]
 
-	// Special handling for show.logs - it takes multiple logger names
-	if settingName == SettingKeyShowLogs {
-		loggerNames := args[1:] // Get all remaining arguments as logger names
-		if err := r.applyUILoggers(loggerNames); err != nil {
-			return err
-		}
-		r.write("UI logging enabled for loggers: %v\n", loggerNames)
-		return nil
-	}
-
-	// For other settings, require exactly one value
+	// For all settings, require exactly one value (or multiple for logging.show which is a slice)
 	if len(args) < 2 {
 		return fmt.Errorf("set requires a setting name and value")
 	}
 
-	settingValue := args[1]
+	// For display.logs, collect all remaining arguments as logger names
+	if settingName == SettingKeyDisplayLogs {
+		// Pass remaining args as a list for the logging setting
+		loggerNames := args[1:]
+		if err := r.settings.Set(settingName, loggerNames); err != nil {
+			return err
+		}
+		value, _ := r.settings.Get(settingName)
+		r.write("Set %s = %v\n", settingName, value)
+		return nil
+	}
 
+	// For other settings, only use the first value argument
+	settingValue := args[1]
 	if err := r.settings.Set(settingName, settingValue); err != nil {
 		return err
 	}
@@ -527,7 +578,7 @@ func (r *REPL) handleGet(args []string) error {
 // Event Handler
 // ============================================================================
 
-func (r *REPL) handleDebuggerEvent(event *ui.DebuggerEvent) {
+func (r *REPL) handleDebuggerEvent(event *debuggerUI.DebuggerEvent) {
 	if event == nil {
 		return
 	}
@@ -545,11 +596,11 @@ func (r *REPL) handleDebuggerEvent(event *ui.DebuggerEvent) {
 
 	// Print event details based on type
 	switch event.Type {
-	case ui.DebuggerEventStepped:
+	case debuggerUI.DebuggerEventStepped:
 		r.write("  Instruction stepped\n")
 		r.printEventExecutionDetails(event.Result)
 
-	case ui.DebuggerEventBreakpointHit:
+	case debuggerUI.DebuggerEventBreakpointHit:
 		r.write("  Breakpoint hit\n")
 		if event.Result != nil && event.Result.Breakpoint != nil {
 			r.write("    Breakpoint ID: %d\n", event.Result.Breakpoint.ID)
@@ -557,7 +608,7 @@ func (r *REPL) handleDebuggerEvent(event *ui.DebuggerEvent) {
 		}
 		r.printEventExecutionDetails(event.Result)
 
-	case ui.DebuggerEventWatchpointHit:
+	case debuggerUI.DebuggerEventWatchpointHit:
 		r.write("  Watchpoint hit\n")
 		if event.Result != nil && event.Result.Watchpoint != nil {
 			r.write("    Watchpoint ID: %d\n", event.Result.Watchpoint.ID)
@@ -568,22 +619,22 @@ func (r *REPL) handleDebuggerEvent(event *ui.DebuggerEvent) {
 		}
 		r.printEventExecutionDetails(event.Result)
 
-	case ui.DebuggerEventProgramTerminated:
+	case debuggerUI.DebuggerEventProgramTerminated:
 		r.write("  Program terminated\n")
 		r.printEventExecutionDetails(event.Result)
 
-	case ui.DebuggerEventProgramHalted:
+	case debuggerUI.DebuggerEventProgramHalted:
 		r.write("  Program halted\n")
 		r.printEventExecutionDetails(event.Result)
 
-	case ui.DebuggerEventError:
+	case debuggerUI.DebuggerEventError:
 		r.write("  Error occurred\n")
 		if event.Result != nil && event.Result.Error != nil {
 			r.write("    Error: %v\n", event.Result.Error)
 		}
 		r.printEventExecutionDetails(event.Result)
 
-	case ui.DebuggerEventSourceLocationChanged:
+	case debuggerUI.DebuggerEventSourceLocationChanged:
 		r.write("  Source location changed\n")
 		if event.Result != nil && event.Result.LastLocation != nil {
 			r.write("    Location: %s:%d\n",
@@ -592,14 +643,14 @@ func (r *REPL) handleDebuggerEvent(event *ui.DebuggerEvent) {
 		}
 		r.printEventExecutionDetails(event.Result)
 
-	case ui.DebuggerEventInterrupted:
+	case debuggerUI.DebuggerEventInterrupted:
 		r.write("  Execution interrupted\n")
 		r.printEventExecutionDetails(event.Result)
 
-	case ui.DebuggerEventProgramLoaded:
+	case debuggerUI.DebuggerEventProgramLoaded:
 		r.write("  Program loaded\n")
 
-	case ui.DebuggerEventLagging:
+	case debuggerUI.DebuggerEventLagging:
 		r.write("  Emulator lagging\n")
 		if event.Result != nil && event.Result.LaggingCycles > 0 {
 			r.write("    Lagging by: %d cycles\n", event.Result.LaggingCycles)
@@ -609,7 +660,7 @@ func (r *REPL) handleDebuggerEvent(event *ui.DebuggerEvent) {
 }
 
 // printEventExecutionDetails prints common execution result details
-func (r *REPL) printEventExecutionDetails(result *ui.ExecutionResult) {
+func (r *REPL) printEventExecutionDetails(result *debuggerUI.ExecutionResult) {
 	if result == nil {
 		return
 	}
@@ -623,7 +674,7 @@ func (r *REPL) printEventExecutionDetails(result *ui.ExecutionResult) {
 	}
 
 	// Print stop reason
-	if result.StopReason != ui.StopReasonNone {
+	if result.StopReason != debuggerUI.StopReasonNone {
 		r.write("    Stop Reason: %s\n", result.StopReason.String())
 	}
 

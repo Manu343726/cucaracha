@@ -38,14 +38,20 @@ func NewMemoryAdapter(mem Memory) memory.Memory {
 	return &memoryAdapter{memory: mem}
 }
 
-// ReadByte reads a byte from the memory at the given address
-func (m *memoryAdapter) ReadByte(addr uint32) (byte, error) {
-	return m.memory.ReadByte(addr), nil
+// Read reads data from the memory at the given address
+func (m *memoryAdapter) Read(addr uint32, size int) ([]byte, error) {
+	data := make([]byte, size)
+	for i := 0; i < size; i++ {
+		data[i] = m.memory.ReadByte(uint32(addr + uint32(i)))
+	}
+	return data, nil
 }
 
-// WriteByte writes a byte to the memory at the given address
-func (m *memoryAdapter) WriteByte(addr uint32, value byte) error {
-	m.memory.WriteByte(addr, value)
+// Write writes data to the memory at the given address
+func (m *memoryAdapter) Write(addr uint32, data []byte) error {
+	for i, b := range data {
+		m.memory.WriteByte(uint32(addr+uint32(i)), b)
+	}
 	return nil
 }
 

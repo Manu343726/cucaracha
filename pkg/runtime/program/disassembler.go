@@ -166,6 +166,35 @@ func InstructionAddressesAtSourceLocation(pf ProgramFile, loc *sourcecode.Locati
 	return ranges, nil
 }
 
+// Returns all instructions after the given instruction address that correspond to the same source location as the instruction at the given address.
+//
+// This is useful to find all instructions corresponding to a single source line, since sometimes the compiler generates multiple instructions for a single line of source code.
+func InstructionsAtSameSourceLocation(pf ProgramFile, addr uint32) ([]*Instruction, error) {
+	srcLoc, err := SourceLocationAtInstructionAddress(pf, addr)
+	if err != nil {
+		return nil, err
+	}
+
+	ranges, err := InstructionAddressesAtSourceLocation(pf, srcLoc)
+	if err != nil {
+		return nil, err
+	}
+
+	instructions := make([]*Instruction, 0)
+
+	for _, r := range ranges {
+		for addr := range r.Addresses(4) {
+			instr, err := InstructionAtAddress(pf, addr)
+			if err != nil {
+				return nil, err
+			}
+			instructions = append(instructions, instr)
+		}
+	}
+
+	return instructions, nil
+}
+
 // Returns the source line for a given instruction address
 func SourceLineAtInstructionAddress(pf ProgramFile, addr uint32) (*sourcecode.Line, error) {
 	srcLoc, err := SourceLocationAtInstructionAddress(pf, addr)
@@ -245,12 +274,16 @@ func BranchTargetAtInstruction(pf ProgramFile, addr uint32) (*uint32, *SymbolRef
 				panic("expected 2 operands for MOVIMM16H instruction")
 			}
 
-			if prevInstr.Instruction.OperandValues[0].Kind() != instructions.OperandKind_Register {
-				panic("expected first operand of MOVIMM16H to be a register")
+			if prevInstr.Instruction.OperandValues[0].Kind() != instructions.OperandKind_Immediate {
+				panic("expected first operand of MOVIMM16H to be an immediate")
 			}
 
-			if prevInstr.Instruction.OperandValues[0].Register() == branchTargetReg {
-				immValue := uint32(prevInstr.Instruction.OperandValues[1].Immediate().Encode())
+			if prevInstr.Instruction.OperandValues[1].Kind() != instructions.OperandKind_Register {
+				panic("expected second operand of MOVIMM16H to be a register")
+			}
+
+			if prevInstr.Instruction.OperandValues[1].Register() == branchTargetReg {
+				immValue := uint32(prevInstr.Instruction.OperandValues[0].Immediate().Encode())
 				if targetAddress == nil {
 					targetAddress = new(uint32)
 				}
@@ -275,12 +308,16 @@ func BranchTargetAtInstruction(pf ProgramFile, addr uint32) (*uint32, *SymbolRef
 				panic("expected 2 operands for MOVIMM16L instruction")
 			}
 
-			if prevInstr.Instruction.OperandValues[0].Kind() != instructions.OperandKind_Register {
-				panic("expected first operand of MOVIMM16L to be a register")
+			if prevInstr.Instruction.OperandValues[0].Kind() != instructions.OperandKind_Immediate {
+				panic("expected first operand of MOVIMM16L to be an immediate")
 			}
 
-			if prevInstr.Instruction.OperandValues[0].Register() == branchTargetReg {
-				immValue := uint32(prevInstr.Instruction.OperandValues[1].Immediate().Encode())
+			if prevInstr.Instruction.OperandValues[1].Kind() != instructions.OperandKind_Register {
+				panic("expected second operand of MOVIMM16L to be a register")
+			}
+
+			if prevInstr.Instruction.OperandValues[1].Register() == branchTargetReg {
+				immValue := uint32(prevInstr.Instruction.OperandValues[0].Immediate().Encode())
 				if targetAddress == nil {
 					targetAddress = new(uint32)
 				}

@@ -559,45 +559,6 @@ func TestLogger_ContextVersions(t *testing.T) {
 	}
 }
 
-// TestLogger_Logf tests formatted logging without context
-func TestLogger_Logf(t *testing.T) {
-	buf := &bytes.Buffer{}
-	sink := NewFileSink("test", buf, slog.LevelInfo)
-
-	registry := NewRegistry()
-	regLogger := NewRegisteredLogger("app", sink)
-	registry.RegisterLogger(regLogger)
-
-	logger := registry.Get("app")
-
-	logger.Logf(slog.LevelInfo, "message with %s", "formatting")
-
-	output := buf.String()
-	if !contains(output, "message with formatting") {
-		t.Error("expected formatted message in output")
-	}
-}
-
-// TestLogger_LogfContext tests formatted logging with context
-func TestLogger_LogfContext(t *testing.T) {
-	buf := &bytes.Buffer{}
-	sink := NewFileSink("test", buf, slog.LevelInfo)
-
-	registry := NewRegistry()
-	regLogger := NewRegisteredLogger("app", sink)
-	registry.RegisterLogger(regLogger)
-
-	logger := registry.Get("app")
-
-	ctx := context.Background()
-	logger.LogfContext(ctx, slog.LevelInfo, "message with %s and %d", "formatting", 42)
-
-	output := buf.String()
-	if !contains(output, "message with formatting and 42") {
-		t.Error("expected formatted message in output")
-	}
-}
-
 // TestLogger_Panic tests that panic logs message with backtrace and panics
 func TestLogger_Panic(t *testing.T) {
 	buf := &bytes.Buffer{}
