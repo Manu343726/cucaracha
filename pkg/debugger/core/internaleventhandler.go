@@ -80,6 +80,7 @@ func (q *InternalEventsQueue) EventFired(event *Event) bool {
 
 	for _, subscriptor := range q.subscriptors {
 		if subscriptor.Event != event.Event {
+			subscriptorsToKeep = append(subscriptorsToKeep, subscriptor)
 			continue
 		}
 

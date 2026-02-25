@@ -1,0 +1,4 @@
+define test-cmd
+help
+set display.events false
+end

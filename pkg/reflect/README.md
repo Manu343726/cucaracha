@@ -228,8 +228,8 @@ code, _ := gen.GenerateStructCode(myStruct)
 myInterface := codegen.NewInterfaceBuilder("Reader").
     WithDoc("Reader reads data.").
     AddMethod("Read", 
-        []*reflect.Parameter{{Name: "p", Type: "[]byte"}},
-        []*reflect.Parameter{{Type: "int"}, {Type: "error"}},
+        []*reflect.Parameter{{Name: "p", Type: &reflect.TypeReference{Name: "[]byte", Type: nil}}},
+        []*reflect.Parameter{{Type: &reflect.TypeReference{Name: "int", Type: nil}}, {Type: &reflect.TypeReference{Name: "error", Type: nil}}},
         "Read some bytes").
     Build()
 

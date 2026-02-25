@@ -1,5 +1,24 @@
-display.events: false
-display.logs:
-  - "cucaracha"
-build.auto_clang: false
-build.force_clang: true
+# Cucaracha Debugger REPL Settings and Aliases
+# This file contains both settings for the REPL and custom command aliases
+
+# Settings section
+settings:
+  display.events: false
+  display.logs:
+    - "cucaracha"
+  build.auto_clang: false
+  build.force_clang: true
+
+# Aliases section - define custom multi-command aliases here
+aliases:
+  sl:
+    commands:
+      - "step countMode=sourceLines"
+      - "currentSource"
+    doc: "Step through one source line and show source"
+  
+  si:
+    commands:
+      - "step"
+      - "disasm pc-5 10"
+    doc: "Step and show disassembly around current instruction"

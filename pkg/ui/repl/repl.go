@@ -7,7 +7,10 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"strings"
+
+	"gopkg.in/yaml.v3"
 
 	debuggerUI "github.com/Manu343726/cucaracha/pkg/ui/debugger"
 	"github.com/Manu343726/cucaracha/pkg/utils"
@@ -17,28 +20,40 @@ import (
 
 // REPL represents a debugger Read-Eval-Print Loop interface
 type REPL struct {
-	debugger        debuggerUI.CommandBasedDebugger
-	readline        *readline.Instance
-	writer          io.Writer
-	exit            bool
-	commands        map[string]CommandHandler
-	lastInput       string
-	loadArgs        *debuggerUI.LoadArgs
-	lastDisasmArgs  *debuggerUI.DisasmArgs // Store last disasm args for output formatting
-	quiet           bool                   // When true, no welcome/goodbye messages
-	outputFormat    OutputFormat           // Human readable or machine readable
-	outputBuffer    strings.Builder        // Buffer for collecting output when in machine readable mode
-	commandStarted  bool                   // Track if we're in the middle of processing a command
-	scriptFile      string                 // Current script file path (for location tracking)
-	scriptLine      int                    // Current line number in script (for location tracking)
-	commandIndex    int                    // Current command index (0-based)
-	settings        *Settings              // REPL settings (display.events, etc)
-	uiSink          *logging.Sink          // UI sink for capturing log entries
-	waitingForInput bool                   // Track if REPL is waiting for user input
+	debugger         debuggerUI.CommandBasedDebugger
+	readline         *readline.Instance
+	writer           io.Writer
+	exit             bool
+	commands         map[string]CommandHandler
+	aliases          map[string]*Alias // Map of alias name to Alias
+	lastInput        string
+	loadArgs         *debuggerUI.LoadArgs
+	lastDisasmArgs   *debuggerUI.DisasmArgs // Store last disasm args for output formatting
+	quiet            bool                   // When true, no welcome/goodbye messages
+	outputFormat     OutputFormat           // Human readable or machine readable
+	outputBuffer     strings.Builder        // Buffer for collecting output when in machine readable mode
+	commandStarted   bool                   // Track if we're in the middle of processing a command
+	scriptFile       string                 // Current script file path (for location tracking)
+	scriptLine       int                    // Current line number in script (for location tracking)
+	commandIndex     int                    // Current command index (0-based)
+	settings         *Settings              // REPL settings (display.events, etc)
+	uiSink           *logging.Sink          // UI sink for capturing log entries
+	waitingForInput  bool                   // Track if REPL is waiting for user input
+	definingAlias    bool                   // Are we currently defining a multi-line alias?
+	defineAliasName  string                 // Name of the alias being defined
+	defineCommands   [][]string             // Commands being collected for the alias
+	defineDoc        string                 // Documentation for the alias being defined
+	settingsFilePath string                 // Path to the loaded settings file
 }
 
 // CommandHandler is a function that handles a debugger command
 type CommandHandler func(args []string) error
+
+// Alias represents a command alias with optional documentation
+type Alias struct {
+	Commands [][]string // Each element is a command with its arguments (supports multi-command aliases)
+	Doc      string     // Optional documentation
+}
 
 // readlineOptions holds configuration for readline creation
 type readlineOptions struct {
@@ -47,11 +62,36 @@ type readlineOptions struct {
 	useCustomConfig bool
 }
 
+// getHistoryFilePath returns the path to the REPL history file
+func getHistoryFilePath() (string, error) {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+
+	cucarachaDir := filepath.Join(homeDir, ".cucaracha")
+	historyFile := filepath.Join(cucarachaDir, "history")
+
+	// Create the .cucaracha directory if it doesn't exist
+	if err := os.MkdirAll(cucarachaDir, 0755); err != nil {
+		return "", err
+	}
+
+	return historyFile, nil
+}
+
 // createReadline creates a readline instance with the given options
 func createReadline(opts readlineOptions) *readline.Instance {
 	if !opts.useCustomConfig {
-		// Simple readline with default prompt
-		rl, err := readline.New("(cucaracha) ")
+		// Create readline with persistent history
+		historyFile, _ := getHistoryFilePath()
+		rl, err := readline.NewEx(&readline.Config{
+			Prompt:            "(cucaracha) ",
+			HistoryFile:       historyFile,
+			HistorySearchFold: true,
+			InterruptPrompt:   "^C",
+			EOFPrompt:         "exit",
+		})
 		if err != nil {
 			panic(err)
 		}
@@ -66,6 +106,9 @@ func createReadline(opts readlineOptions) *readline.Instance {
 		readCloser = io.NopCloser(opts.reader)
 	}
 
+	// Get history file path for custom config as well
+	historyFile, _ := getHistoryFilePath()
+
 	rl, err := readline.NewEx(&readline.Config{
 		Prompt:            "(cucaracha) ",
 		Stdin:             readCloser,
@@ -73,11 +116,30 @@ func createReadline(opts readlineOptions) *readline.Instance {
 		InterruptPrompt:   "^C",
 		EOFPrompt:         "exit",
 		HistorySearchFold: true,
+		HistoryFile:       historyFile,
 	})
 	if err != nil {
 		panic(err)
 	}
 	return rl
+}
+
+// getAliasesConfigPath returns the path to the aliases configuration file
+func getAliasesConfigPath() (string, error) {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+
+	cucarachaDir := filepath.Join(homeDir, ".cucaracha")
+	aliasesFile := filepath.Join(cucarachaDir, "aliases.yaml")
+
+	// Create the .cucaracha directory if it doesn't exist
+	if err := os.MkdirAll(cucarachaDir, 0755); err != nil {
+		return "", err
+	}
+
+	return aliasesFile, nil
 }
 
 // newREPLInternal creates a new REPL instance with the provided configuration
@@ -88,6 +150,7 @@ func newREPLInternal(debugger debuggerUI.Debugger, readline *readline.Instance, 
 		readline:     readline,
 		writer:       writer,
 		commands:     make(map[string]CommandHandler),
+		aliases:      make(map[string]*Alias),
 		loadArgs:     loadArgs,
 		quiet:        quiet,
 		outputFormat: outputFormat,
@@ -160,12 +223,232 @@ func NewREPLWithOutputFormat(debugger debuggerUI.Debugger, reader io.Reader, wri
 
 // ApplySettingsFromFile loads and applies settings from a YAML file
 func (r *REPL) ApplySettingsFromFile(filePath string) error {
-	return r.settings.LoadFromFile(filePath)
+	if err := r.settings.LoadFromFile(filePath); err != nil {
+		return err
+	}
+
+	// Store the settings file path so we can save aliases back to it
+	r.settingsFilePath = filePath
+
+	// Also load aliases from the same settings file
+	return r.loadAliasesFromSettingsFile(filePath)
 }
 
 // ApplySettingsKeyValue applies a single key=value setting string
 func (r *REPL) ApplySettingsKeyValue(kvStr string) error {
 	return r.settings.ApplyKeyValue(kvStr)
+}
+
+// loadAliasesFromSettingsFile loads aliases from the YAML settings file
+func (r *REPL) loadAliasesFromSettingsFile(filePath string) error {
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		// If file doesn't exist, that's okay - just return nil
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return fmt.Errorf("failed to read settings file: %w", err)
+	}
+
+	// Parse YAML with aliases key
+	var config map[string]interface{}
+	if err := yaml.Unmarshal(data, &config); err != nil {
+		// If parsing fails, just return nil - settings were loaded, ignoring aliases
+		return nil
+	}
+
+	aliasesData, ok := config["aliases"]
+	if !ok {
+		// No aliases section in file
+		return nil
+	}
+
+	// Convert to map of alias definitions
+	aliasesMap, ok := aliasesData.(map[string]interface{})
+	if !ok {
+		slog.Warn("aliases in settings file must be a map")
+		return nil
+	}
+
+	// Load each alias
+	for name, aliasData := range aliasesMap {
+		alias, err := parseAliasFromYAML(name, aliasData)
+		if err != nil {
+			slog.Warn("failed to parse alias from settings", "name", name, "error", err)
+			continue
+		}
+		r.aliases[strings.ToLower(name)] = alias
+	}
+
+	return nil
+}
+
+// saveAliasesToSettingsFile saves all current aliases back to the settings file
+// maintaining the structured format with 'settings' and 'aliases' sections
+func (r *REPL) saveAliasesToSettingsFile(settingsFilePath string) error {
+	// Read existing config to preserve settings
+	config := make(map[string]interface{})
+	existingSettings := make(map[string]interface{})
+
+	if _, err := os.Stat(settingsFilePath); err == nil {
+		data, err := os.ReadFile(settingsFilePath)
+		if err == nil {
+			_ = yaml.Unmarshal(data, &config)
+
+			// Extract existing settings section if it exists
+			if settingsData, ok := config["settings"]; ok {
+				if settingsMap, ok := settingsData.(map[string]interface{}); ok {
+					existingSettings = settingsMap
+				}
+			} else {
+				// Old flat format - everything is settings
+				for key, value := range config {
+					if key != "aliases" {
+						existingSettings[key] = value
+					}
+				}
+			}
+		}
+	}
+
+	// Build new config with structured sections
+	newConfig := make(map[string]interface{})
+
+	// Add settings section
+	if len(existingSettings) > 0 {
+		newConfig["settings"] = existingSettings
+	}
+
+	// Build aliases map
+	aliasesMap := make(map[string]interface{})
+	for name, alias := range r.aliases {
+		aliasEntry := make(map[string]interface{})
+
+		// Convert commands to strings
+		var cmdStrs []string
+		for _, cmdParts := range alias.Commands {
+			cmdStrs = append(cmdStrs, strings.Join(cmdParts, " "))
+		}
+		aliasEntry["commands"] = cmdStrs
+
+		if alias.Doc != "" {
+			aliasEntry["doc"] = alias.Doc
+		}
+
+		aliasesMap[name] = aliasEntry
+	}
+
+	// Add aliases section if there are any aliases
+	if len(aliasesMap) > 0 {
+		newConfig["aliases"] = aliasesMap
+	}
+
+	// Marshal to YAML
+	data, err := yaml.Marshal(newConfig)
+	if err != nil {
+		return fmt.Errorf("failed to marshal to YAML: %w", err)
+	}
+
+	// Write to file
+	if err := os.WriteFile(settingsFilePath, data, 0644); err != nil {
+		return fmt.Errorf("failed to write settings file: %w", err)
+	}
+
+	return nil
+}
+
+// saveSettingsToFile saves all current settings back to the settings file
+// maintaining the structured format with 'settings' and 'aliases' sections
+func (r *REPL) saveSettingsToFile(settingsFilePath string) error {
+	// Read existing config to preserve aliases
+	config := make(map[string]interface{})
+	existingAliases := make(map[string]interface{})
+
+	if _, err := os.Stat(settingsFilePath); err == nil {
+		data, err := os.ReadFile(settingsFilePath)
+		if err == nil {
+			_ = yaml.Unmarshal(data, &config)
+
+			// Extract existing aliases section if it exists
+			if aliasesData, ok := config["aliases"]; ok {
+				if aliasesMap, ok := aliasesData.(map[string]interface{}); ok {
+					existingAliases = aliasesMap
+				}
+			}
+		}
+	}
+
+	// Build new config with structured sections
+	newConfig := make(map[string]interface{})
+
+	// Add settings section - export current settings
+	settingsMap := r.settings.ExportSettings()
+	if len(settingsMap) > 0 {
+		newConfig["settings"] = settingsMap
+	}
+
+	// Add aliases section if there are any
+	if len(existingAliases) > 0 {
+		newConfig["aliases"] = existingAliases
+	}
+
+	// Marshal to YAML
+	data, err := yaml.Marshal(newConfig)
+	if err != nil {
+		return fmt.Errorf("failed to marshal to YAML: %w", err)
+	}
+
+	// Write to file
+	if err := os.WriteFile(settingsFilePath, data, 0644); err != nil {
+		return fmt.Errorf("failed to write settings file: %w", err)
+	}
+
+	return nil
+}
+
+// parseAliasFromYAML parses an alias from YAML data
+func parseAliasFromYAML(name string, aliasData interface{}) (*Alias, error) {
+	alertMap, ok := aliasData.(map[string]interface{})
+	if !ok {
+		return nil, fmt.Errorf("alias data must be a map")
+	}
+
+	// Get commands
+	commandsData, ok := alertMap["commands"]
+	if !ok {
+		return nil, fmt.Errorf("missing 'commands' field")
+	}
+
+	var commands [][]string
+
+	// Handle commands as array or string
+	switch v := commandsData.(type) {
+	case []interface{}:
+		for i, cmd := range v {
+			cmdStr, ok := cmd.(string)
+			if !ok {
+				return nil, fmt.Errorf("command at index %d is not a string", i)
+			}
+			commands = append(commands, strings.Fields(cmdStr))
+		}
+	case string:
+		commands = append(commands, strings.Fields(v))
+	default:
+		return nil, fmt.Errorf("commands must be a string or array of strings")
+	}
+
+	alias := &Alias{
+		Commands: commands,
+	}
+
+	// Get optional doc
+	if docData, ok := alertMap["doc"]; ok {
+		if docStr, ok := docData.(string); ok {
+			alias.Doc = docStr
+		}
+	}
+
+	return alias, nil
 }
 
 // registerCommands registers all available REPL commands
@@ -176,58 +459,16 @@ func (r *REPL) registerCommands() {
 	r.commands["quit"] = r.handleExit
 	r.commands["q"] = r.handleExit
 
-	// Execution commands
-	r.commands["step"] = r.handleStep
-	r.commands["s"] = r.handleStep
-	r.commands["continue"] = r.handleContinue
-	r.commands["c"] = r.handleContinue
-	r.commands["interrupt"] = r.handleInterrupt
-	r.commands["run"] = r.handleRun
-	r.commands["r"] = r.handleRun
-	r.commands["reset"] = r.handleReset
-	r.commands["restart"] = r.handleRestart
-
-	// Breakpoint commands
-	r.commands["break"] = r.handleBreak
-	r.commands["b"] = r.handleBreak
-	r.commands["removebreakpoint"] = r.handleRemoveBreakpoint
-	r.commands["rbp"] = r.handleRemoveBreakpoint
-	r.commands["watch"] = r.handleWatch
-	r.commands["w"] = r.handleWatch
-	r.commands["removewatchpoint"] = r.handleRemoveWatchpoint
-	r.commands["rw"] = r.handleRemoveWatchpoint
-	r.commands["list"] = r.handleList
-	r.commands["l"] = r.handleList
-
-	// Inspection commands
-	r.commands["disasm"] = r.handleDisasm
-	r.commands["d"] = r.handleDisasm
-	r.commands["current"] = r.handleCurrent
-	r.commands["memory"] = r.handleMemory
-	r.commands["m"] = r.handleMemory
-	r.commands["source"] = r.handleSource
-	r.commands["info"] = r.handleInfo
-	r.commands["i"] = r.handleInfo
-	r.commands["registers"] = r.handleRegisters
-	r.commands["reg"] = r.handleRegisters
-	r.commands["stack"] = r.handleStack
-	r.commands["st"] = r.handleStack
-	r.commands["vars"] = r.handleVars
-	r.commands["v"] = r.handleVars
-	r.commands["eval"] = r.handleEval
-	r.commands["e"] = r.handleEval
-	r.commands["symbols"] = r.handleSymbols
-	r.commands["sym"] = r.handleSymbols
-
-	// Program loading commands
-	r.commands["load"] = r.handleLoad
-	r.commands["loadprogram"] = r.handleLoadProgram
-	r.commands["loadsystem"] = r.handleLoadSystem
-	r.commands["loadruntime"] = r.handleLoadRuntime
-
 	// Settings commands
 	r.commands["set"] = r.handleSet
 	r.commands["get"] = r.handleGet
+	r.commands["save-settings"] = r.handleSaveSettings
+
+	// Alias commands
+	r.commands["define"] = r.handleDefine
+	r.commands["undefine"] = r.handleUndefine
+	r.commands["unalias"] = r.handleUndefine
+	r.commands["save-aliases"] = r.handleSaveAliases
 
 	// Utility commands
 	r.commands["loggers"] = r.handleLoggers
@@ -240,7 +481,7 @@ func (r *REPL) Run() error {
 	// Initialize debugger with load arguments if provided
 	if r.loadArgs != nil {
 		if err := r.initializeDebugger(); err != nil {
-			r.printError(fmt.Sprintf("Failed to initialize debugger: %v", err))
+			return r.printError(fmt.Errorf("Failed to initialize debugger: %v", err))
 		}
 	}
 
@@ -254,11 +495,26 @@ func (r *REPL) Run() error {
 
 	for !r.exit {
 		r.waitingForInput = true
+
+		// Use different prompt for define mode
+		if r.definingAlias {
+			r.readline.SetPrompt(fmt.Sprintf("define %s> ", r.defineAliasName))
+		}
+
 		line, err := r.readline.Readline()
 		r.waitingForInput = false
 
 		if err != nil {
 			if err == readline.ErrInterrupt || err.Error() == "Interrupt" {
+				// Cancel define mode on interrupt
+				if r.definingAlias {
+					r.write("Define mode cancelled\n")
+					r.definingAlias = false
+					r.defineAliasName = ""
+					r.defineCommands = nil
+					r.defineDoc = ""
+					r.readline.SetPrompt("(cucaracha) ")
+				}
 				continue
 			}
 			if err.Error() == "EOF" {
@@ -268,8 +524,55 @@ func (r *REPL) Run() error {
 		}
 
 		line = strings.TrimSpace(line)
-		if line == "" {
+
+		// Handle define mode
+		if r.definingAlias {
+			// Check for end markers
+			if line == "end" || line == "end-alias" {
+				// Create the alias
+				r.aliases[r.defineAliasName] = &Alias{
+					Commands: r.defineCommands,
+					Doc:      r.defineDoc,
+				}
+
+				outputMsg := fmt.Sprintf("Defined alias '%s' with %d command(s)", r.defineAliasName, len(r.defineCommands))
+				if r.defineDoc != "" {
+					outputMsg += fmt.Sprintf("\n  Documentation: %s", r.defineDoc)
+				}
+				r.write("%s\n", outputMsg)
+
+				// Exit define mode and reset prompt
+				r.definingAlias = false
+				r.defineAliasName = ""
+				r.defineCommands = nil
+				r.defineDoc = ""
+				r.readline.SetPrompt("(cucaracha) ")
+			} else if line != "" {
+				// Validate and resolve the command
+				parts := strings.Fields(line)
+				_, resolution, err := r.validateAndResolveCommand(parts)
+				if err != nil {
+					r.write("  Warning: %v\n", err)
+					continue
+				}
+
+				// Show the command being added with resolution info
+				r.write("  ✓ %s\n", strings.Join(parts, " "))
+				r.write("    %s\n", resolution)
+
+				// Add command to the sequence
+				r.defineCommands = append(r.defineCommands, parts)
+			}
 			continue
+		}
+
+		if line == "" {
+			// If empty line and we have a previous command, execute the last command
+			if r.lastInput != "" {
+				line = r.lastInput
+			} else {
+				continue
+			}
 		}
 
 		r.lastInput = line
@@ -321,6 +624,103 @@ func (r *REPL) initializeDebugger() error {
 	return nil
 }
 
+// expandAliasRecursively expands an alias recursively, detecting cycles
+// For multi-command aliases, returns the first command if it's part of an alias sequence
+func (r *REPL) expandAliasRecursively(cmd string, visited map[string]bool, depth int) ([]string, error) {
+	const maxDepth = 10 // Prevent deep recursion
+
+	if depth > maxDepth {
+		return nil, fmt.Errorf("alias expansion depth exceeded (circular alias detected)")
+	}
+
+	// Check for cycles
+	if visited[cmd] {
+		return nil, fmt.Errorf("circular alias detected: %s", cmd)
+	}
+
+	// If not an alias, return just the command
+	alias, isAlias := r.aliases[cmd]
+	if !isAlias {
+		return []string{cmd}, nil
+	}
+
+	// Mark as visited
+	visited[cmd] = true
+
+	// For multi-command aliases, expand the first command if it's also an alias
+	if len(alias.Commands) == 0 {
+		return nil, fmt.Errorf("alias %s has no commands", cmd)
+	}
+
+	firstCmdParts := alias.Commands[0]
+	if len(firstCmdParts) == 0 {
+		return nil, fmt.Errorf("alias %s has empty first command", cmd)
+	}
+
+	// Try to expand the first part of the first command
+	firstCmd := firstCmdParts[0]
+	expandedFirst, err := r.expandAliasRecursively(firstCmd, visited, depth+1)
+	if err != nil {
+		return nil, err
+	}
+
+	// Combine expanded first part with remaining parts of first command
+	result := append(expandedFirst, firstCmdParts[1:]...)
+	return result, nil
+}
+
+// validateAndResolveCommand validates a command using REPL syntax and resolves any alias references
+// Returns the resolved command parts and a description of what it resolves to
+func (r *REPL) validateAndResolveCommand(cmdParts []string) ([]string, string, error) {
+	if len(cmdParts) == 0 {
+		return nil, "", fmt.Errorf("empty command")
+	}
+
+	firstCmd := cmdParts[0]
+
+	// Check if it's a built-in command
+	if _, isBuiltin := r.commands[firstCmd]; isBuiltin {
+		// Built-in command, just return it as-is
+		return cmdParts, fmt.Sprintf("built-in command: %s", firstCmd), nil
+	}
+
+	// Check if it's an alias
+	if alias, isAlias := r.aliases[firstCmd]; isAlias {
+		// Resolve the alias
+		if len(alias.Commands) == 0 {
+			return nil, "", fmt.Errorf("alias '%s' has no commands", firstCmd)
+		}
+
+		// Try to expand the alias recursively
+		expandedParts, err := r.expandAliasRecursively(firstCmd, make(map[string]bool), 0)
+		if err != nil {
+			return nil, "", err
+		}
+
+		// Combine expanded parts with any user-provided arguments
+		resolvedCmd := append(expandedParts, cmdParts[1:]...)
+
+		// Show the alias expansion
+		aliasDescription := fmt.Sprintf("alias '%s' → resolved to: %s", firstCmd, strings.Join(expandedParts, " "))
+		if alias.Doc != "" {
+			aliasDescription = fmt.Sprintf("alias '%s' (%s) → resolved to: %s", firstCmd, alias.Doc, strings.Join(expandedParts, " "))
+		}
+
+		return resolvedCmd, aliasDescription, nil
+	}
+
+	// Check if it's a debugger command by trying to parse it
+	var syntax REPLSyntax
+	_, err := syntax.ParseCommand(cmdParts)
+	if err == nil {
+		// Valid debugger command
+		return cmdParts, fmt.Sprintf("debugger command: %s", firstCmd), nil
+	}
+
+	// Not a built-in command, alias, or debugger command
+	return nil, "", fmt.Errorf("unknown command: '%s' (not a built-in command, defined alias, or debugger command)", firstCmd)
+}
+
 // processCommand parses and executes a command
 func (r *REPL) processCommand(input string) {
 	parts := strings.Fields(input)
@@ -328,21 +728,82 @@ func (r *REPL) processCommand(input string) {
 		return
 	}
 
-	cmd := strings.ToLower(parts[0])
+	cmd := parts[0]
 	args := parts[1:]
 
-	handler, exists := r.commands[cmd]
-	if !exists {
+	// Check if this is an alias
+	if alias, isAlias := r.aliases[cmd]; isAlias {
+		// Execute multi-command alias sequence
 		r.startCommandOutput()
-		r.printError(fmt.Sprintf("Unknown command: %s", cmd))
-		r.finishCommandOutput(false, fmt.Errorf("unknown command: %s", cmd))
+		for _, cmdParts := range alias.Commands {
+			if len(cmdParts) == 0 {
+				continue
+			}
+
+			// Expand each command part in case it's also an alias
+			expandedParts, err := r.expandAliasRecursively(cmdParts[0], make(map[string]bool), 0)
+			if err != nil {
+				r.printError(err)
+				r.finishCommandOutput(false, err)
+				return
+			}
+
+			// Combine expanded parts with rest of command
+			fullParts := append(expandedParts, cmdParts[1:]...)
+			// Append original user args to each command
+			fullParts = append(fullParts, args...)
+
+			if len(fullParts) == 0 {
+				continue
+			}
+
+			// Execute the command
+			finalCmd := fullParts[0]
+			finalArgs := fullParts[1:]
+
+			handler, exists := r.commands[finalCmd]
+			if !exists {
+				handler = r.handleDebuggerCommand
+				finalArgs = fullParts
+			}
+
+			err = handler(finalArgs)
+			if err != nil {
+				r.printError(err)
+				r.finishCommandOutput(false, err)
+				return
+			}
+		}
+		r.finishCommandOutput(true, nil)
 		return
 	}
 
-	r.startCommandOutput()
-	err := handler(args)
+	// Not an alias - execute as single command
+	// Recursively expand in case it's a command that aliases to other aliases
+	expandedParts, err := r.expandAliasRecursively(cmd, make(map[string]bool), 0)
 	if err != nil {
-		r.printError(err.Error())
+		r.startCommandOutput()
+		r.printError(err)
+		r.finishCommandOutput(false, err)
+		return
+	}
+
+	// expandedParts now contains the full expanded command
+	// Append original args to the fully expanded command
+	parts = append(expandedParts, args...)
+	cmd = strings.ToLower(parts[0])
+	args = parts[1:]
+
+	handler, exists := r.commands[cmd]
+	if !exists {
+		handler = r.handleDebuggerCommand
+		args = parts // Pass the entire input as args for the debugger command parser
+	}
+
+	r.startCommandOutput()
+	err = handler(args)
+	if err != nil {
+		r.printError(err)
 		r.finishCommandOutput(false, err)
 	} else {
 		r.finishCommandOutput(true, nil)
@@ -371,7 +832,7 @@ func (r *REPL) RunScript(scriptPath string) error {
 	// Script mode typically just provides commands, not program setup
 	if r.loadArgs != nil && r.loadArgs.ProgramPath != nil {
 		if err := r.initializeDebugger(); err != nil {
-			r.printError(fmt.Sprintf("Failed to initialize debugger: %v", err))
+			return fmt.Errorf("Failed to initialize debugger: %v", err)
 		}
 	}
 

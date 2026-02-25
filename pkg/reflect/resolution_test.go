@@ -4,42 +4,29 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestPackageResolverCreation(t *testing.T) {
 	cwd, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Failed to get working directory: %v", err)
-	}
+	require.NoError(t, err, "Failed to get working directory")
 
 	resolver, err := NewPackageResolver(cwd)
-	if err != nil {
-		t.Fatalf("Failed to create package resolver: %v", err)
-	}
+	require.NoError(t, err, "Failed to create package resolver")
 
-	if resolver == nil {
-		t.Error("Package resolver is nil")
-	}
-
-	if resolver.moduleRoot == "" {
-		t.Error("Module root is empty")
-	}
-
-	if resolver.gopath == "" {
-		t.Error("GOPATH is empty")
-	}
+	assert.NotNil(t, resolver, "Package resolver should not be nil")
+	assert.NotEmpty(t, resolver.moduleRoot, "Module root should not be empty")
+	assert.NotEmpty(t, resolver.gopath, "GOPATH should not be empty")
 }
 
 func TestResolvePackagePath(t *testing.T) {
 	cwd, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Failed to get working directory: %v", err)
-	}
+	require.NoError(t, err, "Failed to get working directory")
 
 	resolver, err := NewPackageResolver(cwd)
-	if err != nil {
-		t.Fatalf("Failed to create package resolver: %v", err)
-	}
+	require.NoError(t, err, "Failed to create package resolver")
 
 	tests := []struct {
 		importPath string
@@ -55,22 +42,12 @@ func TestResolvePackagePath(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.importPath, func(t *testing.T) {
 			path, err := resolver.ResolvePackagePath(tt.importPath)
-			if err != nil {
-				if tt.wantPath {
-					t.Errorf("Failed to resolve %q: %v", tt.importPath, err)
-				}
-				return
+			if tt.wantPath {
+				require.NoError(t, err, "Failed to resolve %s", tt.importPath)
 			}
 
-			if path == "" {
-				t.Errorf("Resolved path is empty for %q", tt.importPath)
-				return
-			}
-
-			// Check if path is absolute
-			if !filepath.IsAbs(path) {
-				t.Errorf("Resolved path is not absolute for %q: %s", tt.importPath, path)
-			}
+			assert.NotEmpty(t, path, "Resolved path should not be empty for %s", tt.importPath)
+			assert.True(t, filepath.IsAbs(path), "Resolved path should be absolute for %s: %s", tt.importPath, path)
 		})
 	}
 }
@@ -78,38 +55,20 @@ func TestResolvePackagePath(t *testing.T) {
 func TestParsePackageFromImport(t *testing.T) {
 	// Test parsing standard library
 	pkg, err := ParsePackageFromImport("fmt")
-	if err != nil {
-		t.Errorf("Failed to parse fmt package: %v", err)
-		return
-	}
-
-	if pkg == nil {
-		t.Error("Parsed package is nil")
-		return
-	}
-
-	if pkg.Name != "fmt" {
-		t.Errorf("Expected package name 'fmt', got %q", pkg.Name)
-	}
+	require.NoError(t, err, "Failed to parse fmt package")
+	require.NotNil(t, pkg, "Parsed package should not be nil")
+	assert.Equal(t, "fmt", pkg.Name, "Package name should be 'fmt'")
 }
 
 func TestFindGoMod(t *testing.T) {
 	cwd, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Failed to get working directory: %v", err)
-	}
+	require.NoError(t, err, "Failed to get working directory")
 
 	gomodPath, err := findGoMod(cwd)
-	if err != nil {
-		t.Fatalf("Failed to find go.mod: %v", err)
-	}
-
-	if gomodPath == "" {
-		t.Error("go.mod path is empty")
-	}
+	require.NoError(t, err, "Failed to find go.mod")
+	require.NotEmpty(t, gomodPath, "go.mod path should not be empty")
 
 	// Check if file exists
-	if _, err := os.Stat(gomodPath); err != nil {
-		t.Errorf("go.mod file does not exist at %s: %v", gomodPath, err)
-	}
+	_, err = os.Stat(gomodPath)
+	assert.NoError(t, err, "go.mod file should exist at %s", gomodPath)
 }

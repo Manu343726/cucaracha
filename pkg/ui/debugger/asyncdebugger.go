@@ -40,14 +40,6 @@ func (ui *AsyncDebuggerUI) commandLoop() {
 
 // Sends a command to the debugger and returns the result asynchronously
 func (ui *AsyncDebuggerUI) Execute(cmd *DebuggerCommand, callback AsyncDebuggerCommandResultCallback) {
-	if cmd.Command == DebuggerCommandInterrupt {
-		// Explicitly handle interrupt command with a direct call to avoid potential deadlocks
-		// with the command loop stuck in a long-running command.
-		result, err := ui.debugger.Execute(cmd)
-		callback(result, err)
-		return
-	}
-
 	asyncCmd := &asyncDebuggerCommand{
 		cmd:      cmd,
 		callback: callback,

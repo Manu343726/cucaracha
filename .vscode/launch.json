@@ -55,6 +55,21 @@
             "console": "integratedTerminal",
             "showLog": false,
             "logOutput": "rpc"
+        },
+        {
+            "name": "Debug Code Generator (ui/debugger)",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "${workspaceFolder}/pkg/ui/debugger/generator.go",
+            "args": [
+                "-out", "commands.go",
+                "-api", "api.go"
+            ],
+            "cwd": "${workspaceFolder}/pkg/ui/debugger",
+            "console": "integratedTerminal",
+            "showLog": false,
+            "logOutput": "rpc"
         }
     ]
 }

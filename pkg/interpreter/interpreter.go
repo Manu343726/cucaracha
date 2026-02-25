@@ -166,6 +166,10 @@ func (i *Interpreter) Step() (*cpu.StepInfo, error) {
 		return nil, log.Errorf("failed to read PC: %v", err)
 	}
 
+	if !i.MemoryLayout().Code().ContainsAddress(oldPC) {
+		return nil, log.Errorf("PC outside of code memory range: 0x%X (code range: 0x%X - 0x%X)", oldPC, i.MemoryLayout().Code().Start, i.MemoryLayout().Code().End)
+	}
+
 	log = log.WithAttrs(logging.Address("pc", oldPC))
 
 	if i.lastBreakpointHit != nil && *i.lastBreakpointHit == oldPC {
@@ -212,6 +216,10 @@ func (i *Interpreter) Step() (*cpu.StepInfo, error) {
 	newPC, err := cpu.ReadPC(i.Registers())
 	if err != nil {
 		return nil, log.Errorf("failed to read new PC: %v", err)
+	}
+
+	if !i.MemoryLayout().Code().ContainsAddress(newPC) {
+		i.Log().Warn("PC is outside of code memory range after instruction execution", instruction.LoggingAttribute("instruction"), logging.Address("pc", newPC), logging.Address("code_start", i.MemoryLayout().Code().Start), logging.Address("code_end", i.MemoryLayout().Code().End()))
 	}
 
 	// Clock peripherals

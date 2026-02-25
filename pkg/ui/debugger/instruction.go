@@ -86,6 +86,9 @@ type Instruction struct {
 
 // Result of Disasm command
 type DisasmResult struct {
+	Error            error             `json:"error"`            // Error, if any
+	Instructions     []*Instruction    `json:"instructions"`     // Disassembled instructions
+	ControlFlowGraph *ControlFlowGraph `json:"controlFlowGraph"` // Control flow graph of instructions (nil if not generated)
 }
 
 // ControlFlowGraph represents the control flow graph of disassembled instructions

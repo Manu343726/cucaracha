@@ -8,13 +8,15 @@ import (
 // Break command arguments
 type BreakArgs struct {
 	SourceLocation *SourceLocation `json:"sourceLocation"` // Location in source code where to set the breakpoint
-	Address        *uint32         `json:"address"`        // Instruction address where to set the breakpoint
+	Address        *string         `json:"address"`        // Instruction address as an eval expression where to set the breakpoint
 }
 
 // Watch command arguments
 type WatchArgs struct {
-	Range *MemoryRegion  `json:"range"` // Memory range to watch
-	Type  WatchpointType `json:"type"`  // Type of access to watch
+	StartAddress string          `json:"startAddress"` // Starting address of the memory range to watch
+	EndAddress   *string         `json:"endAddress"`   // Ending address of the memory range to watch (optional)
+	Size         *string         `json:"size"`         // Size of the memory range to watch as an eval expression (optional, used if endAddress is not provided)
+	Type         *WatchpointType `json:"type"`         // Type of access to watch (optional, defaults to WatchpointTypeReadWrite)
 }
 
 // RemoveBreakpoint command arguments
@@ -29,10 +31,10 @@ type RemoveWatchpointArgs struct {
 
 // Disasm command arguments
 type DisasmArgs struct {
-	AddressExpr string `json:"addressExpr"` // Address expression (e.g., "0x1000", "r0", "sp+8")
-	Count       int    `json:"count"`       // Number of instructions to disassemble (optional)
-	ShowSource  bool   `json:"showSource"`  // Whether to include source code in disassembly output
-	ShowCFG     bool   `json:"showCFG"`     // Whether to include control flow graph in disassembly output
+	Address    string  `json:"addressExpr"` // Address eval expression (e.g., "0x1000", "r0", "sp+8")
+	CountExpr  *string `json:"count"`       // Number of instructions to disassemble (optional) as an eval expression (e.g. "sp+8", "10")
+	ShowSource bool    `json:"showSource"`  // Whether to include source code in disassembly output
+	ShowCFG    bool    `json:"showCFG"`     // Whether to include control flow graph in disassembly output
 }
 
 // Step command arguments
@@ -109,8 +111,7 @@ func (s *SourceContextMode) UnmarshalJSON(data []byte) error {
 
 // Source command arguments
 type SourceArgs struct {
-	File         string            `json:"file"`         // Source file (optional, defaults to current)
-	Line         int               `json:"line"`         // Line number (optional, defaults to current)
+	Location     *SourceLocation   `json:"location"`     // Location in source code to display
 	ContextLines int               `json:"contextLines"` // Number of lines to show
 	ContextMode  SourceContextMode `json:"contextMode"`  // How to display context lines
 }

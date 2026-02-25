@@ -13,488 +13,20 @@ import (
 // Execution Commands
 // ============================================================================
 
-func (r *REPL) handleCommand(args []string, parse func([]string) (*debuggerUI.DebuggerCommand, error), resultError func(*debuggerUI.DebuggerCommandResult) error) error {
-	cmd, err := parse(args)
+func (r *REPL) handleDebuggerCommand(args []string) error {
+	var syntax REPLSyntax
+
+	command, err := syntax.ParseCommand(args)
 	if err != nil {
 		return err
 	}
 
-	result, err := r.debugger.Execute(cmd)
+	result, err := r.debugger.Execute(command)
 	if err != nil {
 		return err
 	}
-	if err := resultError(result); err != nil {
-		return err
-	}
-	r.printCommandResult(result)
-	return nil
-}
 
-func (r *REPL) handleStep(args []string) error {
-	return r.handleCommand(args, func(args []string) (*debuggerUI.DebuggerCommand, error) {
-		stepArgs := &debuggerUI.StepArgs{
-			StepMode:  debuggerUI.StepModeInto,
-			CountMode: debuggerUI.StepCountSourceLines,
-		}
-
-		return &debuggerUI.DebuggerCommand{
-			Command:  debuggerUI.DebuggerCommandStep,
-			StepArgs: stepArgs,
-		}, nil
-	}, func(result *debuggerUI.DebuggerCommandResult) error {
-		return result.StepResult.Error
-	})
-}
-
-func (r *REPL) handleContinue(args []string) error {
-	return r.handleCommand(args, func(args []string) (*debuggerUI.DebuggerCommand, error) {
-		return &debuggerUI.DebuggerCommand{
-			Command: debuggerUI.DebuggerCommandContinue,
-		}, nil
-	}, func(result *debuggerUI.DebuggerCommandResult) error {
-		return result.ContinueResult.Error
-	})
-}
-
-func (r *REPL) handleInterrupt(args []string) error {
-	return r.handleCommand(args, func(args []string) (*debuggerUI.DebuggerCommand, error) {
-		return &debuggerUI.DebuggerCommand{
-			Command: debuggerUI.DebuggerCommandInterrupt,
-		}, nil
-	}, func(result *debuggerUI.DebuggerCommandResult) error {
-		return result.InterruptResult.Error
-	})
-}
-
-func (r *REPL) handleRun(args []string) error {
-	return r.handleCommand(args, func(args []string) (*debuggerUI.DebuggerCommand, error) {
-		return &debuggerUI.DebuggerCommand{
-			Command: debuggerUI.DebuggerCommandContinue,
-		}, nil
-	}, func(result *debuggerUI.DebuggerCommandResult) error {
-		return result.ContinueResult.Error
-	})
-}
-
-func (r *REPL) handleReset(args []string) error {
-	return r.handleCommand(args, func(args []string) (*debuggerUI.DebuggerCommand, error) {
-		return &debuggerUI.DebuggerCommand{
-			Command: debuggerUI.DebuggerCommandReset,
-		}, nil
-	}, func(result *debuggerUI.DebuggerCommandResult) error {
-		return result.ResetResult.Error
-	})
-}
-
-func (r *REPL) handleRestart(args []string) error {
-	return r.handleCommand(args, func(args []string) (*debuggerUI.DebuggerCommand, error) {
-		return &debuggerUI.DebuggerCommand{
-			Command: debuggerUI.DebuggerCommandRestart,
-		}, nil
-	}, func(result *debuggerUI.DebuggerCommandResult) error {
-		return result.RestartResult.Error
-	})
-}
-
-// ============================================================================
-// Breakpoint Commands
-// ============================================================================
-
-func (r *REPL) handleBreak(args []string) error {
-	return r.handleCommand(args, func(args []string) (*debuggerUI.DebuggerCommand, error) {
-		if len(args) == 0 {
-			return nil, fmt.Errorf("break requires an address")
-		}
-
-		addr, err := parseAddress(args[0])
-		if err != nil {
-			return nil, err
-		}
-
-		return &debuggerUI.DebuggerCommand{
-			Command: debuggerUI.DebuggerCommandBreak,
-			BreakArgs: &debuggerUI.BreakArgs{
-				Address: &addr,
-			},
-		}, nil
-	}, func(result *debuggerUI.DebuggerCommandResult) error {
-		return result.BreakResult.Error
-	})
-}
-
-func (r *REPL) handleRemoveBreakpoint(args []string) error {
-	return r.handleCommand(args, func(args []string) (*debuggerUI.DebuggerCommand, error) {
-		if len(args) == 0 {
-			return nil, fmt.Errorf("removebreakpoint requires a breakpoint ID")
-		}
-
-		id, err := strconv.Atoi(args[0])
-		if err != nil {
-			return nil, fmt.Errorf("invalid breakpoint ID: %v", err)
-		}
-
-		return &debuggerUI.DebuggerCommand{
-			Command: debuggerUI.DebuggerCommandRemoveBreakpoint,
-			RemoveBreakpointArgs: &debuggerUI.RemoveBreakpointArgs{
-				ID: id,
-			},
-		}, nil
-	}, func(result *debuggerUI.DebuggerCommandResult) error {
-		return result.RemoveBreakpointResult.Error
-	})
-}
-
-func (r *REPL) handleWatch(args []string) error {
-	return r.handleCommand(args, func(args []string) (*debuggerUI.DebuggerCommand, error) {
-		if len(args) == 0 {
-			return nil, fmt.Errorf("watch requires an address")
-		}
-
-		addr, err := parseAddress(args[0])
-		if err != nil {
-			return nil, err
-		}
-
-		// Default to 4-byte watch
-		memRegion := &debuggerUI.MemoryRegion{
-			Start: addr,
-			Size:  4,
-		}
-
-		return &debuggerUI.DebuggerCommand{
-			Command: debuggerUI.DebuggerCommandWatch,
-			WatchArgs: &debuggerUI.WatchArgs{
-				Range: memRegion,
-			},
-		}, nil
-	}, func(result *debuggerUI.DebuggerCommandResult) error {
-		return result.WatchResult.Error
-	})
-}
-
-func (r *REPL) handleRemoveWatchpoint(args []string) error {
-	return r.handleCommand(args, func(args []string) (*debuggerUI.DebuggerCommand, error) {
-		if len(args) == 0 {
-			return nil, fmt.Errorf("removewatchpoint requires a watchpoint ID")
-		}
-
-		id, err := strconv.Atoi(args[0])
-		if err != nil {
-			return nil, fmt.Errorf("invalid watchpoint ID: %v", err)
-		}
-
-		return &debuggerUI.DebuggerCommand{
-			Command: debuggerUI.DebuggerCommandRemoveWatchpoint,
-			RemoveWatchpointArgs: &debuggerUI.RemoveWatchpointArgs{
-				ID: id,
-			},
-		}, nil
-	}, func(result *debuggerUI.DebuggerCommandResult) error {
-		return result.RemoveWatchpointResult.Error
-	})
-}
-
-func (r *REPL) handleList(args []string) error {
-	return r.handleCommand(args, func(args []string) (*debuggerUI.DebuggerCommand, error) {
-		return &debuggerUI.DebuggerCommand{
-			Command: debuggerUI.DebuggerCommandList,
-		}, nil
-	}, func(result *debuggerUI.DebuggerCommandResult) error {
-		return result.ListResult.Error
-	})
-}
-
-// ============================================================================
-// Inspection Commands
-// ============================================================================
-
-func (r *REPL) handleDisasm(args []string) error {
-	return r.handleCommand(args, func(args []string) (*debuggerUI.DebuggerCommand, error) {
-		var disasmArgs debuggerUI.DisasmArgs
-		// Set defaults to show everything
-		disasmArgs.ShowSource = true
-		disasmArgs.ShowCFG = true
-
-		// Parse positional and flag arguments
-		var positionalCount int
-		for _, arg := range args {
-			if arg == "-source" || arg == "-s" {
-				disasmArgs.ShowSource = true
-			} else if arg == "-no-source" || arg == "-ns" {
-				disasmArgs.ShowSource = false
-			} else if arg == "-cfg" || arg == "-g" {
-				disasmArgs.ShowCFG = true
-			} else if arg == "-no-cfg" || arg == "-ng" {
-				disasmArgs.ShowCFG = false
-			} else if positionalCount == 0 {
-				// First positional arg: address
-				disasmArgs.AddressExpr = arg
-				positionalCount++
-			} else if positionalCount == 1 {
-				// Second positional arg: count
-				count, err := strconv.Atoi(arg)
-				if err != nil {
-					return nil, fmt.Errorf("invalid count: %v", err)
-				}
-				disasmArgs.Count = count
-				positionalCount++
-			}
-		}
-
-		// Store the args for use in output formatting
-		r.lastDisasmArgs = &disasmArgs
-
-		return &debuggerUI.DebuggerCommand{
-			Command:    debuggerUI.DebuggerCommandDisassemble,
-			DisasmArgs: &disasmArgs,
-		}, nil
-	}, func(result *debuggerUI.DebuggerCommandResult) error {
-		return result.DisassemblyResult.Error
-	})
-}
-
-func (r *REPL) handleCurrent(args []string) error {
-	return r.handleCommand(args, func(args []string) (*debuggerUI.DebuggerCommand, error) {
-		return &debuggerUI.DebuggerCommand{
-			Command: debuggerUI.DebuggerCommandCurrentInstruction,
-		}, nil
-	}, func(result *debuggerUI.DebuggerCommandResult) error {
-		return result.CurrentInstructionResult.Error
-	})
-}
-
-func (r *REPL) handleMemory(args []string) error {
-	return r.handleCommand(args, func(args []string) (*debuggerUI.DebuggerCommand, error) {
-		memArgs := &debuggerUI.MemoryArgs{}
-
-		if len(args) > 0 {
-			memArgs.AddressExpr = args[0]
-		}
-
-		if len(args) > 1 {
-			count, err := strconv.Atoi(args[1])
-			if err != nil {
-				return nil, fmt.Errorf("invalid count: %v", err)
-			}
-			memArgs.Count = count
-		}
-
-		return &debuggerUI.DebuggerCommand{
-			Command:    debuggerUI.DebuggerCommandMemory,
-			MemoryArgs: memArgs,
-		}, nil
-	}, func(result *debuggerUI.DebuggerCommandResult) error {
-		return result.MemoryResult.Error
-	})
-}
-
-func (r *REPL) handleSource(args []string) error {
-	return r.handleCommand(args, func(args []string) (*debuggerUI.DebuggerCommand, error) {
-		sourceArgs := &debuggerUI.SourceArgs{}
-
-		if len(args) > 0 {
-			sourceArgs.File = args[0]
-		}
-
-		return &debuggerUI.DebuggerCommand{
-			Command:    debuggerUI.DebuggerCommandSource,
-			SourceArgs: sourceArgs,
-		}, nil
-	}, func(result *debuggerUI.DebuggerCommandResult) error {
-		return result.SourceResult.Error
-	})
-}
-
-func (r *REPL) handleInfo(args []string) error {
-	infoType := debuggerUI.InfoTypeGeneral
-	if len(args) > 0 {
-		var err error
-		infoType, err = debuggerUI.InfoTypeFromString(args[0])
-		if err != nil {
-			return err
-		}
-	}
-
-	return r.handleCommand(args, func(args []string) (*debuggerUI.DebuggerCommand, error) {
-		return &debuggerUI.DebuggerCommand{
-			Command: debuggerUI.DebuggerCommandInfo,
-			InfoArgs: &debuggerUI.InfoArgs{
-				Type: infoType,
-			},
-		}, nil
-	}, func(result *debuggerUI.DebuggerCommandResult) error {
-		return result.InfoResult.Error
-	})
-}
-
-func (r *REPL) handleSymbols(args []string) error {
-	return r.handleCommand(args, func(args []string) (*debuggerUI.DebuggerCommand, error) {
-		symbolsArgs := &debuggerUI.SymbolsArgs{}
-
-		if len(args) > 0 {
-			symbolsArgs.SymbolName = &args[0]
-		}
-
-		return &debuggerUI.DebuggerCommand{
-			Command:     debuggerUI.DebuggerCommandSymbols,
-			SymbolsArgs: symbolsArgs,
-		}, nil
-	}, func(result *debuggerUI.DebuggerCommandResult) error {
-		return result.SymbolsResult.Error
-	})
-}
-
-func (r *REPL) handleRegisters(args []string) error {
-	return r.handleCommand(args, func(args []string) (*debuggerUI.DebuggerCommand, error) {
-		return &debuggerUI.DebuggerCommand{
-			Command: debuggerUI.DebuggerCommandRegisters,
-		}, nil
-	}, func(result *debuggerUI.DebuggerCommandResult) error {
-		return result.RegistersResult.Error
-	})
-}
-
-func (r *REPL) handleStack(args []string) error {
-	return r.handleCommand(args, func(args []string) (*debuggerUI.DebuggerCommand, error) {
-		return &debuggerUI.DebuggerCommand{
-			Command: debuggerUI.DebuggerCommandStack,
-		}, nil
-	}, func(result *debuggerUI.DebuggerCommandResult) error {
-		return result.StackResult.Error
-	})
-}
-
-func (r *REPL) handleVars(args []string) error {
-	return r.handleCommand(args, func(args []string) (*debuggerUI.DebuggerCommand, error) {
-		return &debuggerUI.DebuggerCommand{
-			Command: debuggerUI.DebuggerCommandVariables,
-		}, nil
-	}, func(result *debuggerUI.DebuggerCommandResult) error {
-		return result.VariablesResult.Error
-	})
-}
-
-func (r *REPL) handleEval(args []string) error {
-	return r.handleCommand(args, func(args []string) (*debuggerUI.DebuggerCommand, error) {
-		if len(args) == 0 {
-			return nil, fmt.Errorf("eval requires an expression")
-		}
-
-		expression := strings.Join(args, " ")
-		return &debuggerUI.DebuggerCommand{
-			Command: debuggerUI.DebuggerCommandEvaluateExpression,
-			EvalArgs: &debuggerUI.EvalArgs{
-				Expression: expression,
-			},
-		}, nil
-	}, func(result *debuggerUI.DebuggerCommandResult) error {
-		return result.EvalResult.Error
-	})
-}
-
-// ============================================================================
-// Program Loading Commands
-// ============================================================================
-
-func (r *REPL) handleLoad(args []string) error {
-	return r.handleCommand(args, func(args []string) (*debuggerUI.DebuggerCommand, error) {
-		if len(args) == 0 {
-			return nil, fmt.Errorf("load requires a file path")
-		}
-
-		// Read the auto_build_clang setting
-		autoBuildClang, err := r.settings.GetBool(SettingKeyBuildAutoClang)
-		if err != nil {
-			autoBuildClang = true // Default to true if setting not found
-		}
-
-		// Read the force_rebuild_clang setting
-		forceRebuildClang, err := r.settings.GetBool(SettingKeyBuildForceClang)
-		if err != nil {
-			forceRebuildClang = false // Default to false if setting not found
-		}
-
-		return &debuggerUI.DebuggerCommand{
-			Command: debuggerUI.DebuggerCommandLoadProgramFromFile,
-			LoadProgramArgs: &debuggerUI.LoadProgramArgs{
-				FilePath:          args[0],
-				AutoBuildClang:    &autoBuildClang,
-				ForceRebuildClang: &forceRebuildClang,
-			},
-		}, nil
-	}, func(result *debuggerUI.DebuggerCommandResult) error {
-		return result.LoadProgramResult.Error
-	})
-}
-
-func (r *REPL) handleLoadProgram(args []string) error {
-	return r.handleCommand(args, func(args []string) (*debuggerUI.DebuggerCommand, error) {
-		if len(args) == 0 {
-			return nil, fmt.Errorf("loadprogram requires a file path")
-		}
-
-		// Read the auto_build_clang setting
-		autoBuildClang, err := r.settings.GetBool(SettingKeyBuildAutoClang)
-		if err != nil {
-			autoBuildClang = true // Default to true if setting not found
-		}
-
-		// Read the force_rebuild_clang setting
-		forceRebuildClang, err := r.settings.GetBool(SettingKeyBuildForceClang)
-		if err != nil {
-			forceRebuildClang = false // Default to false if setting not found
-		}
-
-		return &debuggerUI.DebuggerCommand{
-			Command: debuggerUI.DebuggerCommandLoadProgramFromFile,
-			LoadProgramArgs: &debuggerUI.LoadProgramArgs{
-				FilePath:          args[0],
-				AutoBuildClang:    &autoBuildClang,
-				ForceRebuildClang: &forceRebuildClang,
-			},
-		}, nil
-	}, func(result *debuggerUI.DebuggerCommandResult) error {
-		return result.LoadProgramResult.Error
-	})
-}
-
-func (r *REPL) handleLoadSystem(args []string) error {
-	return r.handleCommand(args, func(args []string) (*debuggerUI.DebuggerCommand, error) {
-		if len(args) == 0 {
-			return nil, fmt.Errorf("loadsystem requires a file path")
-		}
-
-		return &debuggerUI.DebuggerCommand{
-			Command: debuggerUI.DebuggerCommandLoadSystemFromFile,
-			LoadSystemArgs: &debuggerUI.LoadSystemArgs{
-				FilePath: args[0],
-			},
-		}, nil
-	}, func(result *debuggerUI.DebuggerCommandResult) error {
-		return result.LoadSystemResult.Error
-	})
-}
-
-func (r *REPL) handleLoadRuntime(args []string) error {
-	return r.handleCommand(args, func(args []string) (*debuggerUI.DebuggerCommand, error) {
-		if len(args) == 0 {
-			return nil, fmt.Errorf("loadruntime requires a runtime name")
-		}
-
-		runtimeType, err := debuggerUI.RuntimeTypeFromString(args[0])
-		if err != nil {
-			return nil, err
-		}
-
-		return &debuggerUI.DebuggerCommand{
-			Command: debuggerUI.DebuggerCommandLoadRuntime,
-			LoadRuntimeArgs: &debuggerUI.LoadRuntimeArgs{
-				Runtime: runtimeType,
-			},
-		}, nil
-	}, func(result *debuggerUI.DebuggerCommandResult) error {
-		return result.LoadRuntimeResult.Error
-	})
+	return r.printCommandResult(result)
 }
 
 // ============================================================================
@@ -571,6 +103,107 @@ func (r *REPL) handleGet(args []string) error {
 	}
 
 	r.write("%s = %v\n", settingName, value)
+	return nil
+}
+
+// ============================================================================
+// Alias Commands
+// ============================================================================
+
+func (r *REPL) handleDefine(args []string) error {
+	if len(args) < 1 {
+		return fmt.Errorf("define requires an alias name (usage: define <name>\nenter commands, one per line\nend to finish)")
+	}
+
+	aliasName := strings.ToLower(args[0])
+
+	// Check if trying to override a built-in command
+	if _, isBuiltin := r.commands[aliasName]; isBuiltin {
+		return fmt.Errorf("cannot define alias '%s': conflicts with built-in command", aliasName)
+	}
+
+	// Check if trying to override an existing alias
+	if _, exists := r.aliases[aliasName]; exists {
+		return fmt.Errorf("alias '%s' already defined; use 'undefine %s' first", aliasName, aliasName)
+	}
+
+	// Check for optional documentation in args (format: define name "documentation")
+	var doc string
+	if len(args) > 1 && strings.HasPrefix(args[1], "\"") && strings.HasSuffix(args[1], "\"") {
+		doc = strings.TrimPrefix(strings.TrimSuffix(args[1], "\""), "\"")
+	}
+
+	// Enter define mode
+	r.definingAlias = true
+	r.defineAliasName = aliasName
+	r.defineCommands = make([][]string, 0)
+	r.defineDoc = doc
+
+	if doc != "" {
+		r.write("Defining alias '%s' (%s)\nEnter commands, one per line. Type 'end' to finish.\n", aliasName, doc)
+	} else {
+		r.write("Defining alias '%s'\nEnter commands, one per line. Type 'end' to finish.\n", aliasName)
+	}
+
+	return nil
+}
+
+func (r *REPL) handleUndefine(args []string) error {
+	if len(args) < 1 {
+		return fmt.Errorf("undefine requires an alias name (usage: undefine <name>)")
+	}
+
+	aliasName := strings.ToLower(args[0])
+
+	if _, exists := r.aliases[aliasName]; !exists {
+		return fmt.Errorf("alias '%s' not defined", aliasName)
+	}
+
+	delete(r.aliases, aliasName)
+	r.write("Removed alias '%s'\n", aliasName)
+
+	return nil
+}
+
+func (r *REPL) handleSaveAliases(args []string) error {
+	var filePath string
+
+	// If a file path is provided as argument, use it
+	if len(args) > 0 {
+		filePath = args[0]
+	} else if r.settingsFilePath != "" {
+		// Use the loaded settings file path
+		filePath = r.settingsFilePath
+	} else {
+		return fmt.Errorf("no settings file loaded; specify a file path (usage: save-aliases [file])")
+	}
+
+	if err := r.saveAliasesToSettingsFile(filePath); err != nil {
+		return fmt.Errorf("failed to save aliases: %w", err)
+	}
+
+	r.write("Saved %d alias(es) to %s\n", len(r.aliases), filePath)
+	return nil
+}
+
+func (r *REPL) handleSaveSettings(args []string) error {
+	var filePath string
+
+	// If a file path is provided as argument, use it
+	if len(args) > 0 {
+		filePath = args[0]
+	} else if r.settingsFilePath != "" {
+		// Use the loaded settings file path
+		filePath = r.settingsFilePath
+	} else {
+		return fmt.Errorf("no settings file loaded; specify a file path (usage: save-settings [file])")
+	}
+
+	if err := r.saveSettingsToFile(filePath); err != nil {
+		return fmt.Errorf("failed to save settings: %w", err)
+	}
+
+	r.write("Saved settings to %s\n", filePath)
 	return nil
 }
 

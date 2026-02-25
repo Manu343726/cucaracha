@@ -32,3 +32,76 @@ func FormatSlice[T any](input []T, separator string) string {
 
 	return builder.String()
 }
+
+// Converts a string to snake_case
+func SnakeCase(input string) string {
+	var builder strings.Builder
+
+	for i, r := range input {
+		if i > 0 && r >= 'A' && r <= 'Z' {
+			builder.WriteRune('_')
+		}
+		builder.WriteRune(r)
+	}
+
+	return strings.ToLower(builder.String())
+}
+
+// Converts a string to camelCase
+func CamelCase(input string) string {
+	var builder strings.Builder
+	upperNext := false
+
+	for i, r := range input {
+		if r == '_' {
+			upperNext = true
+			continue
+		}
+		if i == 0 {
+			builder.WriteRune(r)
+		} else if upperNext {
+			builder.WriteRune(r - ('a' - 'A')) // Convert to uppercase
+			upperNext = false
+		} else {
+			builder.WriteRune(r)
+		}
+	}
+
+	return builder.String()
+}
+
+// Converts a string to PascalCase
+// Handles underscores and hyphens as delimiters
+func PascalCase(input string) string {
+	var builder strings.Builder
+	upperNext := true
+
+	for _, r := range input {
+		if r == '_' || r == '-' {
+			upperNext = true
+			continue
+		}
+		if upperNext {
+			builder.WriteRune(r - ('a' - 'A')) // Convert to uppercase
+			upperNext = false
+		} else {
+			builder.WriteRune(r)
+		}
+	}
+
+	return builder.String()
+}
+
+// Converts a string to kebab-case
+func KebabCase(input string) string {
+	var builder strings.Builder
+
+	for i, r := range input {
+		if i > 0 && r >= 'A' && r <= 'Z' {
+			builder.WriteRune('-')
+		}
+		builder.WriteRune(r)
+	}
+
+	return strings.ToLower(builder.String())
+}

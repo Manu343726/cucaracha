@@ -1,23 +1,30 @@
 package reflect
 
 import (
-	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
 )
 
 // ParsePackage parses all Go files in a package directory and extracts metadata
+// It uses default parsing options.
 func ParsePackage(packagePath string) (*Package, error) {
+	return ParsePackageWithOptions(packagePath, DefaultParsingOptions())
+}
+
+// ParsePackageWithOptions parses all Go files in a package directory with custom parsing options
+func ParsePackageWithOptions(packagePath string, opts ParsingOptions) (*Package, error) {
+	log().Info("Starting package parse", slog.String("path", packagePath))
 	fset := token.NewFileSet()
 
 	// Read all Go files in the directory
 	entries, err := os.ReadDir(packagePath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read package directory %s: %w", packagePath, err)
+		return nil, log().Errorf("failed to read package directory %s: %w", packagePath, err)
 	}
 
 	var goFiles []string
@@ -29,18 +36,20 @@ func ParsePackage(packagePath string) (*Package, error) {
 	}
 
 	if len(goFiles) == 0 {
-		return nil, fmt.Errorf("no Go files found in package directory %s", packagePath)
+		return nil, log().Errorf("no Go files found in package directory %s", packagePath)
 	}
+
+	log().Debug("Found Go files", slog.Int("count", len(goFiles)), slog.String("path", packagePath))
 
 	// Parse all files
 	pkgs, err := parser.ParseDir(fset, packagePath, nil, parser.AllErrors|parser.ParseComments)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse package directory %s: %w", packagePath, err)
+		return nil, log().Errorf("failed to parse package directory %s: %w", packagePath, err)
 	}
 
 	// Should have exactly one package
 	if len(pkgs) == 0 {
-		return nil, fmt.Errorf("no packages found in %s", packagePath)
+		return nil, log().Errorf("no packages found in %s", packagePath)
 	}
 
 	var pkgName string
@@ -56,8 +65,10 @@ func ParsePackage(packagePath string) (*Package, error) {
 	}
 
 	if astPkg == nil {
-		return nil, fmt.Errorf("failed to find package in %s", packagePath)
+		return nil, log().Errorf("failed to find package in %s", packagePath)
 	}
+
+	log().Debug("Found package", slog.String("name", pkgName), slog.String("path", packagePath))
 
 	// Create Package structure
 	pkg := &Package{
@@ -73,6 +84,7 @@ func ParsePackage(packagePath string) (*Package, error) {
 
 	// Parse each file
 	for filename, astFile := range astPkg.Files {
+		log().Debug("Parsing file", slog.String("file", filepath.Base(filename)))
 		file := &File{
 			Name:      filepath.Base(filename),
 			Path:      filename,
@@ -108,6 +120,7 @@ func ParsePackage(packagePath string) (*Package, error) {
 				parseGenDeclWithFileContext(file, pkg, decl)
 			case *ast.FuncDecl:
 				if fn := parseFuncDecl(decl, pkgName); fn != nil {
+					log().Debug("Found function", slog.String("name", fn.Name), slog.String("file", file.Name))
 					file.Functions = append(file.Functions, fn)
 					pkg.Functions = append(pkg.Functions, fn)
 				}
@@ -120,13 +133,21 @@ func ParsePackage(packagePath string) (*Package, error) {
 	// Merge types from all files
 	for _, file := range pkg.Files {
 		for name, typ := range file.Types {
+			log().Debug("Found type", slog.String("name", name), slog.String("kind", string(typ.Kind)))
 			pkg.Types[name] = typ
 		}
 	}
 
 	// Post-process to identify enums
+	log().Debug("Identifying enums in package")
 	identifyEnums(pkg)
+	log().Debug("Enum identification complete", slog.Int("count", len(pkg.Enums)))
 
+	// Second pass: resolve all type references
+	log().Debug("Resolving type references")
+	resolveTypeReferencesWithOptions(pkg, opts, 0)
+
+	log().Info("Package parse complete", slog.String("name", pkgName), slog.Int("types", len(pkg.Types)), slog.Int("functions", len(pkg.Functions)), slog.Int("enums", len(pkg.Enums)))
 	return pkg, nil
 }
 
@@ -145,20 +166,25 @@ func parseGenDeclWithFileContext(file *File, pkg *Package, decl *ast.GenDecl) {
 			valueSpec := spec.(*ast.ValueSpec)
 			for i, name := range valueSpec.Names {
 				const_ := &Constant{
-					Name: name.Name,
-					Doc:  decl.Doc.Text(),
+					Name:  name.Name,
+					Doc:   decl.Doc.Text(),
+					Value: &Value{},
 				}
 
 				// Try to extract value
 				if len(valueSpec.Values) > i {
 					if lit, ok := valueSpec.Values[i].(*ast.BasicLit); ok {
-						const_.Value = lit.Value
+						const_.Value.Value = lit.Value
 					}
 				}
 
 				// Extract type
 				if valueSpec.Type != nil {
-					const_.Type = typeToString(valueSpec.Type)
+					typeStr := typeToString(valueSpec.Type)
+					const_.Value.Type = &TypeReference{
+						Name: typeStr,
+						Type: nil,
+					}
 				}
 
 				file.Constants = append(file.Constants, const_)
@@ -177,7 +203,13 @@ func parseGenDeclWithFileContext(file *File, pkg *Package, decl *ast.GenDecl) {
 
 				// Extract type
 				if valueSpec.Type != nil {
-					const_.Type = typeToString(valueSpec.Type)
+					typeStr := typeToString(valueSpec.Type)
+					const_.Value = &Value{
+						Type: &TypeReference{
+							Name: typeStr,
+							Type: nil,
+						},
+					}
 				}
 
 				file.Constants = append(file.Constants, const_)
@@ -196,27 +228,31 @@ func identifyEnums(pkg *Package) {
 	// Group constants by type
 	typeToConstants := make(map[string][]*Constant)
 	for _, const_ := range pkg.Constants {
-		if const_.Type != "" {
-			typeToConstants[const_.Type] = append(typeToConstants[const_.Type], const_)
+		if const_.Value.Type != nil {
+			typeToConstants[const_.Value.Type.Name] = append(typeToConstants[const_.Value.Type.Name], const_)
 		}
 	}
 
 	// Check which types in the package correspond to enum types
 	for _, typ := range pkg.Types {
+		log().Debug("Checking if type is enum", slog.String("typeName", typ.Name), slog.String("typeKind", string(typ.Kind)))
 		// Look for a constant group with this type
 		if constants, ok := typeToConstants[typ.Name]; ok && len(constants) > 1 {
+			log().Info("Identified enum", slog.String("name", typ.Name), slog.String("kind", string(typ.Kind)), slog.Int("values", len(constants)))
+			for i := range constants {
+				constants[i].Value.Type = MakeTypeReference(typ)
+			}
+
 			// This looks like an enum
 			enum := &Enum{
-				Name:      typ.Name,
-				Type:      typ.Name,
-				Doc:       typ.Doc,
+				Type:      MakeTypeReference(typ),
 				Values:    constants,
 				SourcePos: typ.SourcePos,
 			}
 
 			// Check if there's a String() method on this type
 			for _, method := range typ.Methods {
-				if method.Name == "String" && len(method.Results) > 0 && method.Results[0].Type == "string" {
+				if method.Name == "String" && len(method.Results) > 0 && method.Results[0].Type.Name == "string" {
 					enum.StringMethod = true
 					break
 				}
@@ -225,6 +261,133 @@ func identifyEnums(pkg *Package) {
 			pkg.Enums[typ.Name] = enum
 		}
 	}
+}
+
+// resolveTypeReferences performs a second pass to resolve all TypeReference pointers in the package
+// This links each TypeReference to its corresponding Type definition if it exists in the package
+func resolveTypeReferences(pkg *Package) {
+	// Resolve types in all function signatures
+	for _, fn := range pkg.Functions {
+		for _, param := range fn.Args {
+			if param.Type != nil {
+				param.Type.Type = resolveType(param.Type.Name, pkg)
+			}
+		}
+		for _, result := range fn.Results {
+			if result.Type != nil {
+				result.Type.Type = resolveType(result.Type.Name, pkg)
+			}
+		}
+	}
+
+	// Resolve types in all type definitions
+	for _, typ := range pkg.Types {
+		// Resolve field types
+		if typ.Kind == TypeKindStruct {
+			for _, field := range typ.Fields {
+				if field.Type != nil {
+					field.Type.Type = resolveType(field.Type.Name, pkg)
+				}
+			}
+		}
+
+		// Resolve method parameter and result types
+		for _, method := range typ.Methods {
+			for _, param := range method.Args {
+				if param.Type != nil {
+					param.Type.Type = resolveType(param.Type.Name, pkg)
+				}
+			}
+			for _, result := range method.Results {
+				if result.Type != nil {
+					result.Type.Type = resolveType(result.Type.Name, pkg)
+				}
+			}
+		}
+	}
+
+	// Resolve types in all constants
+	for _, const_ := range pkg.Constants {
+		if const_.Value.Type != nil {
+			const_.Value.Type.Type = resolveType(const_.Value.Type.Name, pkg)
+		}
+	}
+}
+
+// resolveType extracts the base type name from a potentially complex type string
+// (e.g., "*MyType" -> "MyType", "[]MyType" -> "MyType") and looks it up in the package
+// or in the global basic types
+func resolveType(typeName string, pkg *Package) *Type {
+	if typeName == "" {
+		return nil
+	}
+
+	// Extract base type name by removing pointers, slices, maps, and channels
+	baseName := extractBaseTypeName(typeName)
+
+	// First check if it's a basic type
+	if basicType := GetBasicType(baseName); basicType != nil {
+		return basicType
+	}
+
+	// Look up the type in the package
+	if typ, ok := pkg.Types[baseName]; ok {
+		return typ
+	}
+
+	// Type not found in package or basic types (could be external)
+	return nil
+}
+
+// extractBaseTypeName removes type modifiers (pointers, slices, maps, channels) to get the base type name
+func extractBaseTypeName(typeName string) string {
+	// Remove leading channel notation first
+	if strings.HasPrefix(typeName, "<-chan ") {
+		typeName = strings.TrimPrefix(typeName, "<-chan ")
+	}
+	if strings.HasPrefix(typeName, "chan ") {
+		typeName = strings.TrimPrefix(typeName, "chan ")
+	}
+
+	// Remove leading pointer symbols
+	for strings.HasPrefix(typeName, "*") {
+		typeName = strings.TrimPrefix(typeName, "*")
+	}
+
+	// Remove leading slice notation
+	for strings.HasPrefix(typeName, "[]") {
+		typeName = strings.TrimPrefix(typeName, "[]")
+	}
+
+	// Remove map notation (map[keyType]valType -> extract valType)
+	if strings.HasPrefix(typeName, "map[") {
+		// Find the closing bracket of the key type
+		bracketCount := 0
+		for i, ch := range typeName {
+			if ch == '[' {
+				bracketCount++
+			} else if ch == ']' {
+				bracketCount--
+				if bracketCount == 0 {
+					typeName = typeName[i+1:]
+					break
+				}
+			}
+		}
+	}
+
+	// Remove any remaining leading pointer symbols (after processing collections)
+	for strings.HasPrefix(typeName, "*") {
+		typeName = strings.TrimPrefix(typeName, "*")
+	}
+
+	// Handle qualified names (e.g., "package.Type" -> "Type")
+	// Only extract the type name after the last dot if it's a selector
+	if idx := strings.LastIndex(typeName, "."); idx >= 0 {
+		typeName = typeName[idx+1:]
+	}
+
+	return strings.TrimSpace(typeName)
 }
 
 // FindType searches for a type by name across the package
@@ -318,7 +481,7 @@ func (p *Package) FindStructsWithFieldType(fieldType string) []*Type {
 			continue
 		}
 		for _, field := range typ.Fields {
-			if field.Type == fieldType {
+			if field.Type != nil && field.Type.Name == fieldType {
 				result = append(result, typ)
 				break
 			}
@@ -353,7 +516,7 @@ func (p *Package) GetInterfaceMethods(interfaceName string) []*Method {
 func (p *Package) FindConstantsByType(typeName string) []*Constant {
 	var result []*Constant
 	for _, const_ := range p.Constants {
-		if const_.Type == typeName {
+		if const_.Value.Type != nil && const_.Value.Type.Name == typeName {
 			result = append(result, const_)
 		}
 	}
@@ -402,4 +565,152 @@ func (p *Package) GetFileByName(fileName string) *File {
 		}
 	}
 	return nil
+}
+
+// resolveTypeReferencesWithOptions resolves type references with support for external type resolution
+// It respects the MaxResolutionDepth limit to prevent infinite recursion
+func resolveTypeReferencesWithOptions(pkg *Package, opts ParsingOptions, depth int) {
+	// Resolve types in all function signatures
+	for _, fn := range pkg.Functions {
+		for _, param := range fn.Args {
+			if param.Type != nil {
+				param.Type.Type = resolveTypeWithOptions(param.Type.Name, pkg, opts, depth)
+			}
+		}
+		for _, result := range fn.Results {
+			if result.Type != nil {
+				result.Type.Type = resolveTypeWithOptions(result.Type.Name, pkg, opts, depth)
+			}
+		}
+	}
+
+	// Resolve types in all type definitions
+	for _, typ := range pkg.Types {
+		// Resolve field types
+		if typ.Kind == TypeKindStruct {
+			for _, field := range typ.Fields {
+				if field.Type != nil {
+					field.Type.Type = resolveTypeWithOptions(field.Type.Name, pkg, opts, depth)
+				}
+			}
+		}
+
+		// Resolve method parameter and result types
+		for _, method := range typ.Methods {
+			for _, param := range method.Args {
+				if param.Type != nil {
+					param.Type.Type = resolveTypeWithOptions(param.Type.Name, pkg, opts, depth)
+				}
+			}
+			for _, result := range method.Results {
+				if result.Type != nil {
+					result.Type.Type = resolveTypeWithOptions(result.Type.Name, pkg, opts, depth)
+				}
+			}
+		}
+
+		// Resolve types in function/method return types
+		if typ.Kind == TypeKindFunction {
+			for _, arg := range typ.Args {
+				if arg.Type != nil {
+					arg.Type = resolveTypeWithOptions(arg.Name, pkg, opts, depth)
+				}
+			}
+			for _, result := range typ.Results {
+				if result.Type != nil {
+					result.Type = resolveTypeWithOptions(result.Name, pkg, opts, depth)
+				}
+			}
+		}
+	}
+
+	// Resolve types in all constants
+	for _, const_ := range pkg.Constants {
+		if const_.Value.Type != nil {
+			const_.Value.Type.Type = resolveTypeWithOptions(const_.Value.Type.Name, pkg, opts, depth)
+		}
+	}
+}
+
+// resolveTypeWithOptions resolves a type name, optionally including external packages
+// based on the provided options and current recursion depth
+func resolveTypeWithOptions(typeName string, pkg *Package, opts ParsingOptions, depth int) *Type {
+	if typeName == "" {
+		return nil
+	}
+
+	// Extract base type name by removing pointers, slices, maps, and channels
+	baseName := extractBaseTypeName(typeName)
+
+	// First check if it's a basic type
+	if basicType := GetBasicType(baseName); basicType != nil {
+		return basicType
+	}
+
+	// Look up the type in the package
+	if typ, ok := pkg.Types[baseName]; ok {
+		return typ
+	}
+
+	// If external resolution is not enabled or we've hit the recursion limit, return nil
+	if !opts.ResolveExternalTypes {
+		return nil
+	}
+
+	// Check if we've exceeded the maximum recursion depth
+	if opts.MaxResolutionDepth >= 0 && depth >= opts.MaxResolutionDepth {
+		return nil
+	}
+
+	// Try to resolve from external packages
+	return resolveExternalType(baseName, pkg, opts, depth+1)
+}
+
+// resolveExternalType attempts to resolve a type from external packages
+func resolveExternalType(typeName string, pkg *Package, opts ParsingOptions, depth int) *Type {
+	// If it contains a dot, it's a qualified name (e.g., "io.Reader")
+	if idx := strings.Index(typeName, "."); idx >= 0 {
+		importPath := typeName[:idx]
+		unqualifiedName := typeName[idx+1:]
+
+		// Try to resolve the import path
+		extPkg, err := resolveImportToPackage(importPath, pkg)
+		if err != nil || extPkg == nil {
+			return nil
+		}
+
+		// Recursively resolve the unqualified type in the external package
+		resolveTypeReferencesWithOptions(extPkg, opts, depth)
+
+		if typ, ok := extPkg.Types[unqualifiedName]; ok {
+			return typ
+		}
+	}
+
+	return nil
+}
+
+// resolveImportToPackage attempts to resolve an import alias/name to the actual package
+func resolveImportToPackage(importName string, pkg *Package) (*Package, error) {
+	// Find the import in the current package
+	var importPath string
+	for _, file := range pkg.Files {
+		for _, imp := range file.Imports {
+			if imp.Name == importName || imp.Alias == importName {
+				importPath = imp.Path
+				break
+			}
+		}
+		if importPath != "" {
+			break
+		}
+	}
+
+	if importPath == "" {
+		// Try to use the name directly as a path (for standard library)
+		importPath = importName
+	}
+
+	// Try to parse the external package from the import path
+	return ParsePackageFromImportInDir(importPath, pkg.Path)
 }

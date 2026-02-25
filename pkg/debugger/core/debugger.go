@@ -21,6 +21,10 @@ import (
 	"github.com/Manu343726/cucaracha/pkg/utils/logging"
 )
 
+// StopCondition is a function that determines if execution should stop
+// Returns true if stepping should stop, false to continue
+type StopCondition func(*ExecutionResult) bool
+
 // debugger provides debugging capabilities for the interpreter
 type debugger struct {
 	contract.Base
@@ -411,26 +415,82 @@ func (d *debugger) readPC() (uint32, error) {
 	return cpu.ReadPC(d.runtime.CPU().Registers())
 }
 
-// Step executes a single instruction
-func (d *debugger) Step() *ExecutionResult {
+// step executes one instruction and blocks until completion
+// This is the low-level primitive that all stepping modes use
+func (d *debugger) step() *ExecutionResult {
 	pc, err := d.readPC()
 	if err != nil {
-		return d.reportExecutionError(fmt.Errorf("failed to read PC register before Step: %w", err))
+		return d.reportExecutionError(fmt.Errorf("failed to read PC register before step: %w", err))
 	}
 
+	// Add temporary breakpoint at next instruction
 	bp, err := d.AddBreakpoint(pc + 4)
 	if err != nil {
 		return d.reportExecutionError(fmt.Errorf("failed to add temporary breakpoint at 0x%X: %w", pc+4, err))
 	}
 
-	// Subscribe to stepping event to remove temporary breakpoint after stepping
-	d.eventsQueue.SubscribeOnce(EventStepped, NewEventHandler(func(event *Event) bool {
-		// On step event, remove temporary breakpoint and stop execution
-		d.RemoveBreakpoint(bp.ID)
-		return false
-	}))
+	// Channel to receive the result when breakpoint hits
+	done := make(chan *ExecutionResult, 1)
 
-	return d.Continue()
+	// Subscribe to breakpoint hit event for this specific BP
+	breakpointHandler := NewEventHandler(func(event *Event) bool {
+		if event.Result.Breakpoint.ID == bp.ID {
+			// Our breakpoint hit - send result and stop propagating
+			done <- event.Result
+			return false
+		}
+
+		// Not our breakpoint, keep processing
+		return true
+	})
+	errorHandler := NewEventHandler(func(event *Event) bool {
+		d.Log().Error("execution error during step", slog.Any("error", event.Result.Error))
+		done <- event.Result
+		return false
+	})
+
+	d.eventsQueue.Subscribe(EventBreakpointHit, breakpointHandler)
+	defer d.eventsQueue.Unsubscribe(breakpointHandler)
+	d.eventsQueue.Subscribe(EventError, errorHandler)
+	defer d.eventsQueue.Unsubscribe(errorHandler)
+
+	// Send continue command (async)
+	result := <-d.runner.SendCommand(runtime.RunnerCommand{
+		Type: runtime.RunnerCommandContinue,
+	})
+	if result.Error != nil {
+		d.RemoveBreakpoint(bp.ID)
+		return d.reportExecutionError(fmt.Errorf("failed to continue execution: %w", result.Error))
+	}
+
+	// BLOCK until breakpoint event arrives
+	exResult := <-done
+
+	// Clean up temporary breakpoint
+	d.RemoveBreakpoint(bp.ID)
+
+	return exResult
+}
+
+// executeUntil executes instructions until the stop condition is met
+func (d *debugger) executeUntil(condition StopCondition) *ExecutionResult {
+	for {
+		// Execute one instruction and block until complete
+		result := d.step()
+
+		// Check if we should stop
+		if condition(result) {
+			return result
+		}
+	}
+}
+
+// Step executes a single instruction
+func (d *debugger) Step() *ExecutionResult {
+	return d.executeUntil(func(result *ExecutionResult) bool {
+		// Stop immediately after one instruction
+		return true
+	})
 }
 
 // Continue executes until a stop condition is met
@@ -470,57 +530,14 @@ func (d *debugger) RunUntil(targetAddr uint32) *ExecutionResult {
 
 // StepOver executes one instruction, stepping over function calls
 func (d *debugger) StepOver() *ExecutionResult {
-	pc, err := cpu.ReadPC(d.runtime.CPU().Registers())
-	if err != nil {
-		return d.reportExecutionError(fmt.Errorf("failed to read PC register before StepOver: %w", err))
-	}
-
-	isCall, err := d.isCallInstruction(pc)
-	if err != nil {
-		return d.reportExecutionError(fmt.Errorf("failed to determine if instruction at 0x%X is a call: %w", pc, err))
-	}
-
-	// Check if the current instruction is a call
-	if isCall {
-		// Set temporary breakpoint at return address (PC + 4)
-		returnAddr := pc + 4
-
-		// Add temporary breakpoint
-		bp, err := d.AddBreakpoint(returnAddr)
-		if err != nil {
-			return d.reportExecutionError(fmt.Errorf("failed to add temporary breakpoint at return address 0x%X: %w", returnAddr, err))
+	return d.executeUntil(func(result *ExecutionResult) bool {
+		// Stop on any breakpoint or error
+		if result.StopReason == StopBreakpoint || result.StopReason == StopError {
+			return true
 		}
-
-		// Continue execution
-		result := d.Continue()
-
-		if result.StopReason == StopNone {
-			panic("Continue returned with no stop reason???")
-		}
-
-		// Remove temporary breakpoint
-		d.RemoveBreakpoint(bp.ID)
-
-		// Abort if continue stopped due to error
-		if result.StopReason == StopError {
-			return result
-		}
-
-		pc, err = cpu.ReadPC(d.runtime.CPU().Registers())
-		if err != nil {
-			return d.reportExecutionError(fmt.Errorf("failed to read PC register after StepOver: %w", err))
-		}
-
-		// If we stopped at our temporary breakpoint, report as step
-		if result.StopReason == StopBreakpoint && pc == returnAddr {
-			result.StopReason = StopStep
-		}
-
-		return result
-	}
-
-	// Not a call, just do a regular step
-	return d.Step()
+		// For instruction stepping over, just stop after one
+		return true
+	})
 }
 
 // For a given instruction address, returns all possible next instruction addresses (e.g., branches or fallthrough)
@@ -800,129 +817,64 @@ func (d *debugger) handleSourceLocationChange(result *ExecutionResult) {
 }
 
 func (d *debugger) StepIntoSource() *ExecutionResult {
-	log := d.Log().Child("StepIntoSource")
-
-	pc, err := d.readPC()
+	start, err := d.CurrentSourceLocation()
 	if err != nil {
-		return d.reportExecutionError(log.Errorf("failed to read PC register before StepIntoSource: %w", err))
+		return d.reportExecutionError(err)
 	}
 
-	log = log.WithAttrs(logging.Address("starting_instruction_address", pc))
-
-	var targetAddrs []uint32
-
-	for {
-		var err error
-		targetAddrs, err = d.nextSourceLocationInstructionAddresses(pc)
-		if err != nil {
-			return d.reportExecutionError(log.Errorf("failed to get next source location instruction addresses before StepIntoSource: %w", err))
-		}
-
-		if len(targetAddrs) == 0 {
-			log.Warn("no next source location instruction addresses found after instruction, trying next instruction", logging.Address("instruction_address", pc), logging.Address("next_instruction_address", pc+4))
-			pc += 4
-			continue
-		} else {
-			break
-		}
-	}
-
-	log.Debug("next source location instruction addresses", logging.Addresses("addresses", targetAddrs))
-
-	// Add temporary breakpoints at all possible next source location instruction addresses
-	var breakpoints map[int]*Breakpoint = make(map[int]*Breakpoint)
-	for _, targetAddr := range targetAddrs {
-		bp, err := d.AddBreakpoint(targetAddr)
-		if err != nil {
-			// Clean up any breakpoints we added before returning error
-			for id := range breakpoints {
-				d.RemoveBreakpoint(id)
-			}
-			return d.reportExecutionError(log.Errorf("failed to add temporary breakpoint at 0x%X: %w", targetAddr, err))
-		}
-		breakpoints[bp.ID] = bp
-
-		d.eventsQueue.SubscribeOnce(EventBreakpointHit, NewEventHandler(func(event *Event) bool {
-			if event.Result.Breakpoint.ID == bp.ID {
-				// On hitting one of our temporary breakpoints, remove all of them and stop execution
-				// If go closures capture by value, then we have a nice bug here
-				for id := range breakpoints {
-					d.RemoveBreakpoint(id)
-				}
-				return false
-			}
+	return d.executeUntil(func(result *ExecutionResult) bool {
+		// Stop if error
+		if result.StopReason == StopError {
 			return true
-		}))
-	}
+		}
 
-	// Continue execution
+		// Check if source location changed
+		current, err := d.CurrentSourceLocation()
+		if err != nil {
+			return true // Stop on error reading location
+		}
 
-	return d.Continue()
+		// Stop if we reached a different source location
+		if current != start {
+			return true
+		}
+
+		// Continue if still on same line
+		return false
+	})
 }
 
 func (d *debugger) StepOverSource() *ExecutionResult {
-	log := d.Log().Child("StepOverSource")
-
-	currentSourceLocation, err := d.CurrentSourceLocation()
+	start, err := d.CurrentSourceLocation()
 	if err != nil {
-		return d.reportExecutionError(log.Errorf("failed to get current source location before StepOverSource: %w", err))
+		return d.reportExecutionError(err)
 	}
 
-	instructionRanges, err := program.InstructionAddressesAtSourceLocation(d.programFile, currentSourceLocation)
-	if err != nil {
-		return d.reportExecutionError(log.Errorf("failed to get instruction addresses at source location before StepOverSource: %w", err))
-	}
-
-	if len(instructionRanges) == 0 {
-		return d.reportExecutionError(log.Errorf("no instruction addresses found at current source location before StepOverSource"))
-	}
-
-	for _, instrRange := range instructionRanges {
-		for addr := instrRange.Start; addr < instrRange.End(); addr += 4 {
-			if isCall, err := d.isCallInstruction(addr); err != nil {
-				return d.reportExecutionError(log.Errorf("failed to determine if instruction at 0x%X is a call: %w", addr, err))
-			} else if isCall {
-				// Set temporary breakpoint at return address (addr + 4)
-				returnAddr := addr + 4
-
-				// Add temporary breakpoint
-				bp, err := d.AddBreakpoint(returnAddr)
-				if err != nil {
-					return d.reportExecutionError(log.Errorf("failed to add temporary breakpoint at return address 0x%X: %w", returnAddr, err))
-				}
-
-				// Continue execution
-				result := d.Continue()
-
-				if result.StopReason == StopNone {
-					log.Panic("Continue returned with no stop reason???")
-				}
-
-				// Remove temporary breakpoint
-				d.RemoveBreakpoint(bp.ID)
-
-				// Abort if continue stopped due to error
-				if result.StopReason == StopError {
-					return result
-				}
-
-				pc, err := cpu.ReadPC(d.runtime.CPU().Registers())
-				if err != nil {
-					return d.reportExecutionError(log.Errorf("failed to read PC register after StepOverSource: %w", err))
-				}
-
-				// If we stopped at our temporary breakpoint, report as step
-				if result.StopReason == StopBreakpoint && pc == returnAddr {
-					result.StopReason = StopStep
-				}
-
-				return result
-			}
+	return d.executeUntil(func(result *ExecutionResult) bool {
+		// Stop if error
+		if result.StopReason == StopError {
+			return true
 		}
-	}
 
-	// No calls found in current source line, just do a regular step
-	return d.StepIntoSource()
+		// Stop if user breakpoint hit
+		if result.StopReason == StopBreakpoint {
+			return true
+		}
+
+		// Check if source location changed
+		current, err := d.CurrentSourceLocation()
+		if err != nil {
+			return true // Stop on error reading location
+		}
+
+		// Stop if we reached a different source location
+		if current != start {
+			return true
+		}
+
+		// Continue if still on same line
+		return false
+	})
 }
 
 func (d *debugger) Program() program.ProgramFile {

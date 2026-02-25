@@ -69,7 +69,7 @@ func (instr *RawInstruction) Decode() (*Instruction, error) {
 		value, err := operandDescriptor.DecodeValue(instr.OperandValues[j])
 
 		if err != nil {
-			return nil, utils.MakeError(ErrInvalidInstruction, "error decoding operand [%v]: %w", j, err)
+			return nil, utils.MakeError(ErrInvalidInstruction, "error decoding instruction '%s' operand [%v]: %w", instr.String(), j, err)
 		}
 
 		i.OperandValues[j] = value

@@ -125,53 +125,57 @@ func (d *debugger) extractSystemInfo() *uiDebugger.SystemInfo {
 	return info
 }
 
-func (d *debugger) LoadSystemFromFile(args *uiDebugger.LoadSystemArgs) *uiDebugger.LoadSystemResult {
+func (d *debugger) LoadSystemFromFile(args *uiDebugger.LoadSystemFromFileArgs) *uiDebugger.LoadSystemFromFileResult {
 	if args.FilePath == "default" {
-		return d.LoadSystemFromEmbedded()
+		result := d.LoadSystemFromEmbedded()
+		return &uiDebugger.LoadSystemFromFileResult{
+			Error:  result.Error,
+			System: result.System,
+		}
 	}
 
 	err := d.session.LoadSystemFromFile(args.FilePath)
 	if err != nil {
-		return &uiDebugger.LoadSystemResult{
+		return &uiDebugger.LoadSystemFromFileResult{
 			Error: err,
 		}
 	}
 
-	return &uiDebugger.LoadSystemResult{
+	return &uiDebugger.LoadSystemFromFileResult{
 		System: d.extractSystemInfo(),
 	}
 }
 
-func (d *debugger) LoadSystemFromEmbedded() *uiDebugger.LoadSystemResult {
+func (d *debugger) LoadSystemFromEmbedded() *uiDebugger.LoadSystemFromEmbeddedResult {
 	config, err := DefaultSystemConfig()
 	if err != nil {
-		return &uiDebugger.LoadSystemResult{
+		return &uiDebugger.LoadSystemFromEmbeddedResult{
 			Error: fmt.Errorf("failed to load embedded system config: %w", err),
 		}
 	}
 
 	system, err := config.Setup()
 	if err != nil {
-		return &uiDebugger.LoadSystemResult{
+		return &uiDebugger.LoadSystemFromEmbeddedResult{
 			Error: fmt.Errorf("failed to setup system from embedded config: %w", err),
 		}
 	}
 
 	err = d.session.LoadSystem(system)
 	if err != nil {
-		return &uiDebugger.LoadSystemResult{
+		return &uiDebugger.LoadSystemFromEmbeddedResult{
 			Error: err,
 		}
 	}
 
-	return &uiDebugger.LoadSystemResult{
+	return &uiDebugger.LoadSystemFromEmbeddedResult{
 		System: d.extractSystemInfo(),
 	}
 }
 
-func (d *debugger) LoadProgramFromFile(args *uiDebugger.LoadProgramArgs) *uiDebugger.LoadProgramResult {
+func (d *debugger) LoadProgramFromFile(args *uiDebugger.LoadProgramFromFileArgs) *uiDebugger.LoadProgramFromFileResult {
 	if d.session.System() == nil {
-		return &uiDebugger.LoadProgramResult{
+		return &uiDebugger.LoadProgramFromFileResult{
 			Error: fmt.Errorf("system must be configured before loading a program"),
 		}
 	}
@@ -198,7 +202,7 @@ func (d *debugger) LoadProgramFromFile(args *uiDebugger.LoadProgramArgs) *uiDebu
 
 	loadedProgram, err := d.session.LoadProgramFromFile(args.FilePath, options)
 	if err != nil {
-		return &uiDebugger.LoadProgramResult{
+		return &uiDebugger.LoadProgramFromFileResult{
 			Error: err,
 		}
 	}
@@ -213,7 +217,7 @@ func (d *debugger) LoadProgramFromFile(args *uiDebugger.LoadProgramArgs) *uiDebu
 		_ = err // Ignore error, entry point will be 0 which is fine
 	}
 
-	return &uiDebugger.LoadProgramResult{
+	return &uiDebugger.LoadProgramFromFileResult{
 		Program: &uiDebugger.ProgramInfo{
 			Warnings:   loadedProgram.Warnings,
 			SourceFile: &loadedProgram.OriginalPath,
@@ -259,7 +263,7 @@ func (d *debugger) Load(args *uiDebugger.LoadArgs) *uiDebugger.LoadResult {
 		args.SystemConfigPath = utils.Ptr("default")
 	}
 
-	loadSysResult := d.LoadSystemFromFile(&uiDebugger.LoadSystemArgs{
+	loadSysResult := d.LoadSystemFromFile(&uiDebugger.LoadSystemFromFileArgs{
 		FilePath: *args.SystemConfigPath,
 	})
 	if loadSysResult.Error != nil {
@@ -281,7 +285,7 @@ func (d *debugger) Load(args *uiDebugger.LoadArgs) *uiDebugger.LoadResult {
 		}
 	}
 
-	loadProgResult := d.LoadProgramFromFile(&uiDebugger.LoadProgramArgs{
+	loadProgResult := d.LoadProgramFromFile(&uiDebugger.LoadProgramFromFileArgs{
 		FilePath: *args.ProgramPath,
 	})
 	if loadProgResult.Error != nil {
@@ -382,8 +386,10 @@ func (d *debugger) CurrentSource(args *uiDebugger.CurrentSourceArgs) *uiDebugger
 	}
 
 	return d.Source(&uiDebugger.SourceArgs{
-		File:         currentSourceLoc.File.Path(),
-		Line:         currentSourceLoc.Line,
+		Location: &uiDebugger.SourceLocation{
+			File: currentSourceLoc.File.Path(),
+			Line: currentSourceLoc.Line,
+		},
 		ContextLines: args.ContextLines,
 		ContextMode:  args.ContextMode,
 	})
@@ -397,20 +403,28 @@ func (d *debugger) Source(args *uiDebugger.SourceArgs) *uiDebugger.SourceResult 
 		}
 	}
 
+	// Get current PC to mark the current line
+	pc, err := cpu.ReadPC(debugger.Runtime().CPU().Registers())
+	if err != nil {
+		return &uiDebugger.SourceResult{
+			Error: fmt.Errorf("failed to read PC register: %w", err),
+		}
+	}
+
 	var sourceRange sourcecode.Range
-	sourceRange.File = sourcecode.FileNamed(args.File)
+	sourceRange.File = sourcecode.FileNamed(args.Location.File)
 	sourceRange.LineCount = args.ContextLines
 
 	switch args.ContextMode {
 	case uiDebugger.SourceContextTop:
-		sourceRange.StartLine = args.Line
+		sourceRange.StartLine = args.Location.Line
 	case uiDebugger.SourceContextCentered:
-		sourceRange.StartLine = args.Line - args.ContextLines/2
+		sourceRange.StartLine = args.Location.Line - args.ContextLines/2
 		if sourceRange.StartLine < 1 {
 			sourceRange.StartLine = 1
 		}
 	case uiDebugger.SourceContextBottom:
-		sourceRange.StartLine = args.Line - args.ContextLines + 1
+		sourceRange.StartLine = args.Location.Line - args.ContextLines + 1
 		if sourceRange.StartLine < 1 {
 			sourceRange.StartLine = 1
 		}
@@ -421,9 +435,31 @@ func (d *debugger) Source(args *uiDebugger.SourceArgs) *uiDebugger.SourceResult 
 	}
 
 	snippet, err := sourcecode.ReadSnippet(debugger.Program().DebugInfo().SourceLibrary, &sourceRange)
+	if err != nil {
+		return &uiDebugger.SourceResult{
+			Error: err,
+		}
+	}
+
+	uiSnippet := SourceCodeSnippetToUI(snippet)
+
+	// Mark lines that contain the current PC
+	if uiSnippet != nil && uiSnippet.Lines != nil {
+		for _, line := range uiSnippet.Lines {
+			if line.Location != nil {
+				// Check if this source line contains the current PC
+				if srcLoc, err := program.SourceLocationAtInstructionAddress(debugger.Program(), pc); err == nil && srcLoc != nil {
+					if srcLoc.File.Path() == line.Location.File && srcLoc.Line == line.Location.Line {
+						line.IsCurrent = true
+					}
+				}
+			}
+		}
+	}
+
 	return &uiDebugger.SourceResult{
 		Error:   err,
-		Snippet: SourceCodeSnippetToUI(snippet),
+		Snippet: uiSnippet,
 	}
 }
 
@@ -436,7 +472,14 @@ func (d *debugger) Break(args *uiDebugger.BreakArgs) *uiDebugger.BreakResult {
 	}
 
 	if args.Address != nil {
-		if bp, err := debugger.AddBreakpoint(*args.Address); err != nil {
+		val, err := core.Eval(debugger.Runtime(), debugger.Program(), *args.Address)
+		if err != nil {
+			return &uiDebugger.BreakResult{
+				Error: fmt.Errorf("failed to evaluate address expression '%s': %w", args.Address, err),
+			}
+		}
+
+		if bp, err := debugger.AddBreakpoint(val); err != nil {
 			return &uiDebugger.BreakResult{
 				Error: err,
 			}
@@ -479,7 +522,38 @@ func (d *debugger) Watch(args *uiDebugger.WatchArgs) *uiDebugger.WatchResult {
 		}
 	}
 
-	watchpoint, err := debugger.AddWatchpoint(MemoryRangeFromUI(args.Range), WatchpointTypeFromUI(args.Type))
+	startAddress, err := core.Eval(debugger.Runtime(), debugger.Program(), args.StartAddress)
+	if err != nil {
+		return &uiDebugger.WatchResult{
+			Error: fmt.Errorf("failed to evaluate address expression '%s': %w", args.StartAddress, err),
+		}
+	}
+
+	var size uint32 = 4 // Default watch size is 4 bytes
+
+	if args.EndAddress != nil {
+		if args.Size != nil {
+			return &uiDebugger.WatchResult{
+				Error: fmt.Errorf("cannot specify both end address and size for watchpoint"),
+			}
+		}
+
+		addr, err := core.Eval(debugger.Runtime(), debugger.Program(), *args.EndAddress)
+		if err != nil {
+			return &uiDebugger.WatchResult{
+				Error: fmt.Errorf("failed to evaluate end address expression '%s': %w", *args.EndAddress, err),
+			}
+		}
+
+		size = addr - startAddress
+	}
+
+	if args.Type == nil {
+		// Default to read/write watchpoint if type is not specified
+		args.Type = utils.Ptr(uiDebugger.WatchpointTypeReadWrite)
+	}
+
+	watchpoint, err := debugger.AddWatchpoint(&memory.Range{Start: startAddress, Size: size}, WatchpointTypeFromUI(*args.Type))
 	return &uiDebugger.WatchResult{
 		Error:      err,
 		Watchpoint: WatchpointToUI(watchpoint),
@@ -618,29 +692,40 @@ func sourceLocationsEqual(loc1, loc2 *sourcecode.Location) bool {
 	return loc1.File.Path() == loc2.File.Path() && loc1.Line == loc2.Line
 }
 
-func (d *debugger) Disasm(args *uiDebugger.DisasmArgs) *uiDebugger.DisassemblyResult {
+func (d *debugger) Disasm(args *uiDebugger.DisasmArgs) *uiDebugger.DisasmResult {
 	debugger, err := d.session.Debugger()
 	if err != nil {
-		return &uiDebugger.DisassemblyResult{
+		return &uiDebugger.DisasmResult{
 			Error: fmt.Errorf("debugger not ready: %w", err),
 		}
 	}
 
 	// Evaluate the address expression
 	var address uint32
-	if args.AddressExpr != "" {
-		val, err := core.Eval(debugger.Runtime(), debugger.Program(), args.AddressExpr)
+	if args.Address != "" {
+		val, err := core.Eval(debugger.Runtime(), debugger.Program(), args.Address)
 		if err != nil {
-			return &uiDebugger.DisassemblyResult{
-				Error: fmt.Errorf("failed to evaluate address expression '%s': %w", args.AddressExpr, err),
+			return &uiDebugger.DisasmResult{
+				Error: fmt.Errorf("failed to evaluate address expression '%s': %w", args.Address, err),
 			}
 		}
 		address = val
 	}
 
-	instructions, err := program.InstructionsAtAddress(debugger.Program(), address, args.Count)
+	count := 10 // Default instruction count
+	if args.CountExpr != nil {
+		val, err := core.Eval(debugger.Runtime(), debugger.Program(), *args.CountExpr)
+		if err != nil {
+			return &uiDebugger.DisasmResult{
+				Error: fmt.Errorf("failed to evaluate count expression '%s': %w", *args.CountExpr, err),
+			}
+		}
+		count = int(val)
+	}
+
+	instructions, err := program.InstructionsAtAddress(debugger.Program(), address, count)
 	if err != nil {
-		return &uiDebugger.DisassemblyResult{
+		return &uiDebugger.DisasmResult{
 			Error: err,
 		}
 	}
@@ -661,10 +746,10 @@ func (d *debugger) Disasm(args *uiDebugger.DisasmArgs) *uiDebugger.DisassemblyRe
 	// Compute the control flow graph for this instruction range
 	cfg := d.computeControlFlowGraphForInstructions(debugger, result)
 
-	return &uiDebugger.DisassemblyResult{
-		Error:        err,
-		Instructions: result,
-		CFG:          cfg,
+	return &uiDebugger.DisasmResult{
+		Error:            err,
+		Instructions:     result,
+		ControlFlowGraph: cfg,
 	}
 }
 
@@ -985,9 +1070,15 @@ func (d *debugger) Memory(args *uiDebugger.MemoryArgs) *uiDebugger.MemoryResult 
 
 	// Get memory contents using the memory package functions
 	mem := debugger.Runtime().Memory()
-	count := args.Count
-	if count == 0 {
-		count = 256 // Default to 256 bytes
+	count := 256 // Default to 256 bytes
+	if args.CountExpr != nil {
+		val, err := core.Eval(debugger.Runtime(), debugger.Program(), *args.CountExpr)
+		if err != nil {
+			return &uiDebugger.MemoryResult{
+				Error: fmt.Errorf("failed to evaluate count expression '%s': %w", *args.CountExpr, err),
+			}
+		}
+		count = int(val)
 	}
 
 	// Read all memory at once for efficiency

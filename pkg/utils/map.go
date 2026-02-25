@@ -11,6 +11,18 @@ func Map[T any, U any](input []T, mapFunction func(T) U) []U {
 	return output
 }
 
+// Generates a sequence constructed by applying a function that conditionally maps elements of a given input sequence. If the mapping function returns false, the element is not included in the output sequence
+func MapIf[T any, U any](input []T, mapFunction func(T) (U, bool)) []U {
+	output := make([]U, 0, len(input))
+	for i := range input {
+		if mapped, ok := mapFunction(input[i]); ok {
+			output = append(output, mapped)
+		}
+	}
+
+	return output
+}
+
 // Generates a sequence constructed by applying a function that may fail to all elements of a given input sequence. If any of the applications of the function fails, the whole function fails and returns an error
 func MapMayFail[T any, U any](input []T, mapFunction func(T) (U, error)) ([]U, error) {
 	output := make([]U, len(input))

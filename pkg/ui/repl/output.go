@@ -10,88 +10,89 @@ import (
 	"github.com/Manu343726/cucaracha/pkg/utils/logging"
 )
 
-func (r *REPL) printCommandResult(result *debuggerUI.DebuggerCommandResult) {
+func (r *REPL) printCommandResult(result *debuggerUI.DebuggerCommandResult) error {
 	if result == nil {
-		r.printError("No result returned")
-		return
+		return r.printError(fmt.Errorf("no result returned"))
 	}
 
 	// Print the appropriate result based on command type
 	if result.StepResult != nil {
-		r.printExecutionResult(result.StepResult)
+		return r.printExecutionResult(result.StepResult)
 	}
 	if result.ContinueResult != nil {
-		r.printExecutionResult(result.ContinueResult)
+		return r.printExecutionResult(result.ContinueResult)
 	}
 	if result.InterruptResult != nil {
-		r.printExecutionResult(result.InterruptResult)
+		return r.printExecutionResult(result.InterruptResult)
 	}
 	if result.ResetResult != nil {
-		r.printExecutionResult(result.ResetResult)
+		return r.printExecutionResult(result.ResetResult)
 	}
 	if result.RestartResult != nil {
-		r.printExecutionResult(result.RestartResult)
+		return r.printExecutionResult(result.RestartResult)
 	}
 	if result.BreakResult != nil {
-		r.printBreakResult(result.BreakResult)
+		return r.printBreakResult(result.BreakResult)
 	}
 	if result.WatchResult != nil {
-		r.printWatchResult(result.WatchResult)
+		return r.printWatchResult(result.WatchResult)
 	}
 	if result.RemoveBreakpointResult != nil {
-		r.printRemoveBreakpointResult(result.RemoveBreakpointResult)
+		return r.printRemoveBreakpointResult(result.RemoveBreakpointResult)
 	}
 	if result.RemoveWatchpointResult != nil {
-		r.printRemoveWatchpointResult(result.RemoveWatchpointResult)
+		return r.printRemoveWatchpointResult(result.RemoveWatchpointResult)
 	}
 	if result.ListResult != nil {
-		r.printListResult(result.ListResult)
+		return r.printListResult(result.ListResult)
 	}
-	if result.DisassemblyResult != nil {
-		r.printDisassemblyResult(result.DisassemblyResult)
+	if result.DisasmResult != nil {
+		return r.printDisassemblyResult(result.DisasmResult)
 	}
 	if result.CurrentInstructionResult != nil {
-		r.printCurrentInstructionResult(result.CurrentInstructionResult)
+		return r.printCurrentInstructionResult(result.CurrentInstructionResult)
 	}
 	if result.MemoryResult != nil {
-		r.printMemoryResult(result.MemoryResult)
+		return r.printMemoryResult(result.MemoryResult)
 	}
 	if result.SourceResult != nil {
-		r.printSourceResult(result.SourceResult)
+		return r.printSourceResult(result.SourceResult)
 	}
 	if result.CurrentSourceResult != nil {
-		r.printSourceResult(result.CurrentSourceResult)
+		return r.printSourceResult(result.CurrentSourceResult)
 	}
 	if result.InfoResult != nil {
-		r.printInfoResult(result.InfoResult)
+		return r.printInfoResult(result.InfoResult)
 	}
 	if result.RegistersResult != nil {
-		r.printRegistersResult(result.RegistersResult)
+		return r.printRegistersResult(result.RegistersResult)
 	}
 	if result.StackResult != nil {
-		r.printStackResult(result.StackResult)
+		return r.printStackResult(result.StackResult)
 	}
-	if result.VariablesResult != nil {
-		r.printVarsResult(result.VariablesResult)
+	if result.VarsResult != nil {
+		return r.printVarsResult(result.VarsResult)
 	}
 	if result.SymbolsResult != nil {
-		r.printSymbolsResult(result.SymbolsResult)
+		return r.printSymbolsResult(result.SymbolsResult)
 	}
 	if result.EvalResult != nil {
-		r.printEvalResult(result.EvalResult)
+		return r.printEvalResult(result.EvalResult)
 	}
-	if result.LoadProgramResult != nil {
-		r.printLoadProgramResult(result.LoadProgramResult)
+	if result.LoadProgramFromFileResult != nil {
+		return r.printLoadProgramResult(result.LoadProgramFromFileResult)
 	}
-	if result.LoadSystemResult != nil {
-		r.printLoadSystemResult(result.LoadSystemResult)
+	if result.LoadSystemFromFileResult != nil {
+		return r.printLoadSystemResult(result.LoadSystemFromFileResult)
 	}
 	if result.LoadRuntimeResult != nil {
-		r.printLoadRuntimeResult(result.LoadRuntimeResult)
+		return r.printLoadRuntimeResult(result.LoadRuntimeResult)
 	}
 	if result.LoadResult != nil {
-		r.printLoadResult(result.LoadResult)
+		return r.printLoadResult(result.LoadResult)
 	}
+
+	return r.printError(fmt.Errorf("unknown command result"))
 }
 
 func (r *REPL) printWelcome() {
@@ -146,6 +147,16 @@ Program Loading:
 Settings:
   set [name] [value]     - Set a REPL setting (or show all with descriptions)
   get [name]             - Get a setting value (or show all current values)
+  save-settings [file]   - Save current settings to YAML file (uses loaded settings file
+                           if not specified, requires a settings file to be loaded)
+
+Command Aliases:
+  define <name>          - Define a new multi-command alias (supports nesting)
+    ["optional doc"]       Enter commands, one per line. Type 'end' when done.
+  undefine <name>,       - Remove an alias definition
+    unalias <name>
+  save-aliases [file]    - Save all aliases to settings file (loads from settings file if
+                           not specified, requires a settings file to be loaded)
 
 Utility:
   loggers                - List all registered loggers and their sinks
@@ -153,21 +164,50 @@ Utility:
   exit, quit, q          - Exit the debugger
 `
 	r.write("%s", help)
+
+	// Print user-defined aliases if any exist
+	if len(r.aliases) > 0 {
+		r.write("\nAliases:\n")
+
+		// Sort alias names for consistent output
+		var names []string
+		for name := range r.aliases {
+			names = append(names, name)
+		}
+		sort.Strings(names)
+
+		for _, name := range names {
+			alias := r.aliases[name]
+
+			// Build command list
+			var cmdStrs []string
+			for _, cmdParts := range alias.Commands {
+				cmdStrs = append(cmdStrs, strings.Join(cmdParts, " "))
+			}
+			commands := strings.Join(cmdStrs, "; ")
+
+			if alias.Doc != "" {
+				r.write("  %-20s - %s\n", name, alias.Doc)
+				r.write("                       -> %s\n", commands)
+			} else {
+				r.write("  %-20s -> %s\n", name, commands)
+			}
+		}
+	}
 }
 
-func (r *REPL) printError(msg string) {
-	r.write("Error: %s\n", msg)
+func (r *REPL) printError(err error) error {
+	r.write("Error: %s\n", err.Error())
+	return err
 }
 
-func (r *REPL) printExecutionResult(result *debuggerUI.ExecutionResult) {
+func (r *REPL) printExecutionResult(result *debuggerUI.ExecutionResult) error {
 	if result == nil {
-		r.printError("No execution result")
-		return
+		return r.printError(fmt.Errorf("no execution result"))
 	}
 
 	if result.Error != nil {
-		r.printError(result.Error.Error())
-		return
+		return r.printError(result.Error)
 	}
 
 	r.write("Stopped: %s\n", result.StopReason)
@@ -194,17 +234,16 @@ func (r *REPL) printExecutionResult(result *debuggerUI.ExecutionResult) {
 			result.Watchpoint.ID,
 			result.Watchpoint.Range.Start)
 	}
+	return nil
 }
 
-func (r *REPL) printBreakResult(result *debuggerUI.BreakResult) {
+func (r *REPL) printBreakResult(result *debuggerUI.BreakResult) error {
 	if result == nil {
-		r.printError("Failed to set breakpoint")
-		return
+		return r.printError(fmt.Errorf("failed to set breakpoint"))
 	}
 
 	if result.Error != nil {
-		r.printError(result.Error.Error())
-		return
+		return r.printError(result.Error)
 	}
 
 	if result.Breakpoint != nil {
@@ -212,17 +251,16 @@ func (r *REPL) printBreakResult(result *debuggerUI.BreakResult) {
 			result.Breakpoint.ID,
 			result.Breakpoint.Address)
 	}
+	return nil
 }
 
-func (r *REPL) printWatchResult(result *debuggerUI.WatchResult) {
+func (r *REPL) printWatchResult(result *debuggerUI.WatchResult) error {
 	if result == nil {
-		r.printError("Failed to set watchpoint")
-		return
+		return r.printError(fmt.Errorf("failed to set watchpoint"))
 	}
 
 	if result.Error != nil {
-		r.printError(result.Error.Error())
-		return
+		return r.printError(result.Error)
 	}
 
 	if result.Watchpoint != nil {
@@ -230,50 +268,47 @@ func (r *REPL) printWatchResult(result *debuggerUI.WatchResult) {
 			result.Watchpoint.ID,
 			result.Watchpoint.Range.Start)
 	}
+	return nil
 }
 
-func (r *REPL) printRemoveBreakpointResult(result *debuggerUI.RemoveBreakpointResult) {
+func (r *REPL) printRemoveBreakpointResult(result *debuggerUI.RemoveBreakpointResult) error {
 	if result == nil {
-		r.printError("Failed to remove breakpoint")
-		return
+		return r.printError(fmt.Errorf("failed to remove breakpoint"))
 	}
 
 	if result.Error != nil {
-		r.printError(result.Error.Error())
-		return
+		return r.printError(result.Error)
 	}
 
 	r.write("Breakpoint removed\n")
+	return nil
 }
 
-func (r *REPL) printRemoveWatchpointResult(result *debuggerUI.RemoveWatchpointResult) {
+func (r *REPL) printRemoveWatchpointResult(result *debuggerUI.RemoveWatchpointResult) error {
 	if result == nil {
-		r.printError("Failed to remove watchpoint")
-		return
+		return r.printError(fmt.Errorf("failed to remove watchpoint"))
 	}
 
 	if result.Error != nil {
-		r.printError(result.Error.Error())
-		return
+		return r.printError(result.Error)
 	}
 
 	r.write("Watchpoint removed\n")
+	return nil
 }
 
-func (r *REPL) printListResult(result *debuggerUI.ListResult) {
+func (r *REPL) printListResult(result *debuggerUI.ListResult) error {
 	if result == nil {
-		r.printError("Failed to list breakpoints")
-		return
+		return r.printError(fmt.Errorf("failed to list breakpoints"))
 	}
 
 	if result.Error != nil {
-		r.printError(result.Error.Error())
-		return
+		return r.printError(result.Error)
 	}
 
 	if len(result.Breakpoints) == 0 && len(result.Watchpoints) == 0 {
 		r.write("No breakpoints or watchpoints\n")
-		return
+		return nil
 	}
 
 	if len(result.Breakpoints) > 0 {
@@ -289,22 +324,21 @@ func (r *REPL) printListResult(result *debuggerUI.ListResult) {
 			r.write("  %d at 0x%x (size: %d)\n", wp.ID, wp.Range.Start, wp.Range.Size)
 		}
 	}
+	return nil
 }
 
-func (r *REPL) printDisassemblyResult(result *debuggerUI.DisassemblyResult) {
+func (r *REPL) printDisassemblyResult(result *debuggerUI.DisasmResult) error {
 	if result == nil {
-		r.printError("Failed to disassemble")
-		return
+		return r.printError(fmt.Errorf("failed to disassemble"))
 	}
 
 	if result.Error != nil {
-		r.printError(result.Error.Error())
-		return
+		return r.printError(result.Error)
 	}
 
 	if len(result.Instructions) == 0 {
 		r.write("No instructions\n")
-		return
+		return nil
 	}
 
 	r.write("\nInstructions:\n")
@@ -319,8 +353,8 @@ func (r *REPL) printDisassemblyResult(result *debuggerUI.DisassemblyResult) {
 
 	// Build a set of branch targets from the CFG
 	branchTargets := make(map[uint32]bool)
-	if result.CFG != nil {
-		for target := range result.CFG.Edges {
+	if result.ControlFlowGraph != nil {
+		for target := range result.ControlFlowGraph.Edges {
 			branchTargets[target] = true
 		}
 	}
@@ -347,7 +381,7 @@ func (r *REPL) printDisassemblyResult(result *debuggerUI.DisassemblyResult) {
 	if showCFG {
 		for _, inst := range result.Instructions {
 			// Calculate CFG column width
-			cfgStr := r.getCFGSymbol(inst, result.CFG)
+			cfgStr := r.getCFGSymbol(inst, result.ControlFlowGraph)
 			if len(cfgStr) > maxCFGWidth {
 				maxCFGWidth = len(cfgStr)
 			}
@@ -407,7 +441,7 @@ func (r *REPL) printDisassemblyResult(result *debuggerUI.DisassemblyResult) {
 
 		// Add CFG column if enabled
 		if showCFG {
-			cfgStr := r.getCFGSymbol(inst, result.CFG)
+			cfgStr := r.getCFGSymbol(inst, result.ControlFlowGraph)
 			line += cfgStr
 			// Pad CFG column
 			for len(line) < maxLocationWidth+4+maxSourceWidth+4+maxCFGWidth {
@@ -419,11 +453,12 @@ func (r *REPL) printDisassemblyResult(result *debuggerUI.DisassemblyResult) {
 		}
 
 		// Add instruction
-		instrPart := fmt.Sprintf("%s 0x%08x: %s %s", marker, inst.Address, inst.Mnemonic, inst.Text)
+		instrPart := fmt.Sprintf("%s 0x%08x: %s", marker, inst.Address, inst.Text)
 		line += instrPart
 
 		fmt.Fprintf(r.writer, "%s\n", line)
 	}
+	return nil
 }
 
 // getCFGSymbol returns a string representing the control flow graph information for an instruction
@@ -461,15 +496,13 @@ func (r *REPL) getCFGSymbol(inst *debuggerUI.Instruction, cfg *debuggerUI.Contro
 	}
 }
 
-func (r *REPL) printCurrentInstructionResult(result *debuggerUI.CurrentInstructionResult) {
+func (r *REPL) printCurrentInstructionResult(result *debuggerUI.CurrentInstructionResult) error {
 	if result == nil {
-		r.printError("Failed to get current instruction")
-		return
+		return r.printError(fmt.Errorf("failed to get current instruction"))
 	}
 
 	if result.Error != nil {
-		r.printError(result.Error.Error())
-		return
+		return r.printError(result.Error)
 	}
 
 	if result.Instruction != nil {
@@ -492,22 +525,22 @@ func (r *REPL) printCurrentInstructionResult(result *debuggerUI.CurrentInstructi
 		// Use standard output pattern to avoid vet warnings
 		fmt.Fprintf(r.writer, "%s\n", output)
 	}
+
+	return nil
 }
 
-func (r *REPL) printMemoryResult(result *debuggerUI.MemoryResult) {
+func (r *REPL) printMemoryResult(result *debuggerUI.MemoryResult) error {
 	if result == nil {
-		r.printError("Failed to read memory")
-		return
+		return r.printError(fmt.Errorf("failed to read memory"))
 	}
 
 	if result.Error != nil {
-		r.printError(result.Error.Error())
-		return
+		return r.printError(result.Error)
 	}
 
 	if len(result.Data) == 0 {
 		r.write("No data\n")
-		return
+		return nil
 	}
 
 	r.write("\nMemory at 0x%x:\n", result.Address)
@@ -523,47 +556,52 @@ func (r *REPL) printMemoryResult(result *debuggerUI.MemoryResult) {
 		}
 		r.write("\n")
 	}
+	return nil
 }
 
-func (r *REPL) printSourceResult(result *debuggerUI.SourceResult) {
+func (r *REPL) printSourceResult(result *debuggerUI.SourceResult) error {
 	if result == nil {
-		r.printError("Failed to read source")
-		return
+		return r.printError(fmt.Errorf("failed to read source"))
 	}
 
 	if result.Error != nil {
-		r.printError(result.Error.Error())
-		return
+		return r.printError(result.Error)
 	}
 
 	if result.Snippet == nil || len(result.Snippet.Lines) == 0 {
 		r.write("No source\n")
-		return
+		return nil
 	}
 
-	r.write("\nSource:\n")
+	// Print header with source file name
+	filename := "unknown"
+	if result.Snippet.SourceRange != nil && result.Snippet.SourceRange.Start != nil {
+		filename = result.Snippet.SourceRange.Start.File
+	}
+	r.write("\nSource: %s\n", filename)
+
+	// Print source lines with current line indicator
 	for _, line := range result.Snippet.Lines {
-		marker := " "
+		marker := "  "
 		if line.IsCurrent {
-			marker = ">"
+			marker = "> "
 		}
 		if line.Location != nil {
-			r.write("%s %4d: %s\n", marker, line.Location.Line, line.Text)
+			r.write("%s%4d: %s\n", marker, line.Location.Line, line.Text)
 		} else {
-			r.write("%s %s\n", marker, line.Text)
+			r.write("%s%s\n", marker, line.Text)
 		}
 	}
+	return nil
 }
 
-func (r *REPL) printInfoResult(result *debuggerUI.InfoResult) {
+func (r *REPL) printInfoResult(result *debuggerUI.InfoResult) error {
 	if result == nil {
-		r.printError("Failed to get info")
-		return
+		return r.printError(fmt.Errorf("failed to get info"))
 	}
 
 	if result.Error != nil {
-		r.printError(result.Error.Error())
-		return
+		return r.printError(result.Error)
 	}
 
 	// Print debugger state if available
@@ -630,22 +668,22 @@ func (r *REPL) printInfoResult(result *debuggerUI.InfoResult) {
 		r.write("\nRuntime Information:\n")
 		r.write("  Type: %s\n", result.RuntimeInfo.Runtime)
 	}
+
+	return nil
 }
 
-func (r *REPL) printRegistersResult(result *debuggerUI.RegistersResult) {
+func (r *REPL) printRegistersResult(result *debuggerUI.RegistersResult) error {
 	if result == nil {
-		r.printError("Failed to get registers")
-		return
+		return r.printError(fmt.Errorf("failed to get registers"))
 	}
 
 	if result.Error != nil {
-		r.printError(result.Error.Error())
-		return
+		return r.printError(result.Error)
 	}
 
 	if len(result.Registers) == 0 {
 		r.write("No registers\n")
-		return
+		return nil
 	}
 
 	r.write("\nRegisters:\n")
@@ -654,22 +692,22 @@ func (r *REPL) printRegistersResult(result *debuggerUI.RegistersResult) {
 			r.write("  %s = 0x%x\n", name, reg.Value)
 		}
 	}
+
+	return nil
 }
 
-func (r *REPL) printStackResult(result *debuggerUI.StackResult) {
+func (r *REPL) printStackResult(result *debuggerUI.StackResult) error {
 	if result == nil {
-		r.printError("Failed to get stack")
-		return
+		return r.printError(fmt.Errorf("failed to get stack"))
 	}
 
 	if result.Error != nil {
-		r.printError(result.Error.Error())
-		return
+		return r.printError(result.Error)
 	}
 
 	if len(result.StackFrames) == 0 {
 		r.write("Empty stack\n")
-		return
+		return nil
 	}
 
 	r.write("\nStack Frames:\n")
@@ -684,22 +722,22 @@ func (r *REPL) printStackResult(result *debuggerUI.StackResult) {
 		}
 		r.write("  #%d %s at 0x%x\n", i, functionName, address)
 	}
+
+	return nil
 }
 
-func (r *REPL) printVarsResult(result *debuggerUI.VarsResult) {
+func (r *REPL) printVarsResult(result *debuggerUI.VarsResult) error {
 	if result == nil {
-		r.printError("Failed to get variables")
-		return
+		return r.printError(fmt.Errorf("failed to get variables"))
 	}
 
 	if result.Error != nil {
-		r.printError(result.Error.Error())
-		return
+		return r.printError(result.Error)
 	}
 
 	if len(result.Variables) == 0 {
 		r.write("No variables\n")
-		return
+		return nil
 	}
 
 	r.write("\nVariables:\n")
@@ -708,22 +746,22 @@ func (r *REPL) printVarsResult(result *debuggerUI.VarsResult) {
 			r.write("  %s: %s = %s\n", variable.Name, variable.TypeName, variable.ValueString)
 		}
 	}
+
+	return nil
 }
 
-func (r *REPL) printSymbolsResult(result *debuggerUI.SymbolsResult) {
+func (r *REPL) printSymbolsResult(result *debuggerUI.SymbolsResult) error {
 	if result == nil {
-		r.printError("Failed to list symbols")
-		return
+		return r.printError(fmt.Errorf("failed to list symbols"))
 	}
 
 	if result.Error != nil {
-		r.printError(result.Error.Error())
-		return
+		return r.printError(result.Error)
 	}
 
 	if result.TotalCount == 0 {
 		r.write("No symbols found\n")
-		return
+		return nil
 	}
 
 	r.write("\nSymbols (%d total):\n", result.TotalCount)
@@ -790,76 +828,73 @@ func (r *REPL) printSymbolsResult(result *debuggerUI.SymbolsResult) {
 			}
 		}
 	}
+
+	return nil
 }
 
-func (r *REPL) printEvalResult(result *debuggerUI.EvalResult) {
+func (r *REPL) printEvalResult(result *debuggerUI.EvalResult) error {
 	if result == nil {
-		r.printError("Failed to evaluate expression")
-		return
+		return r.printError(fmt.Errorf("failed to evaluate expression"))
 	}
 
 	if result.Error != nil {
-		r.printError(result.Error.Error())
-		return
+		return r.printError(result.Error)
 	}
 
 	r.write("Result: 0x%x (%s)\n", result.Value, result.ValueString)
+	return nil
 }
 
-func (r *REPL) printLoadProgramResult(result *debuggerUI.LoadProgramResult) {
+func (r *REPL) printLoadProgramResult(result *debuggerUI.LoadProgramFromFileResult) error {
 	if result == nil {
-		r.printError("Failed to load program")
-		return
+		return r.printError(fmt.Errorf("failed to load program"))
 	}
 
 	if result.Error != nil {
-		r.printError(result.Error.Error())
-		return
+		return r.printError(result.Error)
 	}
 
 	r.write("Program loaded successfully\n")
+	return nil
 }
 
-func (r *REPL) printLoadSystemResult(result *debuggerUI.LoadSystemResult) {
+func (r *REPL) printLoadSystemResult(result *debuggerUI.LoadSystemFromFileResult) error {
 	if result == nil {
-		r.printError("Failed to load system")
-		return
+		return r.printError(fmt.Errorf("failed to load system"))
 	}
 
 	if result.Error != nil {
-		r.printError(result.Error.Error())
-		return
+		return r.printError(result.Error)
 	}
 
 	r.write("System loaded successfully\n")
+	return nil
 }
 
-func (r *REPL) printLoadRuntimeResult(result *debuggerUI.LoadRuntimeResult) {
+func (r *REPL) printLoadRuntimeResult(result *debuggerUI.LoadRuntimeResult) error {
 	if result == nil {
-		r.printError("Failed to load runtime")
-		return
+		return r.printError(fmt.Errorf("failed to load runtime"))
 	}
 
 	if result.Error != nil {
-		r.printError(result.Error.Error())
-		return
+		return r.printError(result.Error)
 	}
 
 	r.write("Runtime loaded successfully\n")
+	return nil
 }
 
-func (r *REPL) printLoadResult(result *debuggerUI.LoadResult) {
+func (r *REPL) printLoadResult(result *debuggerUI.LoadResult) error {
 	if result == nil {
-		r.printError("Failed to load")
-		return
+		return r.printError(fmt.Errorf("failed to load"))
 	}
 
 	if result.Error != nil {
-		r.printError(result.Error.Error())
-		return
+		return r.printError(result.Error)
 	}
 
 	r.write("Load completed successfully\n")
+	return nil
 }
 
 // ============================================================================

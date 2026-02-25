@@ -262,8 +262,10 @@ func (ct *CommandsTerminal) parseSourceCommandArgs(args []string) (*debuggerUI.D
 	}
 
 	sourceArgs := &debuggerUI.SourceArgs{
-		File: fileLine[0],
-		Line: lineNum,
+		Location: &debuggerUI.SourceLocation{
+			File: fileLine[0],
+			Line: lineNum,
+		},
 	}
 
 	if len(args) >= 2 {
@@ -298,9 +300,9 @@ func (ct *CommandsTerminal) parseCommandArgs(cmdID debuggerUI.DebuggerCommandId,
 		return ct.parseStepCommandArgs(args)
 	case debuggerUI.DebuggerCommandSource:
 		return ct.parseSourceCommandArgs(args)
-	case debuggerUI.DebuggerCommandEvaluateExpression:
+	case debuggerUI.DebuggerCommandEval:
 		return &debuggerUI.DebuggerCommand{
-			Command: debuggerUI.DebuggerCommandEvaluateExpression,
+			Command: debuggerUI.DebuggerCommandEval,
 			EvalArgs: &debuggerUI.EvalArgs{
 				Expression: strings.Join(args, " "),
 			},

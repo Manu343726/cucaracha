@@ -415,9 +415,23 @@ func (s *Settings) LoadFromFile(filePath string) error {
 	}
 
 	// Parse YAML into a map
-	var settingsMap map[string]interface{}
-	if err := yaml.Unmarshal(data, &settingsMap); err != nil {
+	var fileContent map[string]interface{}
+	if err := yaml.Unmarshal(data, &fileContent); err != nil {
 		return fmt.Errorf("failed to parse settings file as YAML: %w", err)
+	}
+
+	// Check for new structured format with 'settings' key
+	var settingsMap map[string]interface{}
+	if settingsData, ok := fileContent["settings"]; ok {
+		// New structured format
+		if sm, ok := settingsData.(map[string]interface{}); ok {
+			settingsMap = sm
+		} else {
+			return fmt.Errorf("'settings' section must be a map")
+		}
+	} else {
+		// Old flat format - entire file is settings
+		settingsMap = fileContent
 	}
 
 	// Apply each setting
@@ -461,4 +475,13 @@ func (s *Settings) ApplyKeyValue(kvStr string) error {
 	}
 
 	return s.Set(key, value)
+}
+
+// ExportSettings returns a map of all current settings for serialization
+func (s *Settings) ExportSettings() map[string]interface{} {
+	result := make(map[string]interface{})
+	for key, setting := range s.settings {
+		result[key] = setting.Value
+	}
+	return result
 }

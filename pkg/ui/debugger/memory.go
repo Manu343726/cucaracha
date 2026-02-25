@@ -146,8 +146,8 @@ func (m *MemoryRegionType) UnmarshalJSON(data []byte) error {
 
 // Memory command arguments
 type MemoryArgs struct {
-	AddressExpr string `json:"addressExpr"` // Address expression
-	Count       int    `json:"count"`       // Number of bytes to display (optional)
+	AddressExpr string  `json:"addressExpr"` // Starting address as an eval expression
+	CountExpr   *string `json:"countExpr"`   // Number of bytes to display as an eval expression
 }
 
 // Result of Memory command
