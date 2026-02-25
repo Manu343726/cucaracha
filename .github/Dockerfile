@@ -18,10 +18,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Clone cucaracha-backend branch from llvm/llvm-project
+# Clone cucaracha-backend branch from Manu343726/llvm-project (our fork)
 RUN mkdir -p ${LLVM_PROJECT_DIR} && \
     git clone --depth 1 --branch cucaracha-backend \
-    https://github.com/llvm/llvm-project.git ${LLVM_PROJECT_DIR}
+    https://github.com/Manu343726/llvm-project.git ${LLVM_PROJECT_DIR}
 
 WORKDIR ${LLVM_PROJECT_DIR}
 
