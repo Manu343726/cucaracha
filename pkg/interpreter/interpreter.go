@@ -167,7 +167,7 @@ func (i *Interpreter) Step() (*cpu.StepInfo, error) {
 	}
 
 	if !i.MemoryLayout().Code().ContainsAddress(oldPC) {
-		return nil, log.Errorf("PC outside of code memory range: 0x%X (code range: 0x%X - 0x%X)", oldPC, i.MemoryLayout().Code().Start, i.MemoryLayout().Code().End)
+		return nil, log.Errorf("PC outside of code memory range: 0x%X (code range: 0x%X - 0x%X)", oldPC, i.MemoryLayout().Code().Start, i.MemoryLayout().Code().End())
 	}
 
 	log = log.WithAttrs(logging.Address("pc", oldPC))

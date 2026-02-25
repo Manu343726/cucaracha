@@ -104,15 +104,30 @@ func (r REPLSyntax) ParseCommand(input interface{}) (*debugger.DebuggerCommand, 
 		return nil, fmt.Errorf("command input cannot be empty")
 	}
 
-	// Normalize the command name: convert camelCase/kebab-case/snake_case to PascalCase
-	// First convert to kebab-case (handles camelCase), then to PascalCase
-	kebabCmd := utils.KebabCase(inputArgs[0])
-	normalizedCmd := utils.PascalCase(kebabCmd)
-	fmt.Printf("[DEBUG] Original: %s, KebabCase: %s, PascalCase: %s, Final: DebuggerCommand%s\n",
-		inputArgs[0], kebabCmd, normalizedCmd, normalizedCmd)
-	command, err := debugger.DebuggerCommandIdFromString("DebuggerCommand" + normalizedCmd)
-	if err != nil {
-		return nil, err
+	// Find the command by matching against formatted command names using the enum values map
+	// This is case-insensitive and dynamic based on all available command enum values
+	inputCmdLower := strings.ToLower(inputArgs[0])
+	var command debugger.DebuggerCommandId
+	var found bool
+
+	// Try to find a matching command by checking all valid command IDs from the map
+	for cmdId := range debugger.DebuggerCommandIdValues {
+		cmdStr := cmdId.String()
+
+		// Format the command name using REPL syntax (removes prefix, kebab-cases)
+		formattedName := r.FormatCommandName(cmdId)
+
+		// Try both formatted name and raw lowercased command name for maximum compatibility
+		if strings.EqualFold(formattedName, inputArgs[0]) ||
+			strings.EqualFold(strings.ToLower(strings.TrimPrefix(cmdStr, "DebuggerCommand")), inputCmdLower) {
+			command = cmdId
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		return nil, fmt.Errorf("unknown command: %s", inputArgs[0])
 	}
 
 	return debugger.ParseCommandArguments(r, command, inputArgs[1:])
@@ -464,6 +479,27 @@ func (r REPLSyntax) ParseSymbolsArguments(args any) (*debugger.SymbolsArgs, erro
 
 	return &debugger.SymbolsArgs{
 		SymbolName: symbolName,
+	}, nil
+}
+
+func (r REPLSyntax) ParseLoadSystemArguments(args any) (*debugger.LoadSystemArgs, error) {
+	// LoadSystem takes no arguments (uses embedded default)
+	return &debugger.LoadSystemArgs{}, nil
+}
+
+func (r REPLSyntax) ParseLoadProgramArguments(args any) (*debugger.LoadProgramArgs, error) {
+	strArgs, ok := args.([]string)
+	if !ok {
+		return nil, fmt.Errorf("load program command arguments must be a slice of strings")
+	}
+
+	if len(strArgs) == 0 {
+		return nil, fmt.Errorf("load program requires a file path argument")
+	}
+
+	return &debugger.LoadProgramArgs{
+		FilePath: strArgs[0],
+		// AutoBuildClang and ForceRebuildClang default to nil (will use defaults in implementation)
 	}, nil
 }
 

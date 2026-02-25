@@ -192,8 +192,20 @@ type LoadSystemFromFileArgs struct {
 	FilePath string `json:"filePath"` // Path to system configuration file
 }
 
+// LoadSystemArgs is used for the shorthand LoadSystem command - always uses embedded default
+type LoadSystemArgs struct {
+	// No arguments for embedded system loading
+}
+
 // LoadProgramFromFile command arguments
 type LoadProgramFromFileArgs struct {
+	FilePath          string `json:"filePath"`                    // Path to program file
+	AutoBuildClang    *bool  `json:"autoBuildClang,omitempty"`    // Enable automatic building of clang (defaults to true if not specified)
+	ForceRebuildClang *bool  `json:"forceRebuildClang,omitempty"` // Force rebuild of clang  (defaults to false if not specified)
+}
+
+// LoadProgramArgs is an alias for LoadProgramFromFileArgs used by the shorthand LoadProgram command
+type LoadProgramArgs struct {
 	FilePath          string `json:"filePath"`                    // Path to program file
 	AutoBuildClang    *bool  `json:"autoBuildClang,omitempty"`    // Enable automatic building of clang (defaults to true if not specified)
 	ForceRebuildClang *bool  `json:"forceRebuildClang,omitempty"` // Force rebuild of clang  (defaults to false if not specified)

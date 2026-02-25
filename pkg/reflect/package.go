@@ -197,18 +197,17 @@ func parseGenDeclWithFileContext(file *File, pkg *Package, decl *ast.GenDecl) {
 			valueSpec := spec.(*ast.ValueSpec)
 			for _, name := range valueSpec.Names {
 				const_ := &Constant{
-					Name: name.Name,
-					Doc:  decl.Doc.Text(),
+					Name:  name.Name,
+					Doc:   decl.Doc.Text(),
+					Value: &Value{},
 				}
 
 				// Extract type
 				if valueSpec.Type != nil {
 					typeStr := typeToString(valueSpec.Type)
-					const_.Value = &Value{
-						Type: &TypeReference{
-							Name: typeStr,
-							Type: nil,
-						},
+					const_.Value.Type = &TypeReference{
+						Name: typeStr,
+						Type: nil,
 					}
 				}
 
@@ -228,13 +227,16 @@ func identifyEnums(pkg *Package) {
 	// Group constants by type
 	typeToConstants := make(map[string][]*Constant)
 	for _, const_ := range pkg.Constants {
-		if const_.Value.Type != nil {
+		if const_.Value != nil && const_.Value.Type != nil {
 			typeToConstants[const_.Value.Type.Name] = append(typeToConstants[const_.Value.Type.Name], const_)
 		}
 	}
 
 	// Check which types in the package correspond to enum types
 	for _, typ := range pkg.Types {
+		if typ == nil {
+			continue
+		}
 		log().Debug("Checking if type is enum", slog.String("typeName", typ.Name), slog.String("typeKind", string(typ.Kind)))
 		// Look for a constant group with this type
 		if constants, ok := typeToConstants[typ.Name]; ok && len(constants) > 1 {

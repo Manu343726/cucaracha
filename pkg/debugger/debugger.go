@@ -125,6 +125,11 @@ func (d *debugger) extractSystemInfo() *uiDebugger.SystemInfo {
 	return info
 }
 
+func (d *debugger) LoadSystem(args *uiDebugger.LoadSystemArgs) *uiDebugger.LoadSystemFromEmbeddedResult {
+	// Shorthand for LoadSystemFromEmbedded - uses embedded default system config
+	return d.LoadSystemFromEmbedded()
+}
+
 func (d *debugger) LoadSystemFromFile(args *uiDebugger.LoadSystemFromFileArgs) *uiDebugger.LoadSystemFromFileResult {
 	if args.FilePath == "default" {
 		result := d.LoadSystemFromEmbedded()
@@ -171,6 +176,16 @@ func (d *debugger) LoadSystemFromEmbedded() *uiDebugger.LoadSystemFromEmbeddedRe
 	return &uiDebugger.LoadSystemFromEmbeddedResult{
 		System: d.extractSystemInfo(),
 	}
+}
+
+func (d *debugger) LoadProgram(args *uiDebugger.LoadProgramArgs) *uiDebugger.LoadProgramFromFileResult {
+	// Shorthand for LoadProgramFromFile - convert LoadProgramArgs to LoadProgramFromFileArgs
+	fromFileArgs := &uiDebugger.LoadProgramFromFileArgs{
+		FilePath:          args.FilePath,
+		AutoBuildClang:    args.AutoBuildClang,
+		ForceRebuildClang: args.ForceRebuildClang,
+	}
+	return d.LoadProgramFromFile(fromFileArgs)
 }
 
 func (d *debugger) LoadProgramFromFile(args *uiDebugger.LoadProgramFromFileArgs) *uiDebugger.LoadProgramFromFileResult {
@@ -475,7 +490,7 @@ func (d *debugger) Break(args *uiDebugger.BreakArgs) *uiDebugger.BreakResult {
 		val, err := core.Eval(debugger.Runtime(), debugger.Program(), *args.Address)
 		if err != nil {
 			return &uiDebugger.BreakResult{
-				Error: fmt.Errorf("failed to evaluate address expression '%s': %w", args.Address, err),
+				Error: fmt.Errorf("failed to evaluate address expression '%s': %w", *args.Address, err),
 			}
 		}
 

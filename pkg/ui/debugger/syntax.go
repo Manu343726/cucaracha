@@ -53,8 +53,12 @@ type CommandsArgsParser interface {
 	ParseInfoArguments(args any) (*InfoArgs, error)
 	// Parses Symbols command arguments according to the syntax
 	ParseSymbolsArguments(args any) (*SymbolsArgs, error)
+	// Parses LoadSystem command arguments according to the syntax
+	ParseLoadSystemArguments(args any) (*LoadSystemArgs, error)
 	// Parses LoadSystemFromFile command arguments according to the syntax
 	ParseLoadSystemFromFileArguments(args any) (*LoadSystemFromFileArgs, error)
+	// Parses LoadProgram command arguments according to the syntax
+	ParseLoadProgramArguments(args any) (*LoadProgramArgs, error)
 	// Parses LoadProgramFromFile command arguments according to the syntax
 	ParseLoadProgramFromFileArguments(args any) (*LoadProgramFromFileArgs, error)
 	// Parses LoadRuntime command arguments according to the syntax
@@ -191,6 +195,18 @@ func ParseCommandArguments(syntax CommandsArgsParser, command DebuggerCommandId,
 			return nil, fmt.Errorf("failed to parse symbols command arguments: %w", err)
 		}
 		result.SymbolsArgs = symbolsArgs
+	case DebuggerCommandLoadSystem:
+		loadSystemArgs, err := syntax.ParseLoadSystemArguments(args)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse load system command arguments: %w", err)
+		}
+		result.LoadSystemArgs = loadSystemArgs
+	case DebuggerCommandLoadProgram:
+		loadProgramArgs, err := syntax.ParseLoadProgramArguments(args)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse load program command arguments: %w", err)
+		}
+		result.LoadProgramArgs = loadProgramArgs
 	case DebuggerCommandLoadSystemFromFile:
 		loadSystemFromFileArgs, err := syntax.ParseLoadSystemFromFileArguments(args)
 		if err != nil {

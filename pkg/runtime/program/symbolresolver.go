@@ -83,15 +83,31 @@ func ResolveSymbols(pf ProgramFile) (ProgramFile, error) {
 			// Try function first
 			if fn, ok := functionPtrs[lookupName]; ok {
 				resolved.Function = fn
-				log.Debug("resolved symbol as function", slog.String("symbol", sym.Name), slog.String("function", fn.Name), logging.Address("instruction_address", *inst.Address), slog.String("instruction", fmt.Sprintf("{%s}", inst.Text)))
+				addr := uint32(0)
+				if inst.Address != nil {
+					addr = *inst.Address
+				}
+				log.Debug("resolved symbol as function", slog.String("symbol", sym.Name), slog.String("function", fn.Name), logging.Address("instruction_address", addr), slog.String("instruction", fmt.Sprintf("{%s}", inst.Text)))
 			} else if g, ok := resolvedGlobalPtrs[lookupName]; ok {
 				resolved.Global = g
-				log.Debug("resolved symbol as global", slog.String("symbol", sym.Name), slog.String("global", g.Name), logging.Address("instruction_address", *inst.Address), slog.String("instruction", fmt.Sprintf("{%s}", inst.Text)))
+				addr := uint32(0)
+				if inst.Address != nil {
+					addr = *inst.Address
+				}
+				log.Debug("resolved symbol as global", slog.String("symbol", sym.Name), slog.String("global", g.Name), logging.Address("instruction_address", addr), slog.String("instruction", fmt.Sprintf("{%s}", inst.Text)))
 			} else if lbl, ok := resolvedLabelPtrs[lookupName]; ok {
 				resolved.Label = lbl
-				log.Debug("resolved symbol as label", slog.String("symbol", sym.Name), slog.String("label", lbl.Name), logging.Address("instruction_address", *inst.Address), slog.String("instruction", fmt.Sprintf("{%s}", inst.Text)))
+				addr := uint32(0)
+				if inst.Address != nil {
+					addr = *inst.Address
+				}
+				log.Debug("resolved symbol as label", slog.String("symbol", sym.Name), slog.String("label", lbl.Name), logging.Address("instruction_address", addr), slog.String("instruction", fmt.Sprintf("{%s}", inst.Text)))
 			} else {
-				log.Debug("failed to resolve symbol", slog.String("symbol", sym.Name), logging.Address("instruction_address", *inst.Address), slog.String("instruction", fmt.Sprintf("{%s}", inst.Text)))
+				addr := uint32(0)
+				if inst.Address != nil {
+					addr = *inst.Address
+				}
+				log.Debug("failed to resolve symbol", slog.String("symbol", sym.Name), logging.Address("instruction_address", addr), slog.String("instruction", fmt.Sprintf("{%s}", inst.Text)))
 				unresolvedSymbols = append(unresolvedSymbols, fmt.Sprintf("%s (instruction %d, line %d)", sym.Name, i, inst.LineNumber))
 			}
 

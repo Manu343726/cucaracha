@@ -75,13 +75,22 @@ type DebuggerCommands interface {
 	// Restarts the program (reset + continue)
 	Restart() *ExecutionResult
 
+	// Load system configuration - uses embedded default
+	LoadSystem(args *LoadSystemArgs) *LoadSystemFromEmbeddedResult
+
+	// Load a program into the debugged runtime from a file.
+	//
+	// Note that this may involve compiling the input file. Any error or warning during
+	// compilation or loading will be returned.
+	LoadProgram(args *LoadProgramArgs) *LoadProgramFromFileResult
+
 	// Load system configuration from a YAML file
 	LoadSystemFromFile(args *LoadSystemFromFileArgs) *LoadSystemFromFileResult
 
 	// Load the embedded default system configuration
 	LoadSystemFromEmbedded() *LoadSystemFromEmbeddedResult
 
-	// Load a program into the debugged runtime from a file.
+	// Load a program into the debugged runtime from a file (full method name).
 	//
 	// Note that this may involve compiling the input file. Any error or warning during
 	// compilation or loading will be returned.

@@ -4,14 +4,14 @@
 # Expected:
 #  Result: success
 #  Output: system loaded
-loadsystem default
+load-system default
 
 # Expected:
 #  Result: success
 #  Output: runtime loaded
-loadruntime interpreter
+load-runtime interpreter
 
 # Expected:
 #  Result: success
 #  Output: programs/program.c loaded
-loadprogram programs/program.c
+load-program programs/program.c

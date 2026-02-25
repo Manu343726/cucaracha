@@ -1,0 +1,10 @@
+.git
+.gitignore
+.vscode
+.devcontainer
+*.code-workspace
+test_*.txt
+*.out
+.github
+coverage*
+BUILD

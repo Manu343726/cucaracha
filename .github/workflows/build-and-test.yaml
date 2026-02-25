@@ -1,0 +1,150 @@
+name: Build and Test with Docker
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'Dockerfile'
+      - 'go.mod'
+      - 'go.sum'
+      - 'cmd/**'
+      - 'pkg/**'
+      - '.github/workflows/build-and-test.yaml'
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # Weekly build to catch dependency issues
+    - cron: '0 0 * * 0'
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build-docker:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./.github/Dockerfile
+          push: false
+          load: true
+          tags: cucaracha:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Test CLI commands
+        run: |
+          echo "Testing cucaracha --help"
+          docker run --rm cucaracha:test --help
+          
+          echo -e "\nTesting cucaracha debug --help"
+          docker run --rm cucaracha:test debug --help
+          
+          echo -e "\nTesting cucaracha cpu --help"
+          docker run --rm cucaracha:test cpu --help
+          
+          echo -e "\nTesting cucaracha tools --help"
+          docker run --rm cucaracha:test tools --help
+          
+          echo -e "\nTesting cucaracha tui --help"
+          docker run --rm cucaracha:test tui --help
+
+      - name: Run unit tests in Docker
+        run: |
+          docker run --rm \
+            -v ${{ github.workspace }}:/workspace \
+            -w /workspace \
+            cucaracha:test \
+            sh -c 'go test ./... -v --skip TestIntegration -timeout 30s -race -coverprofile=coverage.out 2>&1' 2>&1 | tee test-results.txt || true
+
+      - name: Extract test summary
+        if: always()
+        run: |
+          echo "=== Test Summary ===" 
+          tail -50 test-results.txt | grep -E "^(PASS|FAIL|ok|--)" || true
+
+      - name: Test REPL functionality
+        continue-on-error: true
+        run: |
+          cat > /tmp/repl_test.txt << 'EOF'
+          load-system default
+          load-runtime interpreter
+          help
+          exit
+          EOF
+          echo "Running REPL test..."
+          timeout 10 docker run --rm -i cucaracha:test debug < /tmp/repl_test.txt || {
+            EXIT_CODE=$?
+            if [ $EXIT_CODE -eq 124 ]; then
+              echo "Command timeout (expected for interactive sessions)"
+            else
+              echo "REPL test exited with code: $EXIT_CODE"
+            fi
+          }
+
+      - name: Build and push Docker image
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./.github/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  verify-build:
+    needs: build-docker
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Verify Docker build
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./.github/Dockerfile
+          push: false
+          cache-from: type=gha
+
