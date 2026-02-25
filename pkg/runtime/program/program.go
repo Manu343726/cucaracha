@@ -208,7 +208,7 @@ func MovImm16L(imm uint16, dst string) *instructions.Instruction {
 
 // MovImm16H creates a MOV_IMM16H instruction (dst = (dst & 0xFFFF) | (imm16 << 16))
 func MovImm16H(imm uint16, dst string) *instructions.Instruction {
-	return Instr(instructions.OpCode_MOV_IMM16H).I(int32(imm)).NamedR(dst).NamedR(dst).MustBuild()
+	return Instr(instructions.OpCode_MOV_IMM16H).I(int32(imm)).NamedR(dst).MustBuild()
 }
 
 // Ld creates a LD instruction (dst = memory[addr])

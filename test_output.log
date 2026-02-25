@@ -1,0 +1,2747 @@
+# github.com/Manu343726/cucaracha/pkg/codegen [github.com/Manu343726/cucaracha/pkg/codegen.test]
+pkg/codegen/generator_test.go:231:4: unknown field Name in struct literal of type "github.com/Manu343726/cucaracha/pkg/reflect".Enum
+pkg/codegen/generator_test.go:232:18: cannot use "int" (untyped string constant) as *"github.com/Manu343726/cucaracha/pkg/reflect".TypeReference value in struct literal
+pkg/codegen/generator_test.go:233:4: unknown field Doc in struct literal of type "github.com/Manu343726/cucaracha/pkg/reflect".Enum
+pkg/codegen/generator_test.go:280:4: unknown field Name in struct literal of type "github.com/Manu343726/cucaracha/pkg/reflect".Enum
+pkg/codegen/generator_test.go:281:18: cannot use "string" (untyped string constant) as *"github.com/Manu343726/cucaracha/pkg/reflect".TypeReference value in struct literal
+pkg/codegen/generator_test.go:1246:14: cannot use &reflect.TypeReference{…} (value of type *"github.com/Manu343726/cucaracha/pkg/reflect".TypeReference) as *"github.com/Manu343726/cucaracha/pkg/reflect".Parameter value in struct literal
+pkg/codegen/generator_test.go:1331:6: unknown field Name in struct literal of type "github.com/Manu343726/cucaracha/pkg/reflect".Enum
+pkg/codegen/generator_test.go:1332:12: cannot use "int" (untyped string constant) as *"github.com/Manu343726/cucaracha/pkg/reflect".TypeReference value in struct literal
+pkg/codegen/generator_test.go:1333:6: unknown field Doc in struct literal of type "github.com/Manu343726/cucaracha/pkg/reflect".Enum
+pkg/codegen/generator_test.go:1337:8: unknown field Type in struct literal of type "github.com/Manu343726/cucaracha/pkg/reflect".Constant
+pkg/codegen/generator_test.go:1337:8: too many errors
+# github.com/Manu343726/cucaracha/pkg/interpreter
+pkg/interpreter/interpreter.go:170:15: (*github.com/Manu343726/cucaracha/pkg/utils/logging.Logger).Errorf format %X arg i.MemoryLayout().Code().End is a func value, not called
+# github.com/Manu343726/cucaracha/pkg/debugger
+# [github.com/Manu343726/cucaracha/pkg/debugger]
+pkg/debugger/debugger.go:478:12: fmt.Errorf format %s has arg args.Address of wrong type *string
+?   	github.com/Manu343726/cucaracha	[no test files]
+?   	github.com/Manu343726/cucaracha/cmd	[no test files]
+?   	github.com/Manu343726/cucaracha/cmd/cpu	[no test files]
+?   	github.com/Manu343726/cucaracha/cmd/tools	[no test files]
+FAIL	github.com/Manu343726/cucaracha/pkg/codegen [build failed]
+FAIL	github.com/Manu343726/cucaracha/pkg/debugger [build failed]
+=== RUN   TestTokenize
+=== RUN   TestTokenize/decimal_number
+=== RUN   TestTokenize/hex_number_lowercase
+=== RUN   TestTokenize/hex_number_uppercase
+=== RUN   TestTokenize/binary_number
+=== RUN   TestTokenize/binary_number_with_separators
+=== RUN   TestTokenize/zero
+=== RUN   TestTokenize/register_r0
+=== RUN   TestTokenize/register_r9
+=== RUN   TestTokenize/register_sp
+=== RUN   TestTokenize/register_lr
+=== RUN   TestTokenize/register_pc
+=== RUN   TestTokenize/register_cpsr
+=== RUN   TestTokenize/register_uppercase_converted_to_lowercase
+=== RUN   TestTokenize/register_SP_uppercase
+=== RUN   TestTokenize/symbol_main
+=== RUN   TestTokenize/symbol_with_underscore
+=== RUN   TestTokenize/symbol_with_numbers
+=== RUN   TestTokenize/plus_operator
+=== RUN   TestTokenize/minus_operator
+=== RUN   TestTokenize/multiply_operator
+=== RUN   TestTokenize/divide_operator
+=== RUN   TestTokenize/modulo_operator
+=== RUN   TestTokenize/and_operator
+=== RUN   TestTokenize/or_operator
+=== RUN   TestTokenize/xor_operator
+=== RUN   TestTokenize/shift_left_operator
+=== RUN   TestTokenize/shift_right_operator
+=== RUN   TestTokenize/brackets
+=== RUN   TestTokenize/parentheses
+=== RUN   TestTokenize/simple_addition
+=== RUN   TestTokenize/arithmetic_expression
+=== RUN   TestTokenize/memory_access
+=== RUN   TestTokenize/memory_access_with_offset
+=== RUN   TestTokenize/parenthesized_expression
+=== RUN   TestTokenize/hex_in_expression
+=== RUN   TestTokenize/shift_expression
+=== RUN   TestTokenize/complex_expression_with_spaces
+=== RUN   TestTokenize/unary_minus
+=== RUN   TestTokenize/empty_expression
+=== RUN   TestTokenize/whitespace_only
+=== RUN   TestTokenize/invalid_character
+=== RUN   TestTokenize/incomplete_shift_left
+=== RUN   TestTokenize/incomplete_shift_right
+--- PASS: TestTokenize (0.00s)
+    --- PASS: TestTokenize/decimal_number (0.00s)
+    --- PASS: TestTokenize/hex_number_lowercase (0.00s)
+    --- PASS: TestTokenize/hex_number_uppercase (0.00s)
+    --- PASS: TestTokenize/binary_number (0.00s)
+    --- PASS: TestTokenize/binary_number_with_separators (0.00s)
+    --- PASS: TestTokenize/zero (0.00s)
+    --- PASS: TestTokenize/register_r0 (0.00s)
+    --- PASS: TestTokenize/register_r9 (0.00s)
+    --- PASS: TestTokenize/register_sp (0.00s)
+    --- PASS: TestTokenize/register_lr (0.00s)
+    --- PASS: TestTokenize/register_pc (0.00s)
+    --- PASS: TestTokenize/register_cpsr (0.00s)
+    --- PASS: TestTokenize/register_uppercase_converted_to_lowercase (0.00s)
+    --- PASS: TestTokenize/register_SP_uppercase (0.00s)
+    --- PASS: TestTokenize/symbol_main (0.00s)
+    --- PASS: TestTokenize/symbol_with_underscore (0.00s)
+    --- PASS: TestTokenize/symbol_with_numbers (0.00s)
+    --- PASS: TestTokenize/plus_operator (0.00s)
+    --- PASS: TestTokenize/minus_operator (0.00s)
+    --- PASS: TestTokenize/multiply_operator (0.00s)
+    --- PASS: TestTokenize/divide_operator (0.00s)
+    --- PASS: TestTokenize/modulo_operator (0.00s)
+    --- PASS: TestTokenize/and_operator (0.00s)
+    --- PASS: TestTokenize/or_operator (0.00s)
+    --- PASS: TestTokenize/xor_operator (0.00s)
+    --- PASS: TestTokenize/shift_left_operator (0.00s)
+    --- PASS: TestTokenize/shift_right_operator (0.00s)
+    --- PASS: TestTokenize/brackets (0.00s)
+    --- PASS: TestTokenize/parentheses (0.00s)
+    --- PASS: TestTokenize/simple_addition (0.00s)
+    --- PASS: TestTokenize/arithmetic_expression (0.00s)
+    --- PASS: TestTokenize/memory_access (0.00s)
+    --- PASS: TestTokenize/memory_access_with_offset (0.00s)
+    --- PASS: TestTokenize/parenthesized_expression (0.00s)
+    --- PASS: TestTokenize/hex_in_expression (0.00s)
+    --- PASS: TestTokenize/shift_expression (0.00s)
+    --- PASS: TestTokenize/complex_expression_with_spaces (0.00s)
+    --- PASS: TestTokenize/unary_minus (0.00s)
+    --- PASS: TestTokenize/empty_expression (0.00s)
+    --- PASS: TestTokenize/whitespace_only (0.00s)
+    --- PASS: TestTokenize/invalid_character (0.00s)
+    --- PASS: TestTokenize/incomplete_shift_left (0.00s)
+    --- PASS: TestTokenize/incomplete_shift_right (0.00s)
+=== RUN   TestIsRegisterName
+=== RUN   TestIsRegisterName/r0
+=== RUN   TestIsRegisterName/r1
+=== RUN   TestIsRegisterName/r9
+=== RUN   TestIsRegisterName/sp
+=== RUN   TestIsRegisterName/lr
+=== RUN   TestIsRegisterName/pc
+=== RUN   TestIsRegisterName/cpsr
+=== RUN   TestIsRegisterName/r10
+=== RUN   TestIsRegisterName/r-1
+=== RUN   TestIsRegisterName/rr0
+=== RUN   TestIsRegisterName/main
+=== RUN   TestIsRegisterName/R0_uppercase
+=== RUN   TestIsRegisterName/empty
+=== RUN   TestIsRegisterName/space
+--- PASS: TestIsRegisterName (0.00s)
+    --- PASS: TestIsRegisterName/r0 (0.00s)
+    --- PASS: TestIsRegisterName/r1 (0.00s)
+    --- PASS: TestIsRegisterName/r9 (0.00s)
+    --- PASS: TestIsRegisterName/sp (0.00s)
+    --- PASS: TestIsRegisterName/lr (0.00s)
+    --- PASS: TestIsRegisterName/pc (0.00s)
+    --- PASS: TestIsRegisterName/cpsr (0.00s)
+    --- PASS: TestIsRegisterName/r10 (0.00s)
+    --- PASS: TestIsRegisterName/r-1 (0.00s)
+    --- PASS: TestIsRegisterName/rr0 (0.00s)
+    --- PASS: TestIsRegisterName/main (0.00s)
+    --- PASS: TestIsRegisterName/R0_uppercase (0.00s)
+    --- PASS: TestIsRegisterName/empty (0.00s)
+    --- PASS: TestIsRegisterName/space (0.00s)
+=== RUN   TestHelperFunctions
+=== RUN   TestHelperFunctions/IsDigit
+=== RUN   TestHelperFunctions/IsHexDigit
+=== RUN   TestHelperFunctions/IsAlpha
+=== RUN   TestHelperFunctions/IsAlphaNum
+--- PASS: TestHelperFunctions (0.00s)
+    --- PASS: TestHelperFunctions/IsDigit (0.00s)
+    --- PASS: TestHelperFunctions/IsHexDigit (0.00s)
+    --- PASS: TestHelperFunctions/IsAlpha (0.00s)
+    --- PASS: TestHelperFunctions/IsAlphaNum (0.00s)
+=== RUN   TestFormatBinary
+=== RUN   TestFormatBinary/00000000_00000000_00000000_00000000
+=== RUN   TestFormatBinary/00000000_00000000_00000000_00000001
+=== RUN   TestFormatBinary/00000000_00000000_00000000_11111111
+=== RUN   TestFormatBinary/00000000_00000000_11111111_11111111
+=== RUN   TestFormatBinary/11111111_11111111_11111111_11111111
+=== RUN   TestFormatBinary/00010010_00110100_01010110_01111000
+--- PASS: TestFormatBinary (0.00s)
+    --- PASS: TestFormatBinary/00000000_00000000_00000000_00000000 (0.00s)
+    --- PASS: TestFormatBinary/00000000_00000000_00000000_00000001 (0.00s)
+    --- PASS: TestFormatBinary/00000000_00000000_00000000_11111111 (0.00s)
+    --- PASS: TestFormatBinary/00000000_00000000_11111111_11111111 (0.00s)
+    --- PASS: TestFormatBinary/11111111_11111111_11111111_11111111 (0.00s)
+    --- PASS: TestFormatBinary/00010010_00110100_01010110_01111000 (0.00s)
+=== RUN   TestEvalArithmetic
+=== RUN   TestEvalArithmetic/decimal
+=== RUN   TestEvalArithmetic/hex
+=== RUN   TestEvalArithmetic/binary
+=== RUN   TestEvalArithmetic/zero
+=== RUN   TestEvalArithmetic/add_two_numbers
+=== RUN   TestEvalArithmetic/add_three_numbers
+=== RUN   TestEvalArithmetic/add_with_hex
+=== RUN   TestEvalArithmetic/subtract
+=== RUN   TestEvalArithmetic/subtract_chain
+=== RUN   TestEvalArithmetic/multiply
+=== RUN   TestEvalArithmetic/multiply_chain
+=== RUN   TestEvalArithmetic/divide
+=== RUN   TestEvalArithmetic/divide_integer
+=== RUN   TestEvalArithmetic/divide_by_zero
+=== RUN   TestEvalArithmetic/modulo
+=== RUN   TestEvalArithmetic/modulo_by_zero
+=== RUN   TestEvalArithmetic/mul_before_add
+=== RUN   TestEvalArithmetic/add_then_mul
+=== RUN   TestEvalArithmetic/parentheses
+=== RUN   TestEvalArithmetic/and
+=== RUN   TestEvalArithmetic/or
+=== RUN   TestEvalArithmetic/xor
+=== RUN   TestEvalArithmetic/shift_left
+=== RUN   TestEvalArithmetic/shift_right
+=== RUN   TestEvalArithmetic/unary_minus
+=== RUN   TestEvalArithmetic/unary_minus_with_add
+=== RUN   TestEvalArithmetic/complex
+=== RUN   TestEvalArithmetic/complex_with_bits
+=== RUN   TestEvalArithmetic/empty
+=== RUN   TestEvalArithmetic/unbalanced_paren
+=== RUN   TestEvalArithmetic/extra_paren
+--- PASS: TestEvalArithmetic (0.00s)
+    --- PASS: TestEvalArithmetic/decimal (0.00s)
+    --- PASS: TestEvalArithmetic/hex (0.00s)
+    --- PASS: TestEvalArithmetic/binary (0.00s)
+    --- PASS: TestEvalArithmetic/zero (0.00s)
+    --- PASS: TestEvalArithmetic/add_two_numbers (0.00s)
+    --- PASS: TestEvalArithmetic/add_three_numbers (0.00s)
+    --- PASS: TestEvalArithmetic/add_with_hex (0.00s)
+    --- PASS: TestEvalArithmetic/subtract (0.00s)
+    --- PASS: TestEvalArithmetic/subtract_chain (0.00s)
+    --- PASS: TestEvalArithmetic/multiply (0.00s)
+    --- PASS: TestEvalArithmetic/multiply_chain (0.00s)
+    --- PASS: TestEvalArithmetic/divide (0.00s)
+    --- PASS: TestEvalArithmetic/divide_integer (0.00s)
+    --- PASS: TestEvalArithmetic/divide_by_zero (0.00s)
+    --- PASS: TestEvalArithmetic/modulo (0.00s)
+    --- PASS: TestEvalArithmetic/modulo_by_zero (0.00s)
+    --- PASS: TestEvalArithmetic/mul_before_add (0.00s)
+    --- PASS: TestEvalArithmetic/add_then_mul (0.00s)
+    --- PASS: TestEvalArithmetic/parentheses (0.00s)
+    --- PASS: TestEvalArithmetic/and (0.00s)
+    --- PASS: TestEvalArithmetic/or (0.00s)
+    --- PASS: TestEvalArithmetic/xor (0.00s)
+    --- PASS: TestEvalArithmetic/shift_left (0.00s)
+    --- PASS: TestEvalArithmetic/shift_right (0.00s)
+    --- PASS: TestEvalArithmetic/unary_minus (0.00s)
+    --- PASS: TestEvalArithmetic/unary_minus_with_add (0.00s)
+    --- PASS: TestEvalArithmetic/complex (0.00s)
+    --- PASS: TestEvalArithmetic/complex_with_bits (0.00s)
+    --- PASS: TestEvalArithmetic/empty (0.00s)
+    --- PASS: TestEvalArithmetic/unbalanced_paren (0.00s)
+    --- PASS: TestEvalArithmetic/extra_paren (0.00s)
+=== RUN   TestEvalRegisters
+=== RUN   TestEvalRegisters/r0
+=== RUN   TestEvalRegisters/r1
+=== RUN   TestEvalRegisters/sp
+=== RUN   TestEvalRegisters/lr
+=== RUN   TestEvalRegisters/pc
+=== RUN   TestEvalRegisters/r0_+_r1
+=== RUN   TestEvalRegisters/sp_+_16
+=== RUN   TestEvalRegisters/r0_*_2
+--- PASS: TestEvalRegisters (0.00s)
+    --- PASS: TestEvalRegisters/r0 (0.00s)
+    --- PASS: TestEvalRegisters/r1 (0.00s)
+    --- PASS: TestEvalRegisters/sp (0.00s)
+    --- PASS: TestEvalRegisters/lr (0.00s)
+    --- PASS: TestEvalRegisters/pc (0.00s)
+    --- PASS: TestEvalRegisters/r0_+_r1 (0.00s)
+    --- PASS: TestEvalRegisters/sp_+_16 (0.00s)
+    --- PASS: TestEvalRegisters/r0_*_2 (0.00s)
+=== RUN   TestEvalMemory
+=== RUN   TestEvalMemory/memory_at_address
+=== RUN   TestEvalMemory/memory_at_sp
+=== RUN   TestEvalMemory/memory_at_expr
+--- PASS: TestEvalMemory (0.00s)
+    --- PASS: TestEvalMemory/memory_at_address (0.00s)
+    --- PASS: TestEvalMemory/memory_at_sp (0.00s)
+    --- PASS: TestEvalMemory/memory_at_expr (0.00s)
+PASS
+ok  	github.com/Manu343726/cucaracha/pkg/debugger/core	0.018s
+?   	github.com/Manu343726/cucaracha/pkg/hw	[no test files]
+=== RUN   TestBitValue
+=== RUN   TestBitValue/Low_is_false
+=== RUN   TestBitValue/High_is_true
+=== RUN   TestBitValue/String_representation
+--- PASS: TestBitValue (0.00s)
+    --- PASS: TestBitValue/Low_is_false (0.00s)
+    --- PASS: TestBitValue/High_is_true (0.00s)
+    --- PASS: TestBitValue/String_representation (0.00s)
+=== RUN   TestDirection
+=== RUN   TestDirection/String_representation
+--- PASS: TestDirection (0.00s)
+    --- PASS: TestDirection/String_representation (0.00s)
+=== RUN   TestStandardPort
+=== RUN   TestStandardPort/NewPort_creates_port_with_correct_properties
+=== RUN   TestStandardPort/NewInputPort_creates_input_port
+=== RUN   TestStandardPort/NewOutputPort_creates_output_port
+=== RUN   TestStandardPort/SetBit_and_GetBit
+=== RUN   TestStandardPort/SetBit_out_of_range_returns_error
+=== RUN   TestStandardPort/SetValue_and_GetValue
+=== RUN   TestStandardPort/SetValue_masks_to_port_width
+=== RUN   TestStandardPort/GetBits_returns_slice
+=== RUN   TestStandardPort/SetBits_sets_multiple_bits
+=== RUN   TestStandardPort/GetBytes_and_SetBytes
+=== RUN   TestStandardPort/Tristate_behavior
+=== RUN   TestStandardPort/Reset_clears_all_bits
+=== RUN   TestStandardPort/WithInitialValue_option
+=== RUN   TestStandardPort/WithOnChange_callback
+--- PASS: TestStandardPort (0.00s)
+    --- PASS: TestStandardPort/NewPort_creates_port_with_correct_properties (0.00s)
+    --- PASS: TestStandardPort/NewInputPort_creates_input_port (0.00s)
+    --- PASS: TestStandardPort/NewOutputPort_creates_output_port (0.00s)
+    --- PASS: TestStandardPort/SetBit_and_GetBit (0.00s)
+    --- PASS: TestStandardPort/SetBit_out_of_range_returns_error (0.00s)
+    --- PASS: TestStandardPort/SetValue_and_GetValue (0.00s)
+    --- PASS: TestStandardPort/SetValue_masks_to_port_width (0.00s)
+    --- PASS: TestStandardPort/GetBits_returns_slice (0.00s)
+    --- PASS: TestStandardPort/SetBits_sets_multiple_bits (0.00s)
+    --- PASS: TestStandardPort/GetBytes_and_SetBytes (0.00s)
+    --- PASS: TestStandardPort/Tristate_behavior (0.00s)
+    --- PASS: TestStandardPort/Reset_clears_all_bits (0.00s)
+    --- PASS: TestStandardPort/WithInitialValue_option (0.00s)
+    --- PASS: TestStandardPort/WithOnChange_callback (0.00s)
+=== RUN   TestPin
+=== RUN   TestPin/NewPin_creates_1-bit_port
+=== RUN   TestPin/NewInputPin_creates_input_pin
+=== RUN   TestPin/NewOutputPin_creates_output_pin
+=== RUN   TestPin/Get_and_Set
+=== RUN   TestPin/IsHigh_and_IsLow
+=== RUN   TestPin/Toggle
+=== RUN   TestPin/Pin_can_be_used_as_Port
+--- PASS: TestPin (0.00s)
+    --- PASS: TestPin/NewPin_creates_1-bit_port (0.00s)
+    --- PASS: TestPin/NewInputPin_creates_input_pin (0.00s)
+    --- PASS: TestPin/NewOutputPin_creates_output_pin (0.00s)
+    --- PASS: TestPin/Get_and_Set (0.00s)
+    --- PASS: TestPin/IsHigh_and_IsLow (0.00s)
+    --- PASS: TestPin/Toggle (0.00s)
+    --- PASS: TestPin/Pin_can_be_used_as_Port (0.00s)
+=== RUN   TestBaseComponent
+=== RUN   TestBaseComponent/NewBaseComponent_creates_component
+=== RUN   TestBaseComponent/AddInput_and_GetInput
+=== RUN   TestBaseComponent/AddInput_duplicate_returns_error
+=== RUN   TestBaseComponent/AddOutput_and_GetOutput
+=== RUN   TestBaseComponent/GetPort_finds_inputs_and_outputs
+=== RUN   TestBaseComponent/Inputs_and_Outputs_return_slices
+=== RUN   TestBaseComponent/Enable_and_Disable
+=== RUN   TestBaseComponent/Reset_resets_all_ports
+=== RUN   TestBaseComponent/Clock_calls_onClock_callback
+=== RUN   TestBaseComponent/Clock_does_nothing_when_disabled
+=== RUN   TestBaseComponent/Reset_calls_onReset_callback
+--- PASS: TestBaseComponent (0.00s)
+    --- PASS: TestBaseComponent/NewBaseComponent_creates_component (0.00s)
+    --- PASS: TestBaseComponent/AddInput_and_GetInput (0.00s)
+    --- PASS: TestBaseComponent/AddInput_duplicate_returns_error (0.00s)
+    --- PASS: TestBaseComponent/AddOutput_and_GetOutput (0.00s)
+    --- PASS: TestBaseComponent/GetPort_finds_inputs_and_outputs (0.00s)
+    --- PASS: TestBaseComponent/Inputs_and_Outputs_return_slices (0.00s)
+    --- PASS: TestBaseComponent/Enable_and_Disable (0.00s)
+    --- PASS: TestBaseComponent/Reset_resets_all_ports (0.00s)
+    --- PASS: TestBaseComponent/Clock_calls_onClock_callback (0.00s)
+    --- PASS: TestBaseComponent/Clock_does_nothing_when_disabled (0.00s)
+    --- PASS: TestBaseComponent/Reset_calls_onReset_callback (0.00s)
+=== RUN   TestBus
+=== RUN   TestBus/NewBus_creates_bus
+=== RUN   TestBus/Transfer_copies_value
+=== RUN   TestBus/Transfer_does_nothing_when_disabled
+=== RUN   TestBus/Transfer_does_nothing_when_source_is_tristate
+=== RUN   TestBus/WithTransform_applies_transformation
+=== RUN   TestBus/WithBitMapping_maps_bits
+--- PASS: TestBus (0.00s)
+    --- PASS: TestBus/NewBus_creates_bus (0.00s)
+    --- PASS: TestBus/Transfer_copies_value (0.00s)
+    --- PASS: TestBus/Transfer_does_nothing_when_disabled (0.00s)
+    --- PASS: TestBus/Transfer_does_nothing_when_source_is_tristate (0.00s)
+    --- PASS: TestBus/WithTransform_applies_transformation (0.00s)
+    --- PASS: TestBus/WithBitMapping_maps_bits (0.00s)
+=== RUN   TestInterconnect
+=== RUN   TestInterconnect/NewInterconnect_creates_interconnect
+=== RUN   TestInterconnect/AddSource_and_Select
+=== RUN   TestInterconnect/Transfer_copies_from_selected_source
+=== RUN   TestInterconnect/Transfer_with_no_selection_puts_dst_in_tristate
+=== RUN   TestInterconnect/Select_out_of_range_returns_error
+--- PASS: TestInterconnect (0.00s)
+    --- PASS: TestInterconnect/NewInterconnect_creates_interconnect (0.00s)
+    --- PASS: TestInterconnect/AddSource_and_Select (0.00s)
+    --- PASS: TestInterconnect/Transfer_copies_from_selected_source (0.00s)
+    --- PASS: TestInterconnect/Transfer_with_no_selection_puts_dst_in_tristate (0.00s)
+    --- PASS: TestInterconnect/Select_out_of_range_returns_error (0.00s)
+=== RUN   TestCircuit
+=== RUN   TestCircuit/NewCircuit_creates_circuit
+=== RUN   TestCircuit/AddComponent_and_GetComponent
+=== RUN   TestCircuit/AddComponent_duplicate_returns_error
+=== RUN   TestCircuit/Connect_creates_bus
+=== RUN   TestCircuit/Propagate_transfers_all_connections
+=== RUN   TestCircuit/Clock_advances_all_components
+=== RUN   TestCircuit/Reset_resets_all_components
+--- PASS: TestCircuit (0.00s)
+    --- PASS: TestCircuit/NewCircuit_creates_circuit (0.00s)
+    --- PASS: TestCircuit/AddComponent_and_GetComponent (0.00s)
+    --- PASS: TestCircuit/AddComponent_duplicate_returns_error (0.00s)
+    --- PASS: TestCircuit/Connect_creates_bus (0.00s)
+    --- PASS: TestCircuit/Propagate_transfers_all_connections (0.00s)
+    --- PASS: TestCircuit/Clock_advances_all_components (0.00s)
+    --- PASS: TestCircuit/Reset_resets_all_components (0.00s)
+=== RUN   TestIntegration_SimpleALU
+--- PASS: TestIntegration_SimpleALU (0.00s)
+=== RUN   TestIntegration_BusInterconnect
+--- PASS: TestIntegration_BusInterconnect (0.00s)
+=== RUN   TestDescriptorBuilder
+=== RUN   TestDescriptorBuilder/builds_complete_descriptor
+--- PASS: TestDescriptorBuilder (0.00s)
+    --- PASS: TestDescriptorBuilder/builds_complete_descriptor (0.00s)
+=== RUN   TestRegistry
+=== RUN   TestRegistry/Register_and_Get
+=== RUN   TestRegistry/Get_returns_error_for_unknown
+=== RUN   TestRegistry/List_returns_all_names
+=== RUN   TestRegistry/ListByCategory_filters_by_category
+=== RUN   TestRegistry/Categories_returns_all_categories
+=== RUN   TestRegistry/Unregister_removes_descriptor
+--- PASS: TestRegistry (0.00s)
+    --- PASS: TestRegistry/Register_and_Get (0.00s)
+    --- PASS: TestRegistry/Get_returns_error_for_unknown (0.00s)
+    --- PASS: TestRegistry/List_returns_all_names (0.00s)
+    --- PASS: TestRegistry/ListByCategory_filters_by_category (0.00s)
+    --- PASS: TestRegistry/Categories_returns_all_categories (0.00s)
+    --- PASS: TestRegistry/Unregister_removes_descriptor (0.00s)
+=== RUN   TestRegistryCreate
+=== RUN   TestRegistryCreate/Create_instantiates_component
+=== RUN   TestRegistryCreate/Create_returns_error_for_unknown
+=== RUN   TestRegistryCreate/Create_returns_error_when_no_factory
+--- PASS: TestRegistryCreate (0.00s)
+    --- PASS: TestRegistryCreate/Create_instantiates_component (0.00s)
+    --- PASS: TestRegistryCreate/Create_returns_error_for_unknown (0.00s)
+    --- PASS: TestRegistryCreate/Create_returns_error_when_no_factory (0.00s)
+=== RUN   TestRegistrySearch
+=== RUN   TestRegistrySearch/Search_by_name_substring
+=== RUN   TestRegistrySearch/Search_by_description
+=== RUN   TestRegistrySearch/Search_case_insensitive
+=== RUN   TestRegistrySearch/Search_by_category
+=== RUN   TestRegistrySearch/Search_empty_returns_empty
+--- PASS: TestRegistrySearch (0.00s)
+    --- PASS: TestRegistrySearch/Search_by_name_substring (0.00s)
+    --- PASS: TestRegistrySearch/Search_by_description (0.00s)
+    --- PASS: TestRegistrySearch/Search_case_insensitive (0.00s)
+    --- PASS: TestRegistrySearch/Search_by_category (0.00s)
+    --- PASS: TestRegistrySearch/Search_empty_returns_empty (0.00s)
+=== RUN   TestRequiredParams
+=== RUN   TestRequiredParams/RequiredParam_sets_required_flag
+=== RUN   TestRequiredParams/Create_fails_without_required_param
+--- PASS: TestRequiredParams (0.00s)
+    --- PASS: TestRequiredParams/RequiredParam_sets_required_flag (0.00s)
+    --- PASS: TestRequiredParams/Create_fails_without_required_param (0.00s)
+PASS
+ok  	github.com/Manu343726/cucaracha/pkg/hw/component	0.006s
+=== RUN   TestALU
+=== RUN   TestALU/NewALU_creates_ALU_with_correct_ports
+=== RUN   TestALU/Initial_output_is_zero
+--- PASS: TestALU (0.00s)
+    --- PASS: TestALU/NewALU_creates_ALU_with_correct_ports (0.00s)
+    --- PASS: TestALU/Initial_output_is_zero (0.00s)
+=== RUN   TestALUAddition
+=== RUN   TestALUAddition/ADD_basic
+=== RUN   TestALUAddition/ADD_with_zero
+=== RUN   TestALUAddition/ADD_sets_zero_flag
+=== RUN   TestALUAddition/ADD_sets_negative_flag
+=== RUN   TestALUAddition/ADD_sets_carry_on_unsigned_overflow
+=== RUN   TestALUAddition/ADD_sets_overflow_on_signed_overflow
+--- PASS: TestALUAddition (0.00s)
+    --- PASS: TestALUAddition/ADD_basic (0.00s)
+    --- PASS: TestALUAddition/ADD_with_zero (0.00s)
+    --- PASS: TestALUAddition/ADD_sets_zero_flag (0.00s)
+    --- PASS: TestALUAddition/ADD_sets_negative_flag (0.00s)
+    --- PASS: TestALUAddition/ADD_sets_carry_on_unsigned_overflow (0.00s)
+    --- PASS: TestALUAddition/ADD_sets_overflow_on_signed_overflow (0.00s)
+=== RUN   TestALUSubtraction
+=== RUN   TestALUSubtraction/SUB_basic
+=== RUN   TestALUSubtraction/SUB_same_values
+=== RUN   TestALUSubtraction/SUB_sets_carry_when_no_borrow
+=== RUN   TestALUSubtraction/SUB_clears_carry_on_borrow
+=== RUN   TestALUSubtraction/SUB_sets_overflow_on_signed_underflow
+--- PASS: TestALUSubtraction (0.00s)
+    --- PASS: TestALUSubtraction/SUB_basic (0.00s)
+    --- PASS: TestALUSubtraction/SUB_same_values (0.00s)
+    --- PASS: TestALUSubtraction/SUB_sets_carry_when_no_borrow (0.00s)
+    --- PASS: TestALUSubtraction/SUB_clears_carry_on_borrow (0.00s)
+    --- PASS: TestALUSubtraction/SUB_sets_overflow_on_signed_underflow (0.00s)
+=== RUN   TestALUMultiplication
+=== RUN   TestALUMultiplication/MUL_basic
+=== RUN   TestALUMultiplication/MUL_by_zero
+=== RUN   TestALUMultiplication/MUL_by_one
+=== RUN   TestALUMultiplication/MUL_large_numbers
+--- PASS: TestALUMultiplication (0.00s)
+    --- PASS: TestALUMultiplication/MUL_basic (0.00s)
+    --- PASS: TestALUMultiplication/MUL_by_zero (0.00s)
+    --- PASS: TestALUMultiplication/MUL_by_one (0.00s)
+    --- PASS: TestALUMultiplication/MUL_large_numbers (0.00s)
+=== RUN   TestALUDivision
+=== RUN   TestALUDivision/DIV_basic
+=== RUN   TestALUDivision/DIV_with_remainder
+=== RUN   TestALUDivision/DIV_by_zero_returns_zero
+=== RUN   TestALUDivision/DIV_signed_negative
+--- PASS: TestALUDivision (0.00s)
+    --- PASS: TestALUDivision/DIV_basic (0.00s)
+    --- PASS: TestALUDivision/DIV_with_remainder (0.00s)
+    --- PASS: TestALUDivision/DIV_by_zero_returns_zero (0.00s)
+    --- PASS: TestALUDivision/DIV_signed_negative (0.00s)
+=== RUN   TestALUModulo
+=== RUN   TestALUModulo/MOD_basic
+=== RUN   TestALUModulo/MOD_exact_division
+=== RUN   TestALUModulo/MOD_by_zero_returns_zero
+=== RUN   TestALUModulo/MOD_signed_negative
+--- PASS: TestALUModulo (0.00s)
+    --- PASS: TestALUModulo/MOD_basic (0.00s)
+    --- PASS: TestALUModulo/MOD_exact_division (0.00s)
+    --- PASS: TestALUModulo/MOD_by_zero_returns_zero (0.00s)
+    --- PASS: TestALUModulo/MOD_signed_negative (0.00s)
+=== RUN   TestALUBitwiseOperations
+=== RUN   TestALUBitwiseOperations/AND
+=== RUN   TestALUBitwiseOperations/OR
+=== RUN   TestALUBitwiseOperations/XOR
+=== RUN   TestALUBitwiseOperations/XOR_same_value_is_zero
+=== RUN   TestALUBitwiseOperations/NOT
+=== RUN   TestALUBitwiseOperations/NOT_zero
+--- PASS: TestALUBitwiseOperations (0.00s)
+    --- PASS: TestALUBitwiseOperations/AND (0.00s)
+    --- PASS: TestALUBitwiseOperations/OR (0.00s)
+    --- PASS: TestALUBitwiseOperations/XOR (0.00s)
+    --- PASS: TestALUBitwiseOperations/XOR_same_value_is_zero (0.00s)
+    --- PASS: TestALUBitwiseOperations/NOT (0.00s)
+    --- PASS: TestALUBitwiseOperations/NOT_zero (0.00s)
+=== RUN   TestALUShiftOperations
+=== RUN   TestALUShiftOperations/LSL_basic
+=== RUN   TestALUShiftOperations/LSL_by_zero
+=== RUN   TestALUShiftOperations/LSL_overflow
+=== RUN   TestALUShiftOperations/LSR_basic
+=== RUN   TestALUShiftOperations/LSR_fills_with_zeros
+=== RUN   TestALUShiftOperations/ASR_sign_extends
+=== RUN   TestALUShiftOperations/ASR_positive_number
+=== RUN   TestALUShiftOperations/ASL_is_same_as_LSL
+=== RUN   TestALUShiftOperations/Shift_amount_is_masked_to_5_bits
+--- PASS: TestALUShiftOperations (0.00s)
+    --- PASS: TestALUShiftOperations/LSL_basic (0.00s)
+    --- PASS: TestALUShiftOperations/LSL_by_zero (0.00s)
+    --- PASS: TestALUShiftOperations/LSL_overflow (0.00s)
+    --- PASS: TestALUShiftOperations/LSR_basic (0.00s)
+    --- PASS: TestALUShiftOperations/LSR_fills_with_zeros (0.00s)
+    --- PASS: TestALUShiftOperations/ASR_sign_extends (0.00s)
+    --- PASS: TestALUShiftOperations/ASR_positive_number (0.00s)
+    --- PASS: TestALUShiftOperations/ASL_is_same_as_LSL (0.00s)
+    --- PASS: TestALUShiftOperations/Shift_amount_is_masked_to_5_bits (0.00s)
+=== RUN   TestALUCompare
+=== RUN   TestALUCompare/CMP_equal_values_sets_zero_flag
+=== RUN   TestALUCompare/CMP_A_>_B_(unsigned)
+=== RUN   TestALUCompare/CMP_A_<_B_(unsigned)
+=== RUN   TestALUCompare/CMP_signed_comparison
+--- PASS: TestALUCompare (0.00s)
+    --- PASS: TestALUCompare/CMP_equal_values_sets_zero_flag (0.00s)
+    --- PASS: TestALUCompare/CMP_A_>_B_(unsigned) (0.00s)
+    --- PASS: TestALUCompare/CMP_A_<_B_(unsigned) (0.00s)
+    --- PASS: TestALUCompare/CMP_signed_comparison (0.00s)
+=== RUN   TestALUNop
+=== RUN   TestALUNop/NOP_passes_through_A
+--- PASS: TestALUNop (0.00s)
+    --- PASS: TestALUNop/NOP_passes_through_A (0.00s)
+=== RUN   TestALUDisabled
+=== RUN   TestALUDisabled/Disabled_ALU_does_not_compute
+--- PASS: TestALUDisabled (0.00s)
+    --- PASS: TestALUDisabled/Disabled_ALU_does_not_compute (0.00s)
+=== RUN   TestALUReset
+=== RUN   TestALUReset/Reset_clears_outputs
+--- PASS: TestALUReset (0.00s)
+    --- PASS: TestALUReset/Reset_clears_outputs (0.00s)
+=== RUN   TestALURegistry
+=== RUN   TestALURegistry/ALU_descriptor_is_registered
+=== RUN   TestALURegistry/Create_ALU_from_registry
+--- PASS: TestALURegistry (0.00s)
+    --- PASS: TestALURegistry/ALU_descriptor_is_registered (0.00s)
+    --- PASS: TestALURegistry/Create_ALU_from_registry (0.00s)
+=== RUN   TestALUEdgeCases
+=== RUN   TestALUEdgeCases/Max_uint32_values
+=== RUN   TestALUEdgeCases/Chained_operations
+=== RUN   TestALUEdgeCases/All_flags_can_be_set_independently
+--- PASS: TestALUEdgeCases (0.00s)
+    --- PASS: TestALUEdgeCases/Max_uint32_values (0.00s)
+    --- PASS: TestALUEdgeCases/Chained_operations (0.00s)
+    --- PASS: TestALUEdgeCases/All_flags_can_be_set_independently (0.00s)
+=== RUN   TestMux2
+=== RUN   TestMux2/NewMux2_creates_mux_with_correct_ports
+=== RUN   TestMux2/Select=0_outputs_A
+=== RUN   TestMux2/Select=1_outputs_B
+=== RUN   TestMux2/Registry
+--- PASS: TestMux2 (0.00s)
+    --- PASS: TestMux2/NewMux2_creates_mux_with_correct_ports (0.00s)
+    --- PASS: TestMux2/Select=0_outputs_A (0.00s)
+    --- PASS: TestMux2/Select=1_outputs_B (0.00s)
+    --- PASS: TestMux2/Registry (0.00s)
+=== RUN   TestMux4
+=== RUN   TestMux4/NewMux4_creates_mux_with_correct_ports
+=== RUN   TestMux4/Select=0_outputs_A
+=== RUN   TestMux4/Select=1_outputs_B
+=== RUN   TestMux4/Select=2_outputs_C
+=== RUN   TestMux4/Select=3_outputs_D
+--- PASS: TestMux4 (0.00s)
+    --- PASS: TestMux4/NewMux4_creates_mux_with_correct_ports (0.00s)
+    --- PASS: TestMux4/Select=0_outputs_A (0.00s)
+    --- PASS: TestMux4/Select=1_outputs_B (0.00s)
+    --- PASS: TestMux4/Select=2_outputs_C (0.00s)
+    --- PASS: TestMux4/Select=3_outputs_D (0.00s)
+=== RUN   TestProgramCounter
+=== RUN   TestProgramCounter/NewProgramCounter_creates_PC_with_correct_ports
+=== RUN   TestProgramCounter/Initial_value
+=== RUN   TestProgramCounter/Increment
+=== RUN   TestProgramCounter/Load
+=== RUN   TestProgramCounter/Clock_with_increment_enable
+=== RUN   TestProgramCounter/Clock_with_load_enable
+=== RUN   TestProgramCounter/Load_has_priority_over_increment
+=== RUN   TestProgramCounter/Reset
+=== RUN   TestProgramCounter/Reset_pin
+=== RUN   TestProgramCounter/Registry
+--- PASS: TestProgramCounter (0.00s)
+    --- PASS: TestProgramCounter/NewProgramCounter_creates_PC_with_correct_ports (0.00s)
+    --- PASS: TestProgramCounter/Initial_value (0.00s)
+    --- PASS: TestProgramCounter/Increment (0.00s)
+    --- PASS: TestProgramCounter/Load (0.00s)
+    --- PASS: TestProgramCounter/Clock_with_increment_enable (0.00s)
+    --- PASS: TestProgramCounter/Clock_with_load_enable (0.00s)
+    --- PASS: TestProgramCounter/Load_has_priority_over_increment (0.00s)
+    --- PASS: TestProgramCounter/Reset (0.00s)
+    --- PASS: TestProgramCounter/Reset_pin (0.00s)
+    --- PASS: TestProgramCounter/Registry (0.00s)
+=== RUN   TestInstructionDecoder
+=== RUN   TestInstructionDecoder/NewInstructionDecoder_creates_decoder_with_correct_ports
+=== RUN   TestInstructionDecoder/Decode_opcode
+=== RUN   TestInstructionDecoder/Decode_operands
+=== RUN   TestInstructionDecoder/Decode_immediate
+=== RUN   TestInstructionDecoder/Registry
+--- PASS: TestInstructionDecoder (0.00s)
+    --- PASS: TestInstructionDecoder/NewInstructionDecoder_creates_decoder_with_correct_ports (0.00s)
+    --- PASS: TestInstructionDecoder/Decode_opcode (0.00s)
+    --- PASS: TestInstructionDecoder/Decode_operands (0.00s)
+    --- PASS: TestInstructionDecoder/Decode_immediate (0.00s)
+    --- PASS: TestInstructionDecoder/Registry (0.00s)
+=== RUN   TestControlUnit
+=== RUN   TestControlUnit/NewControlUnit_creates_control_unit
+=== RUN   TestControlUnit/FSM_transitions_from_Fetch_to_Decode
+=== RUN   TestControlUnit/Halt
+=== RUN   TestControlUnit/Reset
+=== RUN   TestControlUnit/Registry
+--- PASS: TestControlUnit (0.00s)
+    --- PASS: TestControlUnit/NewControlUnit_creates_control_unit (0.00s)
+    --- PASS: TestControlUnit/FSM_transitions_from_Fetch_to_Decode (0.00s)
+    --- PASS: TestControlUnit/Halt (0.00s)
+    --- PASS: TestControlUnit/Reset (0.00s)
+    --- PASS: TestControlUnit/Registry (0.00s)
+=== RUN   TestCPU
+=== RUN   TestCPU/NewCPU_creates_CPU_with_internal_components
+=== RUN   TestCPU/Initial_state
+=== RUN   TestCPU/Registry
+--- PASS: TestCPU (0.00s)
+    --- PASS: TestCPU/NewCPU_creates_CPU_with_internal_components (0.00s)
+    --- PASS: TestCPU/Initial_state (0.00s)
+    --- PASS: TestCPU/Registry (0.00s)
+=== RUN   TestCPUMemory
+=== RUN   TestCPUMemory/ReadMemory_and_WriteMemory
+=== RUN   TestCPUMemory/LoadBinary
+=== RUN   TestCPUMemory/LoadProgram
+--- PASS: TestCPUMemory (0.00s)
+    --- PASS: TestCPUMemory/ReadMemory_and_WriteMemory (0.00s)
+    --- PASS: TestCPUMemory/LoadBinary (0.00s)
+    --- PASS: TestCPUMemory/LoadProgram (0.00s)
+=== RUN   TestCPUNop
+--- PASS: TestCPUNop (0.00s)
+=== RUN   TestCPUMovImm16L
+--- PASS: TestCPUMovImm16L (0.00s)
+=== RUN   TestCPUMovImm16H
+--- FAIL: TestCPUMovImm16H (0.00s)
+panic: mistmatched operand values, the instruction must have 2 operands, we have 3 values [recovered]
+	panic: mistmatched operand values, the instruction must have 2 operands, we have 3 values
+
+goroutine 145 [running]:
+testing.tRunner.func1.2({0x640a80, 0xc00020af80})
+	/home/vscode/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.24.0.linux-amd64/src/testing/testing.go:1734 +0x21c
+testing.tRunner.func1()
+	/home/vscode/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.24.0.linux-amd64/src/testing/testing.go:1737 +0x35e
+panic({0x640a80?, 0xc00020af80?})
+	/home/vscode/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.24.0.linux-amd64/src/runtime/panic.go:787 +0x132
+github.com/Manu343726/cucaracha/pkg/hw/cpu/mc/instructions.(*RawInstruction).Encode(0xc00006ae90)
+	/workspaces/cucaracha/pkg/hw/cpu/mc/instructions/rawinstruction.go:85 +0x253
+github.com/Manu343726/cucaracha/pkg/hw/components.EncodeInstruction(0xc00006aef8?, {0xc00006aee8, 0x3, 0x83ee08?})
+	/workspaces/cucaracha/pkg/hw/components/cpu_test.go:44 +0x92
+github.com/Manu343726/cucaracha/pkg/hw/components.EncodeImmInstruction(0x400?, 0x1234, 0x5)
+	/workspaces/cucaracha/pkg/hw/components/cpu_test.go:79 +0x65
+github.com/Manu343726/cucaracha/pkg/hw/components.TestCPUMovImm16H(0xc00024f880)
+	/workspaces/cucaracha/pkg/hw/components/cpu_test.go:195 +0x95
+testing.tRunner(0xc00024f880, 0x6a5918)
+	/home/vscode/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.24.0.linux-amd64/src/testing/testing.go:1792 +0xf4
+created by testing.(*T).Run in goroutine 1
+	/home/vscode/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.24.0.linux-amd64/src/testing/testing.go:1851 +0x413
+FAIL	github.com/Manu343726/cucaracha/pkg/hw/components	0.024s
+?   	github.com/Manu343726/cucaracha/pkg/hw/cpu	[no test files]
+?   	github.com/Manu343726/cucaracha/pkg/hw/cpu/mc	[no test files]
+=== RUN   TestLLVMInstructionOperandDescriptor_Bits
+--- PASS: TestLLVMInstructionOperandDescriptor_Bits (0.00s)
+=== RUN   TestLLVMInstructionOperandDescriptor_MostSignificantBit
+--- PASS: TestLLVMInstructionOperandDescriptor_MostSignificantBit (0.00s)
+=== RUN   TestLLVMInstructionOperandDescriptor_LeastSignificantBit
+--- PASS: TestLLVMInstructionOperandDescriptor_LeastSignificantBit (0.00s)
+=== RUN   TestLLVMInstructionOperandDescriptor_Param
+--- PASS: TestLLVMInstructionOperandDescriptor_Param (0.00s)
+=== RUN   TestLLVMInstructionOperandDescriptor_ParamDeclaration
+--- PASS: TestLLVMInstructionOperandDescriptor_ParamDeclaration (0.00s)
+=== RUN   TestLLVMInstructionOperandDescriptor_ParamPattern
+--- PASS: TestLLVMInstructionOperandDescriptor_ParamPattern (0.00s)
+=== RUN   TestLLVMInstructionFlags_FlagsSet
+--- PASS: TestLLVMInstructionFlags_FlagsSet (0.00s)
+=== RUN   TestLLVMInstructionFlags_Flags
+--- PASS: TestLLVMInstructionFlags_Flags (0.00s)
+=== RUN   TestLLVMInstructionFlags_String
+--- PASS: TestLLVMInstructionFlags_String (0.00s)
+=== RUN   TestLLVMType
+--- PASS: TestLLVMType (0.00s)
+=== RUN   TestLLVMImmediateType
+--- PASS: TestLLVMImmediateType (0.00s)
+=== RUN   TestLLVMOperandType
+--- PASS: TestLLVMOperandType (0.00s)
+=== RUN   TestLLVMOperandPattern
+--- PASS: TestLLVMOperandPattern (0.00s)
+=== RUN   TestNewLLVMInstructionDescriptor
+--- PASS: TestNewLLVMInstructionDescriptor (0.00s)
+=== RUN   TestLLVMInstructionDescriptor_Ins
+--- PASS: TestLLVMInstructionDescriptor_Ins (0.00s)
+=== RUN   TestLLVMInstructionDescriptor_Outs
+--- PASS: TestLLVMInstructionDescriptor_Outs (0.00s)
+=== RUN   TestLLVMInstructionDescriptor_Ins_Immediate
+--- PASS: TestLLVMInstructionDescriptor_Ins_Immediate (0.00s)
+=== RUN   TestLLVMInstructionDescriptor_Outs_Immediate
+--- PASS: TestLLVMInstructionDescriptor_Outs_Immediate (0.00s)
+=== RUN   TestLLVMInstructionDescriptor_Params
+--- PASS: TestLLVMInstructionDescriptor_Params (0.00s)
+=== RUN   TestLLVMInstructionDescriptor_Params_MultipleOperands
+--- PASS: TestLLVMInstructionDescriptor_Params_MultipleOperands (0.00s)
+=== RUN   TestLLVMInstructionDescriptor_Ins_MultipleOperands
+--- PASS: TestLLVMInstructionDescriptor_Ins_MultipleOperands (0.00s)
+=== RUN   TestLLVMInstructionDescriptor_Outs_MultipleOperands
+--- PASS: TestLLVMInstructionDescriptor_Outs_MultipleOperands (0.00s)
+PASS
+ok  	github.com/Manu343726/cucaracha/pkg/hw/cpu/mc/instructions	0.008s
+?   	github.com/Manu343726/cucaracha/pkg/hw/cpu/mc/registers	[no test files]
+?   	github.com/Manu343726/cucaracha/pkg/hw/cpu/mc/types	[no test files]
+=== RUN   Test_AlignSize
+=== RUN   Test_AlignSize/size=0_alignment=4
+=== RUN   Test_AlignSize/size=1_alignment=4
+=== RUN   Test_AlignSize/size=2_alignment=4
+=== RUN   Test_AlignSize/size=3_alignment=4
+=== RUN   Test_AlignSize/size=4_alignment=4
+=== RUN   Test_AlignSize/size=5_alignment=4
+=== RUN   Test_AlignSize/size=15_alignment=8
+=== RUN   Test_AlignSize/size=16_alignment=8
+=== RUN   Test_AlignSize/size=17_alignment=8
+=== RUN   Test_AlignSize/size=20_alignment=0
+--- PASS: Test_AlignSize (0.00s)
+    --- PASS: Test_AlignSize/size=0_alignment=4 (0.00s)
+    --- PASS: Test_AlignSize/size=1_alignment=4 (0.00s)
+    --- PASS: Test_AlignSize/size=2_alignment=4 (0.00s)
+    --- PASS: Test_AlignSize/size=3_alignment=4 (0.00s)
+    --- PASS: Test_AlignSize/size=4_alignment=4 (0.00s)
+    --- PASS: Test_AlignSize/size=5_alignment=4 (0.00s)
+    --- PASS: Test_AlignSize/size=15_alignment=8 (0.00s)
+    --- PASS: Test_AlignSize/size=16_alignment=8 (0.00s)
+    --- PASS: Test_AlignSize/size=17_alignment=8 (0.00s)
+    --- PASS: Test_AlignSize/size=20_alignment=0 (0.00s)
+=== RUN   Test_IsAligned
+=== RUN   Test_IsAligned/addr=0_alignment=4
+=== RUN   Test_IsAligned/addr=1_alignment=4
+=== RUN   Test_IsAligned/addr=4_alignment=4
+=== RUN   Test_IsAligned/addr=5_alignment=4
+=== RUN   Test_IsAligned/addr=8_alignment=8
+=== RUN   Test_IsAligned/addr=12_alignment=8
+=== RUN   Test_IsAligned/addr=20_alignment=0
+--- PASS: Test_IsAligned (0.00s)
+    --- PASS: Test_IsAligned/addr=0_alignment=4 (0.00s)
+    --- PASS: Test_IsAligned/addr=1_alignment=4 (0.00s)
+    --- PASS: Test_IsAligned/addr=4_alignment=4 (0.00s)
+    --- PASS: Test_IsAligned/addr=5_alignment=4 (0.00s)
+    --- PASS: Test_IsAligned/addr=8_alignment=8 (0.00s)
+    --- PASS: Test_IsAligned/addr=12_alignment=8 (0.00s)
+    --- PASS: Test_IsAligned/addr=20_alignment=0 (0.00s)
+=== RUN   Test_NextAlignedAddress
+=== RUN   Test_NextAlignedAddress/addr=0_alignment=4
+=== RUN   Test_NextAlignedAddress/addr=1_alignment=4
+=== RUN   Test_NextAlignedAddress/addr=4_alignment=4
+=== RUN   Test_NextAlignedAddress/addr=5_alignment=4
+=== RUN   Test_NextAlignedAddress/addr=8_alignment=8
+=== RUN   Test_NextAlignedAddress/addr=12_alignment=8
+=== RUN   Test_NextAlignedAddress/addr=20_alignment=0
+--- PASS: Test_NextAlignedAddress (0.00s)
+    --- PASS: Test_NextAlignedAddress/addr=0_alignment=4 (0.00s)
+    --- PASS: Test_NextAlignedAddress/addr=1_alignment=4 (0.00s)
+    --- PASS: Test_NextAlignedAddress/addr=4_alignment=4 (0.00s)
+    --- PASS: Test_NextAlignedAddress/addr=5_alignment=4 (0.00s)
+    --- PASS: Test_NextAlignedAddress/addr=8_alignment=8 (0.00s)
+    --- PASS: Test_NextAlignedAddress/addr=12_alignment=8 (0.00s)
+    --- PASS: Test_NextAlignedAddress/addr=20_alignment=0 (0.00s)
+=== RUN   TestFlags_Has
+=== RUN   TestFlags_Has/[R]_has_[R]
+=== RUN   TestFlags_Has/[W]_has_[W]
+=== RUN   TestFlags_Has/[X]_has_[X]
+=== RUN   TestFlags_Has/[R,W]_has_[R]
+=== RUN   TestFlags_Has/[R,W]_has_[W]
+=== RUN   TestFlags_Has/[R,X]_has_[X]
+=== RUN   TestFlags_Has/[W,X]_has_[W]
+=== RUN   TestFlags_Has/[R,W,X]_has_[R]
+=== RUN   TestFlags_Has/[R,W,X]_has_[W]
+=== RUN   TestFlags_Has/[R,W,X]_has_[X]
+=== RUN   TestFlags_Has/[R]_has_[W]
+=== RUN   TestFlags_Has/[W]_has_[X]
+=== RUN   TestFlags_Has/[X]_has_[R]
+--- PASS: TestFlags_Has (0.00s)
+    --- PASS: TestFlags_Has/[R]_has_[R] (0.00s)
+    --- PASS: TestFlags_Has/[W]_has_[W] (0.00s)
+    --- PASS: TestFlags_Has/[X]_has_[X] (0.00s)
+    --- PASS: TestFlags_Has/[R,W]_has_[R] (0.00s)
+    --- PASS: TestFlags_Has/[R,W]_has_[W] (0.00s)
+    --- PASS: TestFlags_Has/[R,X]_has_[X] (0.00s)
+    --- PASS: TestFlags_Has/[W,X]_has_[W] (0.00s)
+    --- PASS: TestFlags_Has/[R,W,X]_has_[R] (0.00s)
+    --- PASS: TestFlags_Has/[R,W,X]_has_[W] (0.00s)
+    --- PASS: TestFlags_Has/[R,W,X]_has_[X] (0.00s)
+    --- PASS: TestFlags_Has/[R]_has_[W] (0.00s)
+    --- PASS: TestFlags_Has/[W]_has_[X] (0.00s)
+    --- PASS: TestFlags_Has/[X]_has_[R] (0.00s)
+=== RUN   TestFlags_IsReadable
+=== RUN   TestFlags_IsReadable/[R]_is_readable
+=== RUN   TestFlags_IsReadable/[W]_is_readable
+=== RUN   TestFlags_IsReadable/[X]_is_readable
+=== RUN   TestFlags_IsReadable/[R,W]_is_readable
+=== RUN   TestFlags_IsReadable/[R,X]_is_readable
+=== RUN   TestFlags_IsReadable/[W,X]_is_readable
+=== RUN   TestFlags_IsReadable/[R,W,X]_is_readable
+=== RUN   TestFlags_IsReadable/None_is_readable
+--- PASS: TestFlags_IsReadable (0.00s)
+    --- PASS: TestFlags_IsReadable/[R]_is_readable (0.00s)
+    --- PASS: TestFlags_IsReadable/[W]_is_readable (0.00s)
+    --- PASS: TestFlags_IsReadable/[X]_is_readable (0.00s)
+    --- PASS: TestFlags_IsReadable/[R,W]_is_readable (0.00s)
+    --- PASS: TestFlags_IsReadable/[R,X]_is_readable (0.00s)
+    --- PASS: TestFlags_IsReadable/[W,X]_is_readable (0.00s)
+    --- PASS: TestFlags_IsReadable/[R,W,X]_is_readable (0.00s)
+    --- PASS: TestFlags_IsReadable/None_is_readable (0.00s)
+=== RUN   TestFlags_IsWritable
+=== RUN   TestFlags_IsWritable/[R]_is_writable
+=== RUN   TestFlags_IsWritable/[W]_is_writable
+=== RUN   TestFlags_IsWritable/[X]_is_writable
+=== RUN   TestFlags_IsWritable/[R,W]_is_writable
+=== RUN   TestFlags_IsWritable/[R,X]_is_writable
+=== RUN   TestFlags_IsWritable/[W,X]_is_writable
+=== RUN   TestFlags_IsWritable/[R,W,X]_is_writable
+=== RUN   TestFlags_IsWritable/None_is_writable
+--- PASS: TestFlags_IsWritable (0.00s)
+    --- PASS: TestFlags_IsWritable/[R]_is_writable (0.00s)
+    --- PASS: TestFlags_IsWritable/[W]_is_writable (0.00s)
+    --- PASS: TestFlags_IsWritable/[X]_is_writable (0.00s)
+    --- PASS: TestFlags_IsWritable/[R,W]_is_writable (0.00s)
+    --- PASS: TestFlags_IsWritable/[R,X]_is_writable (0.00s)
+    --- PASS: TestFlags_IsWritable/[W,X]_is_writable (0.00s)
+    --- PASS: TestFlags_IsWritable/[R,W,X]_is_writable (0.00s)
+    --- PASS: TestFlags_IsWritable/None_is_writable (0.00s)
+=== RUN   TestFlags_IsExecutable
+=== RUN   TestFlags_IsExecutable/[R]_is_executable
+=== RUN   TestFlags_IsExecutable/[W]_is_executable
+=== RUN   TestFlags_IsExecutable/[X]_is_executable
+=== RUN   TestFlags_IsExecutable/[R,W]_is_executable
+=== RUN   TestFlags_IsExecutable/[R,X]_is_executable
+=== RUN   TestFlags_IsExecutable/[W,X]_is_executable
+=== RUN   TestFlags_IsExecutable/[R,W,X]_is_executable
+=== RUN   TestFlags_IsExecutable/None_is_executable
+--- PASS: TestFlags_IsExecutable (0.00s)
+    --- PASS: TestFlags_IsExecutable/[R]_is_executable (0.00s)
+    --- PASS: TestFlags_IsExecutable/[W]_is_executable (0.00s)
+    --- PASS: TestFlags_IsExecutable/[X]_is_executable (0.00s)
+    --- PASS: TestFlags_IsExecutable/[R,W]_is_executable (0.00s)
+    --- PASS: TestFlags_IsExecutable/[R,X]_is_executable (0.00s)
+    --- PASS: TestFlags_IsExecutable/[W,X]_is_executable (0.00s)
+    --- PASS: TestFlags_IsExecutable/[R,W,X]_is_executable (0.00s)
+    --- PASS: TestFlags_IsExecutable/None_is_executable (0.00s)
+=== RUN   TestFlags_String
+=== RUN   TestFlags_String/[R]
+=== RUN   TestFlags_String/[W]
+=== RUN   TestFlags_String/[X]
+=== RUN   TestFlags_String/[R,W]
+=== RUN   TestFlags_String/[R,X]
+=== RUN   TestFlags_String/[W,X]
+=== RUN   TestFlags_String/[R,W,X]
+=== RUN   TestFlags_String/None
+--- PASS: TestFlags_String (0.00s)
+    --- PASS: TestFlags_String/[R] (0.00s)
+    --- PASS: TestFlags_String/[W] (0.00s)
+    --- PASS: TestFlags_String/[X] (0.00s)
+    --- PASS: TestFlags_String/[R,W] (0.00s)
+    --- PASS: TestFlags_String/[R,X] (0.00s)
+    --- PASS: TestFlags_String/[W,X] (0.00s)
+    --- PASS: TestFlags_String/[R,W,X] (0.00s)
+    --- PASS: TestFlags_String/None (0.00s)
+=== RUN   Test_Reader
+--- PASS: Test_Reader (0.00s)
+=== RUN   Test_Writer
+--- PASS: Test_Writer (0.00s)
+=== RUN   TestCustomLayout
+--- PASS: TestCustomLayout (0.00s)
+=== RUN   TestDefaultLayout
+--- PASS: TestDefaultLayout (0.00s)
+=== RUN   TestRanges
+--- PASS: TestRanges (0.00s)
+=== RUN   TestValidation
+=== RUN   TestValidation/System_descriptor_is_after_vector_table
+=== RUN   TestValidation/System_descriptor_overlaps_with_vector_table
+=== RUN   TestValidation/System_descriptor_too_large
+=== RUN   TestValidation/Vector_table_is_after_code
+=== RUN   TestValidation/Vector_table_overlaps_with_code
+=== RUN   TestValidation/Vector_table_too_large
+=== RUN   TestValidation/Code_region_is_after_data
+=== RUN   TestValidation/Code_region_overlaps_with_data
+=== RUN   TestValidation/Code_region_too_large
+=== RUN   TestValidation/Data_region_is_after_heap
+=== RUN   TestValidation/Data_region_overlaps_with_heap
+=== RUN   TestValidation/Data_region_too_large
+=== RUN   TestValidation/Heap_is_after_stack
+=== RUN   TestValidation/Heap_overlaps_with_stack
+=== RUN   TestValidation/Heap_is_too_large
+=== RUN   TestValidation/Stack_is_after_peripheral_region
+=== RUN   TestValidation/Stack_overlaps_with_peripheral_region
+=== RUN   TestValidation/Stack_too_large
+=== RUN   TestValidation/Peripheral_region_too_large
+=== RUN   TestValidation/Valid_layout
+--- PASS: TestValidation (0.00s)
+    --- PASS: TestValidation/System_descriptor_is_after_vector_table (0.00s)
+    --- PASS: TestValidation/System_descriptor_overlaps_with_vector_table (0.00s)
+    --- PASS: TestValidation/System_descriptor_too_large (0.00s)
+    --- PASS: TestValidation/Vector_table_is_after_code (0.00s)
+    --- PASS: TestValidation/Vector_table_overlaps_with_code (0.00s)
+    --- PASS: TestValidation/Vector_table_too_large (0.00s)
+    --- PASS: TestValidation/Code_region_is_after_data (0.00s)
+    --- PASS: TestValidation/Code_region_overlaps_with_data (0.00s)
+    --- PASS: TestValidation/Code_region_too_large (0.00s)
+    --- PASS: TestValidation/Data_region_is_after_heap (0.00s)
+    --- PASS: TestValidation/Data_region_overlaps_with_heap (0.00s)
+    --- PASS: TestValidation/Data_region_too_large (0.00s)
+    --- PASS: TestValidation/Heap_is_after_stack (0.00s)
+    --- PASS: TestValidation/Heap_overlaps_with_stack (0.00s)
+    --- PASS: TestValidation/Heap_is_too_large (0.00s)
+    --- PASS: TestValidation/Stack_is_after_peripheral_region (0.00s)
+    --- PASS: TestValidation/Stack_overlaps_with_peripheral_region (0.00s)
+    --- PASS: TestValidation/Stack_too_large (0.00s)
+    --- PASS: TestValidation/Peripheral_region_too_large (0.00s)
+    --- PASS: TestValidation/Valid_layout (0.00s)
+=== RUN   Test_End
+=== RUN   Test_End/[0x00001000_-_0x00003000,_Size:_8192b,_Flags:_None]
+=== RUN   Test_End/[0x00000000_-_0x00001000,_Size:_4096b,_Flags:_None]
+--- PASS: Test_End (0.00s)
+    --- PASS: Test_End/[0x00001000_-_0x00003000,_Size:_8192b,_Flags:_None] (0.00s)
+    --- PASS: Test_End/[0x00000000_-_0x00001000,_Size:_4096b,_Flags:_None] (0.00s)
+=== RUN   Test_Range_String
+=== RUN   Test_Range_String/[0x00001000_-_0x00003000,_Size:_8192b,_Flags:_[R,W]]
+=== RUN   Test_Range_String/[0x00000000_-_0x00001000,_Size:_4096b,_Flags:_None]
+--- PASS: Test_Range_String (0.00s)
+    --- PASS: Test_Range_String/[0x00001000_-_0x00003000,_Size:_8192b,_Flags:_[R,W]] (0.00s)
+    --- PASS: Test_Range_String/[0x00000000_-_0x00001000,_Size:_4096b,_Flags:_None] (0.00s)
+=== RUN   Test_Overlaps
+=== RUN   Test_Overlaps/[0x00001000_-_0x00003000,_Size:_8192b,_Flags:_None]_&_[0x00001800_-_0x00002800,_Size:_4096b,_Flags:_None]
+=== RUN   Test_Overlaps/[0x00001000_-_0x00002000,_Size:_4096b,_Flags:_None]_&_[0x00002000_-_0x00003000,_Size:_4096b,_Flags:_None]
+--- PASS: Test_Overlaps (0.00s)
+    --- PASS: Test_Overlaps/[0x00001000_-_0x00003000,_Size:_8192b,_Flags:_None]_&_[0x00001800_-_0x00002800,_Size:_4096b,_Flags:_None] (0.00s)
+    --- PASS: Test_Overlaps/[0x00001000_-_0x00002000,_Size:_4096b,_Flags:_None]_&_[0x00002000_-_0x00003000,_Size:_4096b,_Flags:_None] (0.00s)
+=== RUN   Test_RangesOverlap
+=== RUN   Test_RangesOverlap/RangesOverlap
+=== RUN   Test_RangesOverlap/RangesOverlap#01
+--- PASS: Test_RangesOverlap (0.00s)
+    --- PASS: Test_RangesOverlap/RangesOverlap (0.00s)
+    --- PASS: Test_RangesOverlap/RangesOverlap#01 (0.00s)
+=== RUN   Test_ContainsAddress
+=== RUN   Test_ContainsAddress/[0x00001000_-_0x00002000,_Size:_4096b,_Flags:_None]
+=== RUN   Test_ContainsAddress/[0x00001000_-_0x00002000,_Size:_4096b,_Flags:_None]#01
+--- PASS: Test_ContainsAddress (0.00s)
+    --- PASS: Test_ContainsAddress/[0x00001000_-_0x00002000,_Size:_4096b,_Flags:_None] (0.00s)
+    --- PASS: Test_ContainsAddress/[0x00001000_-_0x00002000,_Size:_4096b,_Flags:_None]#01 (0.00s)
+=== RUN   Test_ContainsRange
+=== RUN   Test_ContainsRange/[0x00001000_-_0x00003000,_Size:_8192b,_Flags:_None]_contains_[0x00001800_-_0x00001D00,_Size:_1280b,_Flags:_None]
+=== RUN   Test_ContainsRange/[0x00001000_-_0x00002000,_Size:_4096b,_Flags:_None]_contains_[0x00001800_-_0x00002800,_Size:_4096b,_Flags:_None]
+--- PASS: Test_ContainsRange (0.00s)
+    --- PASS: Test_ContainsRange/[0x00001000_-_0x00003000,_Size:_8192b,_Flags:_None]_contains_[0x00001800_-_0x00001D00,_Size:_1280b,_Flags:_None] (0.00s)
+    --- PASS: Test_ContainsRange/[0x00001000_-_0x00002000,_Size:_4096b,_Flags:_None]_contains_[0x00001800_-_0x00002800,_Size:_4096b,_Flags:_None] (0.00s)
+=== RUN   Test_SubRange
+=== RUN   Test_SubRange/[0x00001000_-_0x00003000,_Size:_8192b,_Flags:_[R]]_SubRange
+=== RUN   Test_SubRange/[0x00000000_-_0x00001000,_Size:_4096b,_Flags:_[W]]_SubRange
+--- PASS: Test_SubRange (0.00s)
+    --- PASS: Test_SubRange/[0x00001000_-_0x00003000,_Size:_8192b,_Flags:_[R]]_SubRange (0.00s)
+    --- PASS: Test_SubRange/[0x00000000_-_0x00001000,_Size:_4096b,_Flags:_[W]]_SubRange (0.00s)
+=== RUN   Test_IsAdjacentTo
+=== RUN   Test_IsAdjacentTo/[0x00001000_-_0x00002000,_Size:_4096b,_Flags:_None]_&_[0x00002000_-_0x00003000,_Size:_4096b,_Flags:_None]
+=== RUN   Test_IsAdjacentTo/[0x00001000_-_0x00002000,_Size:_4096b,_Flags:_None]_&_[0x00002500_-_0x00003500,_Size:_4096b,_Flags:_None]
+--- PASS: Test_IsAdjacentTo (0.00s)
+    --- PASS: Test_IsAdjacentTo/[0x00001000_-_0x00002000,_Size:_4096b,_Flags:_None]_&_[0x00002000_-_0x00003000,_Size:_4096b,_Flags:_None] (0.00s)
+    --- PASS: Test_IsAdjacentTo/[0x00001000_-_0x00002000,_Size:_4096b,_Flags:_None]_&_[0x00002500_-_0x00003500,_Size:_4096b,_Flags:_None] (0.00s)
+=== RUN   Test_ContiguousRanges
+=== RUN   Test_ContiguousRanges/ContiguousRanges
+=== RUN   Test_ContiguousRanges/ContiguousRanges#01
+--- PASS: Test_ContiguousRanges (0.00s)
+    --- PASS: Test_ContiguousRanges/ContiguousRanges (0.00s)
+    --- PASS: Test_ContiguousRanges/ContiguousRanges#01 (0.00s)
+=== RUN   Test_Memory_Interface
+--- PASS: Test_Memory_Interface (0.00s)
+=== RUN   Test_SimulatedMemory_ReadWrite
+--- PASS: Test_SimulatedMemory_ReadWrite (0.00s)
+PASS
+ok  	github.com/Manu343726/cucaracha/pkg/hw/memory	0.009s
+testing: warning: no tests to run
+PASS
+ok  	github.com/Manu343726/cucaracha/pkg/hw/peripheral	0.003s [no tests to run]
+=== RUN   TestTerminal_ReadWrite
+--- PASS: TestTerminal_ReadWrite (0.00s)
+=== RUN   TestTerminal_SendInput
+--- PASS: TestTerminal_SendInput (0.00s)
+PASS
+ok  	github.com/Manu343726/cucaracha/pkg/hw/peripherals	0.006s
+FAIL	github.com/Manu343726/cucaracha/pkg/interpreter [build failed]
+=== RUN   TestParseAssemblyFile_Comprehensive
+=== RUN   TestParseAssemblyFile_Comprehensive/Functions
+=== RUN   TestParseAssemblyFile_Comprehensive/Labels
+=== RUN   TestParseAssemblyFile_Comprehensive/Globals
+=== RUN   TestParseAssemblyFile_Comprehensive/Instructions
+=== RUN   TestParseAssemblyFile_Comprehensive/InstructionRangesCoverage
+--- PASS: TestParseAssemblyFile_Comprehensive (0.00s)
+    --- PASS: TestParseAssemblyFile_Comprehensive/Functions (0.00s)
+    --- PASS: TestParseAssemblyFile_Comprehensive/Labels (0.00s)
+    --- PASS: TestParseAssemblyFile_Comprehensive/Globals (0.00s)
+    --- PASS: TestParseAssemblyFile_Comprehensive/Instructions (0.00s)
+    --- PASS: TestParseAssemblyFile_Comprehensive/InstructionRangesCoverage (0.00s)
+=== RUN   TestParseAssemblyFile_FunctionsNotInLabels
+--- PASS: TestParseAssemblyFile_FunctionsNotInLabels (0.00s)
+=== RUN   TestBinaryFileParser_ParsesValidELF
+--- PASS: TestBinaryFileParser_ParsesValidELF (0.00s)
+=== RUN   TestBinaryFileParser_DecodesADDInstruction
+--- PASS: TestBinaryFileParser_DecodesADDInstruction (0.00s)
+=== RUN   TestBinaryFileParser_DecodesMOVIMMInstruction
+--- PASS: TestBinaryFileParser_DecodesMOVIMMInstruction (0.00s)
+=== RUN   TestBinaryFileParser_MemoryLayoutIsCorrect
+--- PASS: TestBinaryFileParser_MemoryLayoutIsCorrect (0.00s)
+=== RUN   TestBinaryFileParser_RejectsNonELFFile
+--- PASS: TestBinaryFileParser_RejectsNonELFFile (0.00s)
+=== RUN   TestBinaryFileParser_RejectsNonExistentFile
+--- PASS: TestBinaryFileParser_RejectsNonExistentFile (0.00s)
+=== RUN   TestBinaryFileParser_RawInstructionIsPopulated
+--- PASS: TestBinaryFileParser_RawInstructionIsPopulated (0.00s)
+=== RUN   TestBinaryFileParser_LLVMGeneratedObjectFile
+    binaryfileparser_test.go:383: test program not found at /llvm-project/cucaracha-tests/programs/hello_world.c - skipping LLVM integration test
+--- SKIP: TestBinaryFileParser_LLVMGeneratedObjectFile (0.00s)
+=== RUN   TestBinaryFileParser_LLVMGeneratedObjectFile_CompareWithAssembly
+    binaryfileparser_test.go:479: test program not found at /llvm-project/cucaracha-tests/programs/hello_world.c - skipping LLVM integration test
+--- SKIP: TestBinaryFileParser_LLVMGeneratedObjectFile_CompareWithAssembly (0.00s)
+=== RUN   TestGenerator_String
+=== RUN   TestGenerator_String/Ninja
+=== RUN   TestGenerator_String/Unix_Makefiles
+=== RUN   TestGenerator_String/Visual_Studio_17_2022
+=== RUN   TestGenerator_String/Visual_Studio_16_2019
+=== RUN   TestGenerator_String/#00
+--- PASS: TestGenerator_String (0.00s)
+    --- PASS: TestGenerator_String/Ninja (0.00s)
+    --- PASS: TestGenerator_String/Unix_Makefiles (0.00s)
+    --- PASS: TestGenerator_String/Visual_Studio_17_2022 (0.00s)
+    --- PASS: TestGenerator_String/Visual_Studio_16_2019 (0.00s)
+    --- PASS: TestGenerator_String/#00 (0.00s)
+=== RUN   TestDefaultCMakeConfig
+--- PASS: TestDefaultCMakeConfig (0.00s)
+=== RUN   TestNewCMake
+=== RUN   TestNewCMake/auto-discover_cmake
+=== RUN   TestNewCMake/invalid_cmake_path
+--- PASS: TestNewCMake (0.00s)
+    --- PASS: TestNewCMake/auto-discover_cmake (0.00s)
+    --- PASS: TestNewCMake/invalid_cmake_path (0.00s)
+=== RUN   TestCMake_Version
+--- PASS: TestCMake_Version (0.00s)
+=== RUN   TestCMake_detectGenerator
+--- PASS: TestCMake_detectGenerator (0.00s)
+=== RUN   TestCMake_Configure_Validation
+=== RUN   TestCMake_Configure_Validation/missing_source_dir
+=== RUN   TestCMake_Configure_Validation/missing_build_dir
+=== RUN   TestCMake_Configure_Validation/nonexistent_source_dir
+--- PASS: TestCMake_Configure_Validation (0.00s)
+    --- PASS: TestCMake_Configure_Validation/missing_source_dir (0.00s)
+    --- PASS: TestCMake_Configure_Validation/missing_build_dir (0.00s)
+    --- PASS: TestCMake_Configure_Validation/nonexistent_source_dir (0.00s)
+=== RUN   TestCMake_Build_Validation
+=== RUN   TestCMake_Build_Validation/missing_build_dir
+=== RUN   TestCMake_Build_Validation/nonexistent_build_dir
+--- PASS: TestCMake_Build_Validation (0.00s)
+    --- PASS: TestCMake_Build_Validation/missing_build_dir (0.00s)
+    --- PASS: TestCMake_Build_Validation/nonexistent_build_dir (0.00s)
+=== RUN   TestCMake_IsConfigured
+=== RUN   TestCMake_IsConfigured/not_configured
+=== RUN   TestCMake_IsConfigured/configured
+--- PASS: TestCMake_IsConfigured (0.00s)
+    --- PASS: TestCMake_IsConfigured/not_configured (0.00s)
+    --- PASS: TestCMake_IsConfigured/configured (0.00s)
+=== RUN   TestCMake_Clean
+--- PASS: TestCMake_Clean (0.00s)
+=== RUN   TestDefaultLLVMBuildConfig
+--- PASS: TestDefaultLLVMBuildConfig (0.00s)
+=== RUN   TestCMake_BuildLLVM_Validation
+=== RUN   TestCMake_BuildLLVM_Validation/missing_LLVM_root
+=== RUN   TestCMake_BuildLLVM_Validation/invalid_LLVM_root
+--- PASS: TestCMake_BuildLLVM_Validation (0.00s)
+    --- PASS: TestCMake_BuildLLVM_Validation/missing_LLVM_root (0.00s)
+    --- PASS: TestCMake_BuildLLVM_Validation/invalid_LLVM_root (0.00s)
+=== RUN   TestFindLLVMProject
+=== RUN   TestFindLLVMProject/find_in_workspaces
+=== RUN   TestFindLLVMProject/not_found_in_empty_paths
+--- PASS: TestFindLLVMProject (0.00s)
+    --- PASS: TestFindLLVMProject/find_in_workspaces (0.00s)
+    --- PASS: TestFindLLVMProject/not_found_in_empty_paths (0.00s)
+=== RUN   TestCMake_Integration_ConfigureAndBuild
+--- PASS: TestCMake_Integration_ConfigureAndBuild (0.27s)
+=== RUN   TestCMakeConfig_Variables
+--- PASS: TestCMakeConfig_Variables (0.00s)
+=== RUN   TestConfigureResult_Fields
+--- PASS: TestConfigureResult_Fields (0.00s)
+=== RUN   TestBuildResult_Fields
+--- PASS: TestBuildResult_Fields (0.00s)
+=== RUN   TestLLVMBuildConfig_CustomSettings
+--- PASS: TestLLVMBuildConfig_CustomSettings (0.00s)
+=== RUN   TestCMake_ConfigureCommand
+--- PASS: TestCMake_ConfigureCommand (0.00s)
+=== RUN   TestCommandFormatting
+--- PASS: TestCommandFormatting (0.00s)
+=== RUN   TestLoadCMakePresets
+=== RUN   TestLoadCMakePresets/valid_presets_file
+=== RUN   TestLoadCMakePresets/nonexistent_file
+=== RUN   TestLoadCMakePresets/invalid_JSON
+--- PASS: TestLoadCMakePresets (0.00s)
+    --- PASS: TestLoadCMakePresets/valid_presets_file (0.00s)
+    --- PASS: TestLoadCMakePresets/nonexistent_file (0.00s)
+    --- PASS: TestLoadCMakePresets/invalid_JSON (0.00s)
+=== RUN   TestPresetCondition_EvaluateCondition
+=== RUN   TestPresetCondition_EvaluateCondition/nil_condition
+=== RUN   TestPresetCondition_EvaluateCondition/equals_matching
+=== RUN   TestPresetCondition_EvaluateCondition/equals_not_matching
+=== RUN   TestPresetCondition_EvaluateCondition/notEquals_matching
+=== RUN   TestPresetCondition_EvaluateCondition/notEquals_not_matching
+=== RUN   TestPresetCondition_EvaluateCondition/unknown_condition_type
+--- PASS: TestPresetCondition_EvaluateCondition (0.00s)
+    --- PASS: TestPresetCondition_EvaluateCondition/nil_condition (0.00s)
+    --- PASS: TestPresetCondition_EvaluateCondition/equals_matching (0.00s)
+    --- PASS: TestPresetCondition_EvaluateCondition/equals_not_matching (0.00s)
+    --- PASS: TestPresetCondition_EvaluateCondition/notEquals_matching (0.00s)
+    --- PASS: TestPresetCondition_EvaluateCondition/notEquals_not_matching (0.00s)
+    --- PASS: TestPresetCondition_EvaluateCondition/unknown_condition_type (0.00s)
+=== RUN   TestGetHostSystemName
+--- PASS: TestGetHostSystemName (0.00s)
+=== RUN   TestCMakePresetsFile_GetApplicablePresets
+=== RUN   TestCMakePresetsFile_GetApplicablePresets/applicable_configure_presets
+=== RUN   TestCMakePresetsFile_GetApplicablePresets/applicable_build_presets
+--- PASS: TestCMakePresetsFile_GetApplicablePresets (0.00s)
+    --- PASS: TestCMakePresetsFile_GetApplicablePresets/applicable_configure_presets (0.00s)
+    --- PASS: TestCMakePresetsFile_GetApplicablePresets/applicable_build_presets (0.00s)
+=== RUN   TestCMakePresetsFile_FindPresets
+=== RUN   TestCMakePresetsFile_FindPresets/find_existing_configure_preset
+=== RUN   TestCMakePresetsFile_FindPresets/find_nonexistent_configure_preset
+=== RUN   TestCMakePresetsFile_FindPresets/find_existing_build_preset
+=== RUN   TestCMakePresetsFile_FindPresets/find_nonexistent_build_preset
+--- PASS: TestCMakePresetsFile_FindPresets (0.00s)
+    --- PASS: TestCMakePresetsFile_FindPresets/find_existing_configure_preset (0.00s)
+    --- PASS: TestCMakePresetsFile_FindPresets/find_nonexistent_configure_preset (0.00s)
+    --- PASS: TestCMakePresetsFile_FindPresets/find_existing_build_preset (0.00s)
+    --- PASS: TestCMakePresetsFile_FindPresets/find_nonexistent_build_preset (0.00s)
+=== RUN   TestResolveBinaryDir
+=== RUN   TestResolveBinaryDir/empty_binaryDir
+=== RUN   TestResolveBinaryDir/absolute_path
+=== RUN   TestResolveBinaryDir/sourceDir_variable
+=== RUN   TestResolveBinaryDir/sourceDir_variable_with_subdir
+--- PASS: TestResolveBinaryDir (0.00s)
+    --- PASS: TestResolveBinaryDir/empty_binaryDir (0.00s)
+    --- PASS: TestResolveBinaryDir/absolute_path (0.00s)
+    --- PASS: TestResolveBinaryDir/sourceDir_variable (0.00s)
+    --- PASS: TestResolveBinaryDir/sourceDir_variable_with_subdir (0.00s)
+=== RUN   TestSelectBestPreset
+=== RUN   TestSelectBestPreset/no_applicable_presets
+=== RUN   TestSelectBestPreset/single_applicable_preset
+=== RUN   TestSelectBestPreset/prefers_non-docker_preset_when_not_in_container
+    cmake_test.go:811: Running in container, skip non-docker preference test
+--- PASS: TestSelectBestPreset (0.00s)
+    --- PASS: TestSelectBestPreset/no_applicable_presets (0.00s)
+    --- PASS: TestSelectBestPreset/single_applicable_preset (0.00s)
+    --- SKIP: TestSelectBestPreset/prefers_non-docker_preset_when_not_in_container (0.00s)
+=== RUN   TestIsInDockerContainer
+    cmake_test.go:844: isInDockerContainer: true
+--- PASS: TestIsInDockerContainer (0.00s)
+=== RUN   TestLoadCMakePresets_RealFile
+    cmake_test.go:862: Loaded CMakePresets.json from /workspaces/llvm-project/llvm/CMakePresets.json
+    cmake_test.go:863: Version: 6
+    cmake_test.go:864: Configure presets: 5
+    cmake_test.go:865: Build presets: 5
+    cmake_test.go:868: Applicable configure presets: 3
+    cmake_test.go:870:   - base
+    cmake_test.go:870:   - Linux GCC Docker
+    cmake_test.go:870:   - Linux GCC
+    cmake_test.go:875: Selected preset: Linux GCC Docker
+--- PASS: TestLoadCMakePresets_RealFile (0.00s)
+=== RUN   TestDecodeSLEB128
+=== RUN   TestDecodeSLEB128/zero
+=== RUN   TestDecodeSLEB128/positive_single_byte
+=== RUN   TestDecodeSLEB128/positive_max_single_byte
+=== RUN   TestDecodeSLEB128/negative_single_byte_(-1)
+=== RUN   TestDecodeSLEB128/negative_single_byte_(-64)
+=== RUN   TestDecodeSLEB128/positive_two_bytes_(128)
+=== RUN   TestDecodeSLEB128/positive_two_bytes_(624)
+=== RUN   TestDecodeSLEB128/negative_two_bytes_(-128)
+=== RUN   TestDecodeSLEB128/large_positive_value
+=== RUN   TestDecodeSLEB128/large_negative_value
+--- PASS: TestDecodeSLEB128 (0.00s)
+    --- PASS: TestDecodeSLEB128/zero (0.00s)
+    --- PASS: TestDecodeSLEB128/positive_single_byte (0.00s)
+    --- PASS: TestDecodeSLEB128/positive_max_single_byte (0.00s)
+    --- PASS: TestDecodeSLEB128/negative_single_byte_(-1) (0.00s)
+    --- PASS: TestDecodeSLEB128/negative_single_byte_(-64) (0.00s)
+    --- PASS: TestDecodeSLEB128/positive_two_bytes_(128) (0.00s)
+    --- PASS: TestDecodeSLEB128/positive_two_bytes_(624) (0.00s)
+    --- PASS: TestDecodeSLEB128/negative_two_bytes_(-128) (0.00s)
+    --- PASS: TestDecodeSLEB128/large_positive_value (0.00s)
+    --- PASS: TestDecodeSLEB128/large_negative_value (0.00s)
+=== RUN   TestDecodeULEB128
+=== RUN   TestDecodeULEB128/zero
+=== RUN   TestDecodeULEB128/single_byte_(1)
+=== RUN   TestDecodeULEB128/single_byte_max_(127)
+=== RUN   TestDecodeULEB128/two_bytes_(128)
+=== RUN   TestDecodeULEB128/two_bytes_(255)
+=== RUN   TestDecodeULEB128/three_bytes_(16383)
+=== RUN   TestDecodeULEB128/three_bytes_(16384)
+=== RUN   TestDecodeULEB128/value_624485
+=== RUN   TestDecodeULEB128/offset_28_(0x1c)
+=== RUN   TestDecodeULEB128/offset_24_(0x18)
+--- PASS: TestDecodeULEB128 (0.00s)
+    --- PASS: TestDecodeULEB128/zero (0.00s)
+    --- PASS: TestDecodeULEB128/single_byte_(1) (0.00s)
+    --- PASS: TestDecodeULEB128/single_byte_max_(127) (0.00s)
+    --- PASS: TestDecodeULEB128/two_bytes_(128) (0.00s)
+    --- PASS: TestDecodeULEB128/two_bytes_(255) (0.00s)
+    --- PASS: TestDecodeULEB128/three_bytes_(16383) (0.00s)
+    --- PASS: TestDecodeULEB128/three_bytes_(16384) (0.00s)
+    --- PASS: TestDecodeULEB128/value_624485 (0.00s)
+    --- PASS: TestDecodeULEB128/offset_28_(0x1c) (0.00s)
+    --- PASS: TestDecodeULEB128/offset_24_(0x18) (0.00s)
+=== RUN   TestDecodeLocationExpr
+=== RUN   TestDecodeLocationExpr/empty_expression
+=== RUN   TestDecodeLocationExpr/DW_OP_reg0_(r0)
+=== RUN   TestDecodeLocationExpr/DW_OP_reg1_(r1)
+=== RUN   TestDecodeLocationExpr/DW_OP_reg9_(r9)
+=== RUN   TestDecodeLocationExpr/DW_OP_reg13_(sp)
+=== RUN   TestDecodeLocationExpr/DW_OP_reg14_(lr)
+=== RUN   TestDecodeLocationExpr/DW_OP_reg15_(pc)
+=== RUN   TestDecodeLocationExpr/DW_OP_breg0_with_positive_offset
+=== RUN   TestDecodeLocationExpr/DW_OP_breg13_(sp)_with_positive_offset
+=== RUN   TestDecodeLocationExpr/DW_OP_breg13_(sp)_with_negative_offset
+=== RUN   TestDecodeLocationExpr/DW_OP_breg13_with_zero_offset
+=== RUN   TestDecodeLocationExpr/DW_OP_breg_with_large_positive_offset
+=== RUN   TestDecodeLocationExpr/DW_OP_fbreg_with_positive_offset
+=== RUN   TestDecodeLocationExpr/DW_OP_fbreg_with_negative_offset
+=== RUN   TestDecodeLocationExpr/DW_OP_fbreg_with_zero_offset
+=== RUN   TestDecodeLocationExpr/DW_OP_plus_uconst_offset_28
+=== RUN   TestDecodeLocationExpr/DW_OP_plus_uconst_offset_24
+=== RUN   TestDecodeLocationExpr/DW_OP_plus_uconst_offset_0
+=== RUN   TestDecodeLocationExpr/DW_OP_plus_uconst_large_offset
+=== RUN   TestDecodeLocationExpr/unsupported_opcode_DW_OP_addr
+=== RUN   TestDecodeLocationExpr/unsupported_opcode_DW_OP_stack_val
+--- PASS: TestDecodeLocationExpr (0.00s)
+    --- PASS: TestDecodeLocationExpr/empty_expression (0.00s)
+    --- PASS: TestDecodeLocationExpr/DW_OP_reg0_(r0) (0.00s)
+    --- PASS: TestDecodeLocationExpr/DW_OP_reg1_(r1) (0.00s)
+    --- PASS: TestDecodeLocationExpr/DW_OP_reg9_(r9) (0.00s)
+    --- PASS: TestDecodeLocationExpr/DW_OP_reg13_(sp) (0.00s)
+    --- PASS: TestDecodeLocationExpr/DW_OP_reg14_(lr) (0.00s)
+    --- PASS: TestDecodeLocationExpr/DW_OP_reg15_(pc) (0.00s)
+    --- PASS: TestDecodeLocationExpr/DW_OP_breg0_with_positive_offset (0.00s)
+    --- PASS: TestDecodeLocationExpr/DW_OP_breg13_(sp)_with_positive_offset (0.00s)
+    --- PASS: TestDecodeLocationExpr/DW_OP_breg13_(sp)_with_negative_offset (0.00s)
+    --- PASS: TestDecodeLocationExpr/DW_OP_breg13_with_zero_offset (0.00s)
+    --- PASS: TestDecodeLocationExpr/DW_OP_breg_with_large_positive_offset (0.00s)
+    --- PASS: TestDecodeLocationExpr/DW_OP_fbreg_with_positive_offset (0.00s)
+    --- PASS: TestDecodeLocationExpr/DW_OP_fbreg_with_negative_offset (0.00s)
+    --- PASS: TestDecodeLocationExpr/DW_OP_fbreg_with_zero_offset (0.00s)
+    --- PASS: TestDecodeLocationExpr/DW_OP_plus_uconst_offset_28 (0.00s)
+    --- PASS: TestDecodeLocationExpr/DW_OP_plus_uconst_offset_24 (0.00s)
+    --- PASS: TestDecodeLocationExpr/DW_OP_plus_uconst_offset_0 (0.00s)
+    --- PASS: TestDecodeLocationExpr/DW_OP_plus_uconst_large_offset (0.00s)
+    --- PASS: TestDecodeLocationExpr/unsupported_opcode_DW_OP_addr (0.00s)
+    --- PASS: TestDecodeLocationExpr/unsupported_opcode_DW_OP_stack_val (0.00s)
+=== RUN   TestMapDWARFRegister
+=== RUN   TestMapDWARFRegister/r0
+=== RUN   TestMapDWARFRegister/r1
+=== RUN   TestMapDWARFRegister/r2
+=== RUN   TestMapDWARFRegister/r3
+=== RUN   TestMapDWARFRegister/r4
+=== RUN   TestMapDWARFRegister/r5
+=== RUN   TestMapDWARFRegister/r6
+=== RUN   TestMapDWARFRegister/r7
+=== RUN   TestMapDWARFRegister/r8
+=== RUN   TestMapDWARFRegister/r9
+=== RUN   TestMapDWARFRegister/sp_(r13)
+=== RUN   TestMapDWARFRegister/lr_(r14)
+=== RUN   TestMapDWARFRegister/pc_(r15)
+=== RUN   TestMapDWARFRegister/r10
+=== RUN   TestMapDWARFRegister/r11
+=== RUN   TestMapDWARFRegister/r12
+--- PASS: TestMapDWARFRegister (0.00s)
+    --- PASS: TestMapDWARFRegister/r0 (0.00s)
+    --- PASS: TestMapDWARFRegister/r1 (0.00s)
+    --- PASS: TestMapDWARFRegister/r2 (0.00s)
+    --- PASS: TestMapDWARFRegister/r3 (0.00s)
+    --- PASS: TestMapDWARFRegister/r4 (0.00s)
+    --- PASS: TestMapDWARFRegister/r5 (0.00s)
+    --- PASS: TestMapDWARFRegister/r6 (0.00s)
+    --- PASS: TestMapDWARFRegister/r7 (0.00s)
+    --- PASS: TestMapDWARFRegister/r8 (0.00s)
+    --- PASS: TestMapDWARFRegister/r9 (0.00s)
+    --- PASS: TestMapDWARFRegister/sp_(r13) (0.00s)
+    --- PASS: TestMapDWARFRegister/lr_(r14) (0.00s)
+    --- PASS: TestMapDWARFRegister/pc_(r15) (0.00s)
+    --- PASS: TestMapDWARFRegister/r10 (0.00s)
+    --- PASS: TestMapDWARFRegister/r11 (0.00s)
+    --- PASS: TestMapDWARFRegister/r12 (0.00s)
+=== RUN   TestLocationExprWithRegisterMapping
+=== RUN   TestLocationExprWithRegisterMapping/DW_OP_reg0_should_map_to_internal_register_16
+=== RUN   TestLocationExprWithRegisterMapping/DW_OP_breg0_should_map_base_register_to_16
+=== RUN   TestLocationExprWithRegisterMapping/DW_OP_breg13_should_keep_SP_as_13
+--- PASS: TestLocationExprWithRegisterMapping (0.00s)
+    --- PASS: TestLocationExprWithRegisterMapping/DW_OP_reg0_should_map_to_internal_register_16 (0.00s)
+    --- PASS: TestLocationExprWithRegisterMapping/DW_OP_breg0_should_map_base_register_to_16 (0.00s)
+    --- PASS: TestLocationExprWithRegisterMapping/DW_OP_breg13_should_keep_SP_as_13 (0.00s)
+=== RUN   TestNewDebugInfo
+--- PASS: TestNewDebugInfo (0.00s)
+=== RUN   TestVariableLocationTypes
+--- PASS: TestVariableLocationTypes (0.00s)
+=== RUN   TestLEB128EdgeCases
+=== RUN   TestLEB128EdgeCases/SLEB128_with_trailing_bytes
+=== RUN   TestLEB128EdgeCases/ULEB128_with_trailing_bytes
+=== RUN   TestLEB128EdgeCases/SLEB128_sign_extension_boundary
+--- PASS: TestLEB128EdgeCases (0.00s)
+    --- PASS: TestLEB128EdgeCases/SLEB128_with_trailing_bytes (0.00s)
+    --- PASS: TestLEB128EdgeCases/ULEB128_with_trailing_bytes (0.00s)
+    --- PASS: TestLEB128EdgeCases/SLEB128_sign_extension_boundary (0.00s)
+=== RUN   TestDecodeLocationExprEdgeCases
+=== RUN   TestDecodeLocationExprEdgeCases/DW_OP_breg_without_offset_byte
+=== RUN   TestDecodeLocationExprEdgeCases/DW_OP_fbreg_without_offset_byte_returns_nil
+=== RUN   TestDecodeLocationExprEdgeCases/DW_OP_plus_uconst_without_offset_byte_returns_nil
+--- PASS: TestDecodeLocationExprEdgeCases (0.00s)
+    --- PASS: TestDecodeLocationExprEdgeCases/DW_OP_breg_without_offset_byte (0.00s)
+    --- PASS: TestDecodeLocationExprEdgeCases/DW_OP_fbreg_without_offset_byte_returns_nil (0.00s)
+    --- PASS: TestDecodeLocationExprEdgeCases/DW_OP_plus_uconst_without_offset_byte_returns_nil (0.00s)
+=== RUN   TestSourceLocationString
+=== RUN   TestSourceLocationString/with_column
+=== RUN   TestSourceLocationString/without_column
+=== RUN   TestSourceLocationString/line_1_column_1
+--- PASS: TestSourceLocationString (0.00s)
+    --- PASS: TestSourceLocationString/with_column (0.00s)
+    --- PASS: TestSourceLocationString/without_column (0.00s)
+    --- PASS: TestSourceLocationString/line_1_column_1 (0.00s)
+=== RUN   TestVariableInfoFields
+--- PASS: TestVariableInfoFields (0.00s)
+=== RUN   TestFunctionDebugInfoFields
+--- PASS: TestFunctionDebugInfoFields (0.00s)
+=== RUN   TestSourceLocationPropagation
+--- PASS: TestSourceLocationPropagation (0.00s)
+=== RUN   TestSourceLocationPropagationMultipleFiles
+--- PASS: TestSourceLocationPropagationMultipleFiles (0.00s)
+=== RUN   TestSourceLocationPropagationSingleInstruction
+--- PASS: TestSourceLocationPropagationSingleInstruction (0.00s)
+=== RUN   TestSourceLocationPropagationLargeGap
+--- PASS: TestSourceLocationPropagationLargeGap (0.00s)
+=== RUN   TestEncodeFixupValue
+=== RUN   TestEncodeFixupValue/zero_immediate
+=== RUN   TestEncodeFixupValue/small_immediate
+=== RUN   TestEncodeFixupValue/medium_immediate
+=== RUN   TestEncodeFixupValue/max_16-bit_immediate
+=== RUN   TestEncodeFixupValue/truncates_to_16_bits
+--- PASS: TestEncodeFixupValue (0.00s)
+    --- PASS: TestEncodeFixupValue/zero_immediate (0.00s)
+    --- PASS: TestEncodeFixupValue/small_immediate (0.00s)
+    --- PASS: TestEncodeFixupValue/medium_immediate (0.00s)
+    --- PASS: TestEncodeFixupValue/max_16-bit_immediate (0.00s)
+    --- PASS: TestEncodeFixupValue/truncates_to_16_bits (0.00s)
+=== RUN   TestDecodeFixupValue
+=== RUN   TestDecodeFixupValue/zero_fixup
+=== RUN   TestDecodeFixupValue/small_fixup
+=== RUN   TestDecodeFixupValue/medium_fixup
+=== RUN   TestDecodeFixupValue/max_16-bit_fixup
+=== RUN   TestDecodeFixupValue/ignores_bits_outside_immediate_field
+--- PASS: TestDecodeFixupValue (0.00s)
+    --- PASS: TestDecodeFixupValue/zero_fixup (0.00s)
+    --- PASS: TestDecodeFixupValue/small_fixup (0.00s)
+    --- PASS: TestDecodeFixupValue/medium_fixup (0.00s)
+    --- PASS: TestDecodeFixupValue/max_16-bit_fixup (0.00s)
+    --- PASS: TestDecodeFixupValue/ignores_bits_outside_immediate_field (0.00s)
+=== RUN   TestEncodeDecodeRoundTrip
+--- PASS: TestEncodeDecodeRoundTrip (0.00s)
+=== RUN   TestDecodeFixupFromInstruction
+--- PASS: TestDecodeFixupFromInstruction (0.00s)
+=== RUN   TestExtractOpcode
+=== RUN   TestExtractOpcode/MOVIMM16L_opcode
+=== RUN   TestExtractOpcode/MOVIMM16H_opcode
+=== RUN   TestExtractOpcode/NOP_opcode
+=== RUN   TestExtractOpcode/max_opcode
+--- PASS: TestExtractOpcode (0.00s)
+    --- PASS: TestExtractOpcode/MOVIMM16L_opcode (0.00s)
+    --- PASS: TestExtractOpcode/MOVIMM16H_opcode (0.00s)
+    --- PASS: TestExtractOpcode/NOP_opcode (0.00s)
+    --- PASS: TestExtractOpcode/max_opcode (0.00s)
+=== RUN   TestExtractRegister
+=== RUN   TestExtractRegister/r0
+=== RUN   TestExtractRegister/r4_(index_20_in_Cucaracha)
+=== RUN   TestExtractRegister/max_register
+=== RUN   TestExtractRegister/with_other_bits_set
+--- PASS: TestExtractRegister (0.00s)
+    --- PASS: TestExtractRegister/r0 (0.00s)
+    --- PASS: TestExtractRegister/r4_(index_20_in_Cucaracha) (0.00s)
+    --- PASS: TestExtractRegister/max_register (0.00s)
+    --- PASS: TestExtractRegister/with_other_bits_set (0.00s)
+=== RUN   TestCombineLoHiImmediate
+=== RUN   TestCombineLoHiImmediate/zero_address
+=== RUN   TestCombineLoHiImmediate/lo_only
+=== RUN   TestCombineLoHiImmediate/hi_only
+=== RUN   TestCombineLoHiImmediate/both_lo_and_hi
+=== RUN   TestCombineLoHiImmediate/max_address
+--- PASS: TestCombineLoHiImmediate (0.00s)
+    --- PASS: TestCombineLoHiImmediate/zero_address (0.00s)
+    --- PASS: TestCombineLoHiImmediate/lo_only (0.00s)
+    --- PASS: TestCombineLoHiImmediate/hi_only (0.00s)
+    --- PASS: TestCombineLoHiImmediate/both_lo_and_hi (0.00s)
+    --- PASS: TestCombineLoHiImmediate/max_address (0.00s)
+=== RUN   TestSplitToLoHiImmediate
+=== RUN   TestSplitToLoHiImmediate/zero_address
+=== RUN   TestSplitToLoHiImmediate/small_address
+=== RUN   TestSplitToLoHiImmediate/large_address
+=== RUN   TestSplitToLoHiImmediate/full_address
+=== RUN   TestSplitToLoHiImmediate/max_address
+--- PASS: TestSplitToLoHiImmediate (0.00s)
+    --- PASS: TestSplitToLoHiImmediate/zero_address (0.00s)
+    --- PASS: TestSplitToLoHiImmediate/small_address (0.00s)
+    --- PASS: TestSplitToLoHiImmediate/large_address (0.00s)
+    --- PASS: TestSplitToLoHiImmediate/full_address (0.00s)
+    --- PASS: TestSplitToLoHiImmediate/max_address (0.00s)
+=== RUN   TestSplitCombineRoundTrip
+--- PASS: TestSplitCombineRoundTrip (0.00s)
+=== RUN   TestDecodeARMFixupLo12Hi4
+=== RUN   TestDecodeARMFixupLo12Hi4/zero
+=== RUN   TestDecodeARMFixupLo12Hi4/small_value_fits_in_lo12
+=== RUN   TestDecodeARMFixupLo12Hi4/value_needs_hi4
+=== RUN   TestDecodeARMFixupLo12Hi4/max_value
+--- PASS: TestDecodeARMFixupLo12Hi4 (0.00s)
+    --- PASS: TestDecodeARMFixupLo12Hi4/zero (0.00s)
+    --- PASS: TestDecodeARMFixupLo12Hi4/small_value_fits_in_lo12 (0.00s)
+    --- PASS: TestDecodeARMFixupLo12Hi4/value_needs_hi4 (0.00s)
+    --- PASS: TestDecodeARMFixupLo12Hi4/max_value (0.00s)
+=== RUN   TestEncodeARMFixupLo12Hi4
+=== RUN   TestEncodeARMFixupLo12Hi4/zero
+=== RUN   TestEncodeARMFixupLo12Hi4/small_value_fits_in_lo12
+=== RUN   TestEncodeARMFixupLo12Hi4/value_needs_hi4
+=== RUN   TestEncodeARMFixupLo12Hi4/max_value
+--- PASS: TestEncodeARMFixupLo12Hi4 (0.00s)
+    --- PASS: TestEncodeARMFixupLo12Hi4/zero (0.00s)
+    --- PASS: TestEncodeARMFixupLo12Hi4/small_value_fits_in_lo12 (0.00s)
+    --- PASS: TestEncodeARMFixupLo12Hi4/value_needs_hi4 (0.00s)
+    --- PASS: TestEncodeARMFixupLo12Hi4/max_value (0.00s)
+=== RUN   TestARMEncodingRoundTrip
+--- PASS: TestARMEncodingRoundTrip (0.00s)
+=== RUN   TestARMEncodingCorruptsOpcode
+--- PASS: TestARMEncodingCorruptsOpcode (0.00s)
+=== RUN   TestCucarachaEncodingPreservesOpcode
+--- PASS: TestCucarachaEncodingPreservesOpcode (0.00s)
+=== RUN   TestFixupEncodingCompatibleWithMOVIMM16L
+=== RUN   TestFixupEncodingCompatibleWithMOVIMM16L/zero_immediate,_r0
+=== RUN   TestFixupEncodingCompatibleWithMOVIMM16L/small_immediate,_r1
+=== RUN   TestFixupEncodingCompatibleWithMOVIMM16L/medium_immediate,_r4
+=== RUN   TestFixupEncodingCompatibleWithMOVIMM16L/max_immediate,_r7
+=== RUN   TestFixupEncodingCompatibleWithMOVIMM16L/address_low_bits,_r2
+--- PASS: TestFixupEncodingCompatibleWithMOVIMM16L (0.00s)
+    --- PASS: TestFixupEncodingCompatibleWithMOVIMM16L/zero_immediate,_r0 (0.00s)
+    --- PASS: TestFixupEncodingCompatibleWithMOVIMM16L/small_immediate,_r1 (0.00s)
+    --- PASS: TestFixupEncodingCompatibleWithMOVIMM16L/medium_immediate,_r4 (0.00s)
+    --- PASS: TestFixupEncodingCompatibleWithMOVIMM16L/max_immediate,_r7 (0.00s)
+    --- PASS: TestFixupEncodingCompatibleWithMOVIMM16L/address_low_bits,_r2 (0.00s)
+=== RUN   TestFixupEncodingCompatibleWithMOVIMM16H
+=== RUN   TestFixupEncodingCompatibleWithMOVIMM16H/zero_immediate,_r0
+--- FAIL: TestFixupEncodingCompatibleWithMOVIMM16H (0.00s)
+    --- FAIL: TestFixupEncodingCompatibleWithMOVIMM16H/zero_immediate,_r0 (0.00s)
+panic: mistmatched operand values, the instruction must have 2 operands, we have 3 values [recovered]
+	panic: mistmatched operand values, the instruction must have 2 operands, we have 3 values
+
+goroutine 245 [running]:
+testing.tRunner.func1.2({0x6df6a0, 0xc0003eeb40})
+	/home/vscode/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.24.0.linux-amd64/src/testing/testing.go:1734 +0x21c
+testing.tRunner.func1()
+	/home/vscode/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.24.0.linux-amd64/src/testing/testing.go:1737 +0x35e
+panic({0x6df6a0?, 0xc0003eeb40?})
+	/home/vscode/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.24.0.linux-amd64/src/runtime/panic.go:787 +0x132
+github.com/Manu343726/cucaracha/pkg/hw/cpu/mc/instructions.(*RawInstruction).Encode(0xc0002a9ee0)
+	/workspaces/cucaracha/pkg/hw/cpu/mc/instructions/rawinstruction.go:85 +0x253
+github.com/Manu343726/cucaracha/pkg/llvm.encodeInstruction(0xc00005df08?)
+	/workspaces/cucaracha/pkg/llvm/fixup_test.go:433 +0x18
+github.com/Manu343726/cucaracha/pkg/llvm.TestFixupEncodingCompatibleWithMOVIMM16H.func1(0xc0003f3dc0)
+	/workspaces/cucaracha/pkg/llvm/fixup_test.go:521 +0x1d3
+testing.tRunner(0xc0003f3dc0, 0xc0003f6180)
+	/home/vscode/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.24.0.linux-amd64/src/testing/testing.go:1792 +0xf4
+created by testing.(*T).Run in goroutine 244
+	/home/vscode/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.24.0.linux-amd64/src/testing/testing.go:1851 +0x413
+FAIL	github.com/Manu343726/cucaracha/pkg/llvm	0.318s
+?   	github.com/Manu343726/cucaracha/pkg/llvm/templates	[no test files]
+=== RUN   TestCompositeTypeStructures
+=== RUN   TestCompositeTypeStructures/Slice_type
+=== RUN   TestCompositeTypeStructures/Pointer_type
+=== RUN   TestCompositeTypeStructures/Pointer_to_slice
+=== RUN   TestCompositeTypeStructures/Array_type
+=== RUN   TestCompositeTypeStructures/Map_type_with_string_key_and_int_value
+=== RUN   TestCompositeTypeStructures/Map_with_complex_value
+=== RUN   TestCompositeTypeStructures/Channel_type_(bidirectional)
+=== RUN   TestCompositeTypeStructures/Receive-only_channel
+=== RUN   TestCompositeTypeStructures/Basic_type
+--- PASS: TestCompositeTypeStructures (0.00s)
+    --- PASS: TestCompositeTypeStructures/Slice_type (0.00s)
+    --- PASS: TestCompositeTypeStructures/Pointer_type (0.00s)
+    --- PASS: TestCompositeTypeStructures/Pointer_to_slice (0.00s)
+    --- PASS: TestCompositeTypeStructures/Array_type (0.00s)
+    --- PASS: TestCompositeTypeStructures/Map_type_with_string_key_and_int_value (0.00s)
+    --- PASS: TestCompositeTypeStructures/Map_with_complex_value (0.00s)
+    --- PASS: TestCompositeTypeStructures/Channel_type_(bidirectional) (0.00s)
+    --- PASS: TestCompositeTypeStructures/Receive-only_channel (0.00s)
+    --- PASS: TestCompositeTypeStructures/Basic_type (0.00s)
+=== RUN   TestSliceTypeResolution
+--- PASS: TestSliceTypeResolution (0.00s)
+=== RUN   TestMapTypeResolution
+--- PASS: TestMapTypeResolution (0.00s)
+=== RUN   TestPointerSliceResolution
+--- PASS: TestPointerSliceResolution (0.00s)
+=== RUN   TestFunctionTypeStructures
+=== RUN   TestFunctionTypeStructures/Simple_function_type_with_args_and_results
+=== RUN   TestFunctionTypeStructures/Function_with_no_arguments
+=== RUN   TestFunctionTypeStructures/Function_with_no_results
+=== RUN   TestFunctionTypeStructures/Function_with_composite_types
+--- PASS: TestFunctionTypeStructures (0.00s)
+    --- PASS: TestFunctionTypeStructures/Simple_function_type_with_args_and_results (0.00s)
+    --- PASS: TestFunctionTypeStructures/Function_with_no_arguments (0.00s)
+    --- PASS: TestFunctionTypeStructures/Function_with_no_results (0.00s)
+    --- PASS: TestFunctionTypeStructures/Function_with_composite_types (0.00s)
+=== RUN   TestPackageResolverCreation
+--- PASS: TestPackageResolverCreation (0.00s)
+=== RUN   TestResolvePackagePath
+=== RUN   TestResolvePackagePath/fmt
+=== RUN   TestResolvePackagePath/os
+=== RUN   TestResolvePackagePath/encoding/json
+=== RUN   TestResolvePackagePath/github.com/Manu343726/cucaracha/pkg/reflect
+=== RUN   TestResolvePackagePath/github.com/Manu343726/cucaracha/pkg/hw
+--- PASS: TestResolvePackagePath (0.56s)
+    --- PASS: TestResolvePackagePath/fmt (0.12s)
+    --- PASS: TestResolvePackagePath/os (0.13s)
+    --- PASS: TestResolvePackagePath/encoding/json (0.10s)
+    --- PASS: TestResolvePackagePath/github.com/Manu343726/cucaracha/pkg/reflect (0.13s)
+    --- PASS: TestResolvePackagePath/github.com/Manu343726/cucaracha/pkg/hw (0.08s)
+=== RUN   TestParsePackageFromImport
+--- FAIL: TestParsePackageFromImport (0.08s)
+panic: runtime error: invalid memory address or nil pointer dereference [recovered]
+	panic: runtime error: invalid memory address or nil pointer dereference
+[signal SIGSEGV: segmentation violation code=0x1 addr=0x0 pc=0x620397]
+
+goroutine 53 [running]:
+testing.tRunner.func1.2({0x6956e0, 0x932780})
+	/home/vscode/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.24.0.linux-amd64/src/testing/testing.go:1734 +0x21c
+testing.tRunner.func1()
+	/home/vscode/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.24.0.linux-amd64/src/testing/testing.go:1737 +0x35e
+panic({0x6956e0?, 0x932780?})
+	/home/vscode/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.24.0.linux-amd64/src/runtime/panic.go:787 +0x132
+github.com/Manu343726/cucaracha/pkg/reflect.identifyEnums(0xc000152f00)
+	/workspaces/cucaracha/pkg/reflect/package.go:231 +0xd7
+github.com/Manu343726/cucaracha/pkg/reflect.ParsePackageWithOptions({0xc0000265a0, 0x50}, {0x3?, 0x5f?})
+	/workspaces/cucaracha/pkg/reflect/package.go:143 +0xfb2
+github.com/Manu343726/cucaracha/pkg/reflect.ParsePackage(...)
+	/workspaces/cucaracha/pkg/reflect/package.go:16
+github.com/Manu343726/cucaracha/pkg/reflect.ParsePackageFromImportInDir({0x6e4653, 0x3}, {0xc000028034?, 0x50a7ad?})
+	/workspaces/cucaracha/pkg/reflect/resolution.go:294 +0x1e9
+github.com/Manu343726/cucaracha/pkg/reflect.ParsePackageFromImport({0x6e4653, 0x3})
+	/workspaces/cucaracha/pkg/reflect/resolution.go:271 +0x7c
+github.com/Manu343726/cucaracha/pkg/reflect.TestParsePackageFromImport(0xc0002a2380)
+	/workspaces/cucaracha/pkg/reflect/resolution_test.go:57 +0x28
+testing.tRunner(0xc0002a2380, 0x6fdb88)
+	/home/vscode/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.24.0.linux-amd64/src/testing/testing.go:1792 +0xf4
+created by testing.(*T).Run in goroutine 1
+	/home/vscode/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.24.0.linux-amd64/src/testing/testing.go:1851 +0x413
+FAIL	github.com/Manu343726/cucaracha/pkg/reflect	0.649s
+=== RUN   TestLoadCode_MatchingCodeRegion
+--- FAIL: TestLoadCode_MatchingCodeRegion (0.00s)
+panic: 
+	assert: mock: I don't know what to return because the method call was unexpected.
+		Either do Mock.On("FileName").Return(...) first, or remove the FileName() call.
+		This method was unexpected:
+			FileName()
+			
+		at: [/workspaces/cucaracha/pkg/runtime/programloader_test.go:21 /workspaces/cucaracha/pkg/runtime/programloader.go:27 /workspaces/cucaracha/pkg/runtime/programloader_test.go:165] [recovered]
+	panic: 
+	assert: mock: I don't know what to return because the method call was unexpected.
+		Either do Mock.On("FileName").Return(...) first, or remove the FileName() call.
+		This method was unexpected:
+			FileName()
+			
+		at: [/workspaces/cucaracha/pkg/runtime/programloader_test.go:21 /workspaces/cucaracha/pkg/runtime/programloader.go:27 /workspaces/cucaracha/pkg/runtime/programloader_test.go:165]
+
+goroutine 7 [running]:
+testing.tRunner.func1.2({0x63cd20, 0xc00002d2c0})
+	/home/vscode/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.24.0.linux-amd64/src/testing/testing.go:1734 +0x21c
+testing.tRunner.func1()
+	/home/vscode/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.24.0.linux-amd64/src/testing/testing.go:1737 +0x35e
+panic({0x63cd20?, 0xc00002d2c0?})
+	/home/vscode/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.24.0.linux-amd64/src/runtime/panic.go:787 +0x132
+github.com/stretchr/testify/mock.(*Mock).fail(0xc0000ffb80, {0x6ab57b?, 0x4?}, {0xc000181080?, 0x0?, 0x0?})
+	/home/vscode/go/pkg/mod/github.com/stretchr/testify@v1.11.1/mock/mock.go:359 +0x125
+github.com/stretchr/testify/mock.(*Mock).MethodCalled(0xc0000ffb80, {0x73cfba, 0x8}, {0x0, 0x0, 0x0})
+	/home/vscode/go/pkg/mod/github.com/stretchr/testify@v1.11.1/mock/mock.go:527 +0x785
+github.com/stretchr/testify/mock.(*Mock).Called(0xc0000ffb80, {0x0, 0x0, 0x0})
+	/home/vscode/go/pkg/mod/github.com/stretchr/testify@v1.11.1/mock/mock.go:491 +0x125
+github.com/Manu343726/cucaracha/pkg/runtime.(*MockProgramFile).FileName(0x416254?)
+	/workspaces/cucaracha/pkg/runtime/programloader_test.go:21 +0x1c
+github.com/Manu343726/cucaracha/pkg/runtime.NewProgramLoader({0x6fb4d8, 0xc0000ffb80}, {0x6fba68, 0xc0000ffbd0})
+	/workspaces/cucaracha/pkg/runtime/programloader.go:27 +0x139
+github.com/Manu343726/cucaracha/pkg/runtime.TestLoadCode_MatchingCodeRegion(0xc0000d88c0)
+	/workspaces/cucaracha/pkg/runtime/programloader_test.go:165 +0x325
+testing.tRunner(0xc0000d88c0, 0x6b1210)
+	/home/vscode/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.24.0.linux-amd64/src/testing/testing.go:1792 +0xf4
+created by testing.(*T).Run in goroutine 1
+	/home/vscode/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.24.0.linux-amd64/src/testing/testing.go:1851 +0x413
+FAIL	github.com/Manu343726/cucaracha/pkg/runtime	0.006s
+=== RUN   TestVariableLocationType_String_Register
+--- PASS: TestVariableLocationType_String_Register (0.00s)
+=== RUN   TestVariableLocationType_String_Memory
+--- PASS: TestVariableLocationType_String_Memory (0.00s)
+=== RUN   TestVariableLocationType_String_Constant
+--- PASS: TestVariableLocationType_String_Constant (0.00s)
+=== RUN   TestVariableLocationType_String_Unknown
+--- PASS: TestVariableLocationType_String_Unknown (0.00s)
+=== RUN   TestRegisterLocation_Type
+--- PASS: TestRegisterLocation_Type (0.00s)
+=== RUN   TestRegisterLocation_Type_RegisterZero
+--- PASS: TestRegisterLocation_Type_RegisterZero (0.00s)
+=== RUN   TestMemoryLocation_Type
+--- PASS: TestMemoryLocation_Type (0.00s)
+=== RUN   TestMemoryLocation_Type_PositiveOffset
+--- PASS: TestMemoryLocation_Type_PositiveOffset (0.00s)
+=== RUN   TestConstantLocation_Type
+--- PASS: TestConstantLocation_Type (0.00s)
+=== RUN   TestConstantLocation_Type_NegativeValue
+--- PASS: TestConstantLocation_Type_NegativeValue (0.00s)
+=== RUN   TestNewDebugInfo_CreatesEmptyStructure
+--- PASS: TestNewDebugInfo_CreatesEmptyStructure (0.00s)
+=== RUN   TestNewDebugInfo_IndependentInstances
+--- PASS: TestNewDebugInfo_IndependentInstances (0.00s)
+=== RUN   TestGetSourceLocation_NilDebugInfo
+--- PASS: TestGetSourceLocation_NilDebugInfo (0.00s)
+=== RUN   TestGetSourceLocation_AddressNotFound
+--- PASS: TestGetSourceLocation_AddressNotFound (0.00s)
+=== RUN   TestGetSourceLocation_AddressFound
+--- PASS: TestGetSourceLocation_AddressFound (0.00s)
+=== RUN   TestGetSourceLocation_MultipleAddresses
+--- PASS: TestGetSourceLocation_MultipleAddresses (0.00s)
+=== RUN   TestGetVariables_NilDebugInfo
+--- PASS: TestGetVariables_NilDebugInfo (0.00s)
+=== RUN   TestGetVariables_AddressNotFound
+--- PASS: TestGetVariables_AddressNotFound (0.00s)
+=== RUN   TestGetVariables_NoVariablesAtAddress
+--- PASS: TestGetVariables_NoVariablesAtAddress (0.00s)
+=== RUN   TestGetVariables_SingleVariable
+--- PASS: TestGetVariables_SingleVariable (0.00s)
+=== RUN   TestGetVariables_MultipleVariables
+--- PASS: TestGetVariables_MultipleVariables (0.00s)
+=== RUN   TestSortedSourceLocations_NilDebugInfo
+--- PASS: TestSortedSourceLocations_NilDebugInfo (0.00s)
+=== RUN   TestSortedSourceLocations_EmptyDebugInfo
+--- PASS: TestSortedSourceLocations_EmptyDebugInfo (0.00s)
+=== RUN   TestSortedSourceLocations_SingleLocation
+--- PASS: TestSortedSourceLocations_SingleLocation (0.00s)
+=== RUN   TestSortedSourceLocations_MultipleLocations_IsSorted
+--- PASS: TestSortedSourceLocations_MultipleLocations_IsSorted (0.00s)
+=== RUN   TestSortedSourceLocations_RandomOrder
+--- PASS: TestSortedSourceLocations_RandomOrder (0.00s)
+=== RUN   TestSortedSourceLocations_LargeAddressGaps
+--- PASS: TestSortedSourceLocations_LargeAddressGaps (0.00s)
+=== RUN   TestVariableInfo_RegisterLocation
+--- PASS: TestVariableInfo_RegisterLocation (0.00s)
+=== RUN   TestVariableInfo_MemoryLocation
+--- PASS: TestVariableInfo_MemoryLocation (0.00s)
+=== RUN   TestVariableInfo_ConstantLocation
+--- PASS: TestVariableInfo_ConstantLocation (0.00s)
+=== RUN   TestFunctionDebugInfo_Creation
+--- PASS: TestFunctionDebugInfo_Creation (0.00s)
+=== RUN   TestScopeInfo_Creation
+--- PASS: TestScopeInfo_Creation (0.00s)
+=== RUN   TestDebugInfo_CompleteFlow
+--- PASS: TestDebugInfo_CompleteFlow (0.00s)
+=== RUN   TestDebugInfo_ManyVariablesPerAddress
+--- PASS: TestDebugInfo_ManyVariablesPerAddress (0.00s)
+=== RUN   TestInstructionAtAddress_Success
+--- PASS: TestInstructionAtAddress_Success (0.00s)
+=== RUN   TestInstructionAtAddress_NoMemoryLayout
+--- PASS: TestInstructionAtAddress_NoMemoryLayout (0.00s)
+=== RUN   TestInstructionAtAddress_OutsideCodeSegment
+--- PASS: TestInstructionAtAddress_OutsideCodeSegment (0.00s)
+=== RUN   TestInstructionAtAddress_UnalignedAddress
+--- PASS: TestInstructionAtAddress_UnalignedAddress (0.00s)
+=== RUN   TestInstructionAtAddress_MultipleInstructions
+--- PASS: TestInstructionAtAddress_MultipleInstructions (0.00s)
+=== RUN   TestFunctionAtAddress_Success
+--- PASS: TestFunctionAtAddress_Success (0.00s)
+=== RUN   TestFunctionAtAddress_NotFound
+--- PASS: TestFunctionAtAddress_NotFound (0.00s)
+=== RUN   TestFunctionAtAddress_InvalidAddress
+--- PASS: TestFunctionAtAddress_InvalidAddress (0.00s)
+=== RUN   TestGlobalAtAddress_Success
+--- PASS: TestGlobalAtAddress_Success (0.00s)
+=== RUN   TestGlobalAtAddress_NotFound
+--- PASS: TestGlobalAtAddress_NotFound (0.00s)
+=== RUN   TestGlobalAtAddress_NoMemoryLayout
+--- PASS: TestGlobalAtAddress_NoMemoryLayout (0.00s)
+=== RUN   TestGlobalAtAddress_OutsideDataSegment
+--- PASS: TestGlobalAtAddress_OutsideDataSegment (0.00s)
+=== RUN   TestGlobalAtAddress_UnresolvedAddress
+--- PASS: TestGlobalAtAddress_UnresolvedAddress (0.00s)
+=== RUN   TestGlobalAtAddress_MultipleGlobals
+--- PASS: TestGlobalAtAddress_MultipleGlobals (0.00s)
+=== RUN   TestSourceLocationAtInstructionAddress_Success
+--- PASS: TestSourceLocationAtInstructionAddress_Success (0.00s)
+=== RUN   TestSourceLocationAtInstructionAddress_NoDebugInfo
+--- PASS: TestSourceLocationAtInstructionAddress_NoDebugInfo (0.00s)
+=== RUN   TestSourceLocationAtInstructionAddress_OutsideCodeSegment
+--- PASS: TestSourceLocationAtInstructionAddress_OutsideCodeSegment (0.00s)
+=== RUN   TestSourceLocationAtInstructionAddress_NotFound
+--- PASS: TestSourceLocationAtInstructionAddress_NotFound (0.00s)
+=== RUN   TestInstructionAddressAtSourceLocation_Success
+--- PASS: TestInstructionAddressAtSourceLocation_Success (0.00s)
+=== RUN   TestInstructionAddressAtSourceLocation_NoDebugInfo
+--- PASS: TestInstructionAddressAtSourceLocation_NoDebugInfo (0.00s)
+=== RUN   TestInstructionAddressAtSourceLocation_NotFound
+--- PASS: TestInstructionAddressAtSourceLocation_NotFound (0.00s)
+=== RUN   TestInstructionAddressesAtSourceLocation_SingleAddress
+--- PASS: TestInstructionAddressesAtSourceLocation_SingleAddress (0.00s)
+=== RUN   TestInstructionAddressesAtSourceLocation_MultipleContiguousAddresses
+--- PASS: TestInstructionAddressesAtSourceLocation_MultipleContiguousAddresses (0.00s)
+=== RUN   TestInstructionAddressesAtSourceLocation_NoDebugInfo
+--- PASS: TestInstructionAddressesAtSourceLocation_NoDebugInfo (0.00s)
+=== RUN   TestInstructionAddressesAtSourceLocation_NoMatch
+--- PASS: TestInstructionAddressesAtSourceLocation_NoMatch (0.00s)
+=== RUN   TestInstructionAtAddress_PanicsOnOutOfBounds
+--- PASS: TestInstructionAtAddress_PanicsOnOutOfBounds (0.00s)
+=== RUN   TestInstructionAtAddress_WithResolvedInstruction
+--- PASS: TestInstructionAtAddress_WithResolvedInstruction (0.00s)
+=== RUN   TestInstructionAtAddress_OutsideCodeSegmentHigh
+--- PASS: TestInstructionAtAddress_OutsideCodeSegmentHigh (0.00s)
+=== RUN   TestInstructionAtAddress_CorrectAddressResolution
+--- PASS: TestInstructionAtAddress_CorrectAddressResolution (0.00s)
+=== RUN   TestInstructionAtAddress_VerifyAddressConsistency
+--- PASS: TestInstructionAtAddress_VerifyAddressConsistency (0.00s)
+=== RUN   TestSourceLineAtInstructionAddress_AddressOutsideSegment
+--- PASS: TestSourceLineAtInstructionAddress_AddressOutsideSegment (0.00s)
+=== RUN   TestBranchTargetAtInstruction_MissingMemoryLayout
+--- PASS: TestBranchTargetAtInstruction_MissingMemoryLayout (0.00s)
+=== RUN   TestBranchTargetAtInstruction_AddressOutsideCode
+--- PASS: TestBranchTargetAtInstruction_AddressOutsideCode (0.00s)
+=== RUN   TestInstructionAtAddress_UnalignedAddress_Offset2
+--- PASS: TestInstructionAtAddress_UnalignedAddress_Offset2 (0.00s)
+=== RUN   TestInstructionAtAddress_UnalignedAddress_Offset3
+--- PASS: TestInstructionAtAddress_UnalignedAddress_Offset3 (0.00s)
+=== RUN   TestInstructionAddressesAtSourceLocation_Success_MultipleAddresses
+--- PASS: TestInstructionAddressesAtSourceLocation_Success_MultipleAddresses (0.00s)
+=== RUN   TestSourceLocationAtInstructionAddress_WithAddress
+--- PASS: TestSourceLocationAtInstructionAddress_WithAddress (0.00s)
+=== RUN   TestInstructionAtAddress_ZeroOffset
+--- PASS: TestInstructionAtAddress_ZeroOffset (0.00s)
+=== RUN   TestInstructionAtAddress_AllMisalignedAddresses
+--- PASS: TestInstructionAtAddress_AllMisalignedAddresses (0.00s)
+=== RUN   TestFunctionAtAddress_WithFunction
+--- PASS: TestFunctionAtAddress_WithFunction (0.00s)
+=== RUN   TestSourceLocationAtInstructionAddress_CompleteFlow
+--- PASS: TestSourceLocationAtInstructionAddress_CompleteFlow (0.00s)
+=== RUN   TestInstructionAddressAtSourceLocation_FindsFirstMatch
+--- PASS: TestInstructionAddressAtSourceLocation_FindsFirstMatch (0.00s)
+=== RUN   TestInstructionAddressesAtSourceLocation_EmptyResult
+--- PASS: TestInstructionAddressesAtSourceLocation_EmptyResult (0.00s)
+=== RUN   TestGlobalAtAddress_UnresolvedGlobalAddress
+--- PASS: TestGlobalAtAddress_UnresolvedGlobalAddress (0.00s)
+=== RUN   TestInstructionAddressAtSourceLocation_MultipleFiles
+--- PASS: TestInstructionAddressAtSourceLocation_MultipleFiles (0.00s)
+=== RUN   TestInstructionAtAddress_AlignedAccess
+--- PASS: TestInstructionAtAddress_AlignedAccess (0.00s)
+=== RUN   TestSourceLineAtInstructionAddress_ValidInstruction
+--- PASS: TestSourceLineAtInstructionAddress_ValidInstruction (0.00s)
+=== RUN   TestBranchTargetAtInstruction_JumpInstruction
+--- PASS: TestBranchTargetAtInstruction_JumpInstruction (0.00s)
+=== RUN   TestInstructionAddressAtSourceLocation_FirstMatch
+--- PASS: TestInstructionAddressAtSourceLocation_FirstMatch (0.00s)
+=== RUN   TestGlobalAtAddress_BoundaryAddresses
+--- PASS: TestGlobalAtAddress_BoundaryAddresses (0.00s)
+=== RUN   TestSourceLocationAtInstructionAddress_DifferentLines
+--- PASS: TestSourceLocationAtInstructionAddress_DifferentLines (0.00s)
+=== RUN   TestInstructionAtAddress_ConsecutiveInstructions
+--- PASS: TestInstructionAtAddress_ConsecutiveInstructions (0.00s)
+=== RUN   TestInstructionsAtAddress_Success
+--- PASS: TestInstructionsAtAddress_Success (0.00s)
+=== RUN   TestInstructionsAtAddress_SingleInstruction
+--- PASS: TestInstructionsAtAddress_SingleInstruction (0.00s)
+=== RUN   TestInstructionsAtAddress_ZeroCount
+--- PASS: TestInstructionsAtAddress_ZeroCount (0.00s)
+=== RUN   TestInstructionsAtAddress_OutOfBounds
+--- PASS: TestInstructionsAtAddress_OutOfBounds (0.00s)
+=== RUN   TestInstructionsAtAddress_UnalignedAddress
+--- PASS: TestInstructionsAtAddress_UnalignedAddress (0.00s)
+=== RUN   TestInstructionsAtAddress_ConsecutiveAddresses
+--- PASS: TestInstructionsAtAddress_ConsecutiveAddresses (0.00s)
+=== RUN   TestInstructionsAtAddress_LargeCount
+--- PASS: TestInstructionsAtAddress_LargeCount (0.00s)
+=== RUN   TestSourceLineAtInstructionAddress_WithValidLocation
+--- PASS: TestSourceLineAtInstructionAddress_WithValidLocation (0.00s)
+=== RUN   TestBranchTargetAtInstruction_CompleteFlow
+--- PASS: TestBranchTargetAtInstruction_CompleteFlow (0.00s)
+=== RUN   TestInstructionResolver_FailsWithoutMemoryLayout
+--- PASS: TestInstructionResolver_FailsWithoutMemoryLayout (0.00s)
+=== RUN   TestInstructionResolver_FailsWithoutInstructionAddresses
+--- PASS: TestInstructionResolver_FailsWithoutInstructionAddresses (0.00s)
+=== RUN   TestInstructionResolver_FailsWithoutGlobalAddresses
+--- PASS: TestInstructionResolver_FailsWithoutGlobalAddresses (0.00s)
+=== RUN   TestInstructionResolver_FailsWithUnresolvedSymbol
+--- PASS: TestInstructionResolver_FailsWithUnresolvedSymbol (0.00s)
+=== RUN   TestInstructionResolver_ResolvesFromText_NOP
+--- PASS: TestInstructionResolver_ResolvesFromText_NOP (0.00s)
+=== RUN   TestInstructionResolver_ResolvesFromText_ADD
+--- PASS: TestInstructionResolver_ResolvesFromText_ADD (0.00s)
+=== RUN   TestInstructionResolver_ResolvesFromText_MOV
+--- PASS: TestInstructionResolver_ResolvesFromText_MOV (0.00s)
+=== RUN   TestInstructionResolver_ResolvesFromText_MOVIMM16L
+--- PASS: TestInstructionResolver_ResolvesFromText_MOVIMM16L (0.00s)
+=== RUN   TestInstructionResolver_ResolvesFromRaw
+--- PASS: TestInstructionResolver_ResolvesFromRaw (0.00s)
+=== RUN   TestInstructionResolver_ResolvesFromInstruction
+--- PASS: TestInstructionResolver_ResolvesFromInstruction (0.00s)
+=== RUN   TestInstructionResolver_ResolvesMultipleInstructions
+--- PASS: TestInstructionResolver_ResolvesMultipleInstructions (0.00s)
+=== RUN   TestInstructionResolver_PreservesExistingFields
+--- PASS: TestInstructionResolver_PreservesExistingFields (0.00s)
+=== RUN   TestInstructionResolver_WithContext_ResolvesLabelSymbol
+--- PASS: TestInstructionResolver_WithContext_ResolvesLabelSymbol (0.00s)
+=== RUN   TestInstructionResolver_WithContext_ResolvesGlobalSymbol
+--- PASS: TestInstructionResolver_WithContext_ResolvesGlobalSymbol (0.00s)
+=== RUN   TestInstructionResolver_FailsOnUnknownMnemonic
+--- PASS: TestInstructionResolver_FailsOnUnknownMnemonic (0.00s)
+=== RUN   TestInstructionResolver_FailsOnWrongOperandCount
+--- PASS: TestInstructionResolver_FailsOnWrongOperandCount (0.00s)
+=== RUN   TestInstructionResolver_GenerateTextFromInstruction_SymbolOnlyForImmediate
+--- PASS: TestInstructionResolver_GenerateTextFromInstruction_SymbolOnlyForImmediate (0.00s)
+=== RUN   TestInstructionResolver_GenerateTextFromInstruction_HidesLLVMInternalOperands
+--- PASS: TestInstructionResolver_GenerateTextFromInstruction_HidesLLVMInternalOperands (0.00s)
+=== RUN   TestInstructionResolver_GenerateTextFromInstruction_MultipleSymbols
+--- PASS: TestInstructionResolver_GenerateTextFromInstruction_MultipleSymbols (0.00s)
+=== RUN   TestInstructionResolver_GenerateTextFromInstruction_NoSymbols
+--- PASS: TestInstructionResolver_GenerateTextFromInstruction_NoSymbols (0.00s)
+=== RUN   TestAlignAddress
+=== RUN   TestAlignAddress/already_aligned
+=== RUN   TestAlignAddress/needs_alignment_by_1
+=== RUN   TestAlignAddress/needs_alignment_by_2
+=== RUN   TestAlignAddress/needs_alignment_by_3
+=== RUN   TestAlignAddress/zero_address
+=== RUN   TestAlignAddress/alignment_8
+=== RUN   TestAlignAddress/alignment_16
+=== RUN   TestAlignAddress/alignment_16_needs_align
+=== RUN   TestAlignAddress/zero_alignment
+--- PASS: TestAlignAddress (0.00s)
+    --- PASS: TestAlignAddress/already_aligned (0.00s)
+    --- PASS: TestAlignAddress/needs_alignment_by_1 (0.00s)
+    --- PASS: TestAlignAddress/needs_alignment_by_2 (0.00s)
+    --- PASS: TestAlignAddress/needs_alignment_by_3 (0.00s)
+    --- PASS: TestAlignAddress/zero_address (0.00s)
+    --- PASS: TestAlignAddress/alignment_8 (0.00s)
+    --- PASS: TestAlignAddress/alignment_16 (0.00s)
+    --- PASS: TestAlignAddress/alignment_16_needs_align (0.00s)
+    --- PASS: TestAlignAddress/zero_alignment (0.00s)
+=== RUN   TestResolveMemory_EmptyProgram
+--- PASS: TestResolveMemory_EmptyProgram (0.00s)
+=== RUN   TestResolveMemory_InstructionsOnly
+--- PASS: TestResolveMemory_InstructionsOnly (0.00s)
+=== RUN   TestResolveMemory_GlobalsOnly
+--- PASS: TestResolveMemory_GlobalsOnly (0.00s)
+=== RUN   TestResolveMemory_CodeAndData
+--- PASS: TestResolveMemory_CodeAndData (0.00s)
+=== RUN   TestResolveMemory_DataAlignment
+--- PASS: TestResolveMemory_DataAlignment (0.00s)
+=== RUN   TestResolveMemory_MaxSizeExceeded
+--- PASS: TestResolveMemory_MaxSizeExceeded (0.00s)
+=== RUN   TestResolveMemory_MaxSizeJustRight
+--- PASS: TestResolveMemory_MaxSizeJustRight (0.00s)
+=== RUN   TestResolveMemory_WithLabels
+--- PASS: TestResolveMemory_WithLabels (0.00s)
+=== RUN   TestResolveMemory_WithFunctions
+--- PASS: TestResolveMemory_WithFunctions (0.00s)
+=== RUN   TestResolveMemory_WithSymbolReferences
+--- FAIL: TestResolveMemory_WithSymbolReferences (0.00s)
+panic: runtime error: invalid memory address or nil pointer dereference [recovered]
+	panic: runtime error: invalid memory address or nil pointer dereference
+[signal SIGSEGV: segmentation violation code=0x1 addr=0x0 pc=0x59bdf1]
+
+goroutine 154 [running]:
+testing.tRunner.func1.2({0x694f40, 0x933590})
+	/home/vscode/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.24.0.linux-amd64/src/testing/testing.go:1734 +0x21c
+testing.tRunner.func1()
+	/home/vscode/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.24.0.linux-amd64/src/testing/testing.go:1737 +0x35e
+panic({0x694f40?, 0x933590?})
+	/home/vscode/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.24.0.linux-amd64/src/runtime/panic.go:787 +0x132
+github.com/Manu343726/cucaracha/pkg/hw/cpu/mc/instructions.(*Instruction).String(0x0)
+	/workspaces/cucaracha/pkg/hw/cpu/mc/instructions/instruction.go:34 +0x31
+github.com/Manu343726/cucaracha/pkg/runtime/program.ResolveMemory({0x7520b0, 0xc0001d9f00}, 0xc000031f08)
+	/workspaces/cucaracha/pkg/runtime/program/memoryresolver.go:131 +0x35f5
+github.com/Manu343726/cucaracha/pkg/runtime/program.TestResolveMemory_WithSymbolReferences(0xc0002121c0)
+	/workspaces/cucaracha/pkg/runtime/program/memoryresolver_test.go:396 +0x325
+testing.tRunner(0xc0002121c0, 0x6fd098)
+	/home/vscode/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.24.0.linux-amd64/src/testing/testing.go:1792 +0xf4
+created by testing.(*T).Run in goroutine 1
+	/home/vscode/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.24.0.linux-amd64/src/testing/testing.go:1851 +0x413
+FAIL	github.com/Manu343726/cucaracha/pkg/runtime/program	0.019s
+?   	github.com/Manu343726/cucaracha/pkg/runtime/program/loader	[no test files]
+?   	github.com/Manu343726/cucaracha/pkg/runtime/program/sourcecode	[no test files]
+=== RUN   TestMemoryAllocator_Allocate_WithPeripherals
+--- PASS: TestMemoryAllocator_Allocate_WithPeripherals (0.00s)
+=== RUN   TestMemoryAllocator_Allocate_WithPreferredAddress
+--- PASS: TestMemoryAllocator_Allocate_WithPreferredAddress (0.00s)
+=== RUN   TestMemoryAllocator_Allocate_InsufficientSpace
+--- PASS: TestMemoryAllocator_Allocate_InsufficientSpace (0.00s)
+=== RUN   TestAllocationResult_Summary
+--- PASS: TestAllocationResult_Summary (0.00s)
+=== RUN   TestSmallMemoryLayouts
+=== RUN   TestSmallMemoryLayouts/512_bytes
+=== RUN   TestSmallMemoryLayouts/1024_bytes
+=== RUN   TestSmallMemoryLayouts/2048_bytes
+=== RUN   TestSmallMemoryLayouts/4096_bytes
+--- PASS: TestSmallMemoryLayouts (0.00s)
+    --- PASS: TestSmallMemoryLayouts/512_bytes (0.00s)
+    --- PASS: TestSmallMemoryLayouts/1024_bytes (0.00s)
+    --- PASS: TestSmallMemoryLayouts/2048_bytes (0.00s)
+    --- PASS: TestSmallMemoryLayouts/4096_bytes (0.00s)
+=== RUN   TestSmallMemoryLayoutTooSmall
+--- PASS: TestSmallMemoryLayoutTooSmall (0.00s)
+=== RUN   TestParse_Basic
+--- PASS: TestParse_Basic (0.00s)
+=== RUN   TestParse_WithPeripherals
+--- PASS: TestParse_WithPeripherals (0.00s)
+=== RUN   TestParse_DefaultVersion
+--- PASS: TestParse_DefaultVersion (0.00s)
+=== RUN   TestParse_UnsupportedVersion
+--- PASS: TestParse_UnsupportedVersion (0.00s)
+=== RUN   TestParse_InvalidYAML
+--- PASS: TestParse_InvalidYAML (0.00s)
+=== RUN   TestParse_MinimalConfig
+--- PASS: TestParse_MinimalConfig (0.00s)
+=== RUN   TestLoadFile_Success
+--- PASS: TestLoadFile_Success (0.00s)
+=== RUN   TestLoadFile_NotFound
+--- PASS: TestLoadFile_NotFound (0.00s)
+=== RUN   TestResolvePeripherals_Success
+--- PASS: TestResolvePeripherals_Success (0.00s)
+=== RUN   TestResolvePeripherals_UnknownType
+--- PASS: TestResolvePeripherals_UnknownType (0.00s)
+=== RUN   TestResolvePeripherals_DefaultValues
+--- PASS: TestResolvePeripherals_DefaultValues (0.00s)
+=== RUN   TestSetup_Basic
+--- PASS: TestSetup_Basic (0.00s)
+=== RUN   TestSetup_WithPeripherals
+--- PASS: TestSetup_WithPeripherals (0.00s)
+=== RUN   TestSetup_InsufficientMemory
+--- PASS: TestSetup_InsufficientMemory (0.00s)
+=== RUN   TestString_ValidConfig
+--- PASS: TestString_ValidConfig (0.00s)
+=== RUN   TestString_InvalidConfig
+--- PASS: TestString_InvalidConfig (0.00s)
+=== RUN   TestMemoryConfig_AllFields
+--- PASS: TestMemoryConfig_AllFields (0.00s)
+=== RUN   TestPeripheralConfig_UnknownPeripheralType
+--- PASS: TestPeripheralConfig_UnknownPeripheralType (0.00s)
+=== RUN   TestPeripheralConfig_CustomDescription
+--- PASS: TestPeripheralConfig_CustomDescription (0.00s)
+=== RUN   TestMultiplePeripherals_DifferentTypes
+--- PASS: TestMultiplePeripherals_DifferentTypes (0.00s)
+=== RUN   TestEncodedSystemDescriptorLayout_Validate
+=== RUN   TestEncodedSystemDescriptorLayout_Validate/Valid_layout_with_0_peripherals
+=== RUN   TestEncodedSystemDescriptorLayout_Validate/Valid_layout_with_5_peripherals
+=== RUN   TestEncodedSystemDescriptorLayout_Validate/Non-contiguous_ranges
+--- PASS: TestEncodedSystemDescriptorLayout_Validate (0.00s)
+    --- PASS: TestEncodedSystemDescriptorLayout_Validate/Valid_layout_with_0_peripherals (0.00s)
+    --- PASS: TestEncodedSystemDescriptorLayout_Validate/Valid_layout_with_5_peripherals (0.00s)
+    --- PASS: TestEncodedSystemDescriptorLayout_Validate/Non-contiguous_ranges (0.00s)
+=== RUN   TestEncodedSystemDescriptorLayout_String
+--- PASS: TestEncodedSystemDescriptorLayout_String (0.00s)
+=== RUN   TestEncodedSystemDescriptorLayout_Size
+--- PASS: TestEncodedSystemDescriptorLayout_Size (0.00s)
+=== RUN   TestEncodedSystemDescriptorLayout_Magic
+--- PASS: TestEncodedSystemDescriptorLayout_Magic (0.00s)
+=== RUN   TestEncodedSystemDescriptorLayout_Version
+--- PASS: TestEncodedSystemDescriptorLayout_Version (0.00s)
+=== RUN   TestEncodedSystemDescriptorLayout_TotalMemory
+--- PASS: TestEncodedSystemDescriptorLayout_TotalMemory (0.00s)
+=== RUN   TestEncodedSystemDescriptorLayout_VectorTableBaseAddress
+--- PASS: TestEncodedSystemDescriptorLayout_VectorTableBaseAddress (0.00s)
+=== RUN   TestEncodedSystemDescriptorLayout_NumVectors
+--- PASS: TestEncodedSystemDescriptorLayout_NumVectors (0.00s)
+=== RUN   TestEncodedSystemDescriptorLayout_VectorEntrySize
+--- PASS: TestEncodedSystemDescriptorLayout_VectorEntrySize (0.00s)
+=== RUN   TestEncodedSystemDescriptorLayout_NumPeripherals
+--- PASS: TestEncodedSystemDescriptorLayout_NumPeripherals (0.00s)
+=== RUN   TestEncodedSystemDescriptorLayout_PeripheralEntrySize
+--- PASS: TestEncodedSystemDescriptorLayout_PeripheralEntrySize (0.00s)
+=== RUN   TestEncodedSystemDescriptorLayout_PeripheralEntry
+--- PASS: TestEncodedSystemDescriptorLayout_PeripheralEntry (0.00s)
+=== RUN   TestEncodedSystemDescriptorLayout_PeripheralName
+--- PASS: TestEncodedSystemDescriptorLayout_PeripheralName (0.00s)
+=== RUN   TestEncodedSystemDescriptorLayout_PeripheralType
+--- PASS: TestEncodedSystemDescriptorLayout_PeripheralType (0.00s)
+=== RUN   TestEncodedSystemDescriptorLayout_PeripheralBaseAddress
+--- PASS: TestEncodedSystemDescriptorLayout_PeripheralBaseAddress (0.00s)
+=== RUN   TestEncodedSystemDescriptorLayout_PeripheralSize
+--- PASS: TestEncodedSystemDescriptorLayout_PeripheralSize (0.00s)
+=== RUN   TestEncodedSystemDescriptorLayout_PeripheralInterruptVector
+--- PASS: TestEncodedSystemDescriptorLayout_PeripheralInterruptVector (0.00s)
+=== RUN   TestEncodedSystemDescriptorLayout_CustomBaseAddress
+--- PASS: TestEncodedSystemDescriptorLayout_CustomBaseAddress (0.00s)
+=== RUN   TestEncodeSystemDescriptor_WriterError
+--- PASS: TestEncodeSystemDescriptor_WriterError (0.00s)
+=== RUN   TestDecodeSystemDescriptor_InvalidMagic
+--- PASS: TestDecodeSystemDescriptor_InvalidMagic (0.00s)
+=== RUN   TestDecodeSystemDescriptor_InvalidVersion
+--- PASS: TestDecodeSystemDescriptor_InvalidVersion (0.00s)
+=== RUN   TestDecodeSystemDescriptor_TruncatedData
+--- PASS: TestDecodeSystemDescriptor_TruncatedData (0.00s)
+=== RUN   TestEncodedSystemDescriptorLayout_ConsistentSize
+--- PASS: TestEncodedSystemDescriptorLayout_ConsistentSize (0.00s)
+=== RUN   TestEncodedSystemDescriptorLayout_PeripheralIndexing
+--- PASS: TestEncodedSystemDescriptorLayout_PeripheralIndexing (0.00s)
+=== RUN   TestEncodedSystemDescriptorLayout_AllAccessorsReturnValidRanges
+--- PASS: TestEncodedSystemDescriptorLayout_AllAccessorsReturnValidRanges (0.00s)
+=== RUN   TestEncodedSystemDescriptorLayout_SizeIncreasingWithPeripherals
+--- PASS: TestEncodedSystemDescriptorLayout_SizeIncreasingWithPeripherals (0.00s)
+=== RUN   TestEncodeDecodeSystemDescriptor_BasicRoundtrip
+--- PASS: TestEncodeDecodeSystemDescriptor_BasicRoundtrip (0.00s)
+=== RUN   TestEncodeDecodeSystemDescriptor_FieldRecovery
+--- PASS: TestEncodeDecodeSystemDescriptor_FieldRecovery (0.00s)
+=== RUN   TestEncodeDecodeSystemDescriptor_WithTerminalPeripheral
+--- PASS: TestEncodeDecodeSystemDescriptor_WithTerminalPeripheral (0.00s)
+=== RUN   TestEncodeDecodeSystemDescriptor_WithMultiplePeripherals
+--- PASS: TestEncodeDecodeSystemDescriptor_WithMultiplePeripherals (0.00s)
+=== RUN   TestEncodeSystemDescriptor_PartialWriteError
+--- PASS: TestEncodeSystemDescriptor_PartialWriteError (0.00s)
+=== RUN   TestDecodeSystemDescriptor_MissingData
+--- PASS: TestDecodeSystemDescriptor_MissingData (0.00s)
+=== RUN   TestEncodeDecodeSystemDescriptor_PeripheralNameEncoding
+--- PASS: TestEncodeDecodeSystemDescriptor_PeripheralNameEncoding (0.00s)
+=== RUN   TestEncodeSystemDescriptor_RegionWriteErrors
+--- PASS: TestEncodeSystemDescriptor_RegionWriteErrors (0.00s)
+=== RUN   TestEncodeSystemDescriptor_VectorTableWriteErrors
+--- PASS: TestEncodeSystemDescriptor_VectorTableWriteErrors (0.00s)
+=== RUN   TestDecodeSystemDescriptor_InvalidMemoryLayout
+--- PASS: TestDecodeSystemDescriptor_InvalidMemoryLayout (0.00s)
+=== RUN   TestDecodeSystemDescriptor_VectorTableReadError
+--- PASS: TestDecodeSystemDescriptor_VectorTableReadError (0.00s)
+=== RUN   TestDecodeSystemDescriptor_PeripheralCountReadError
+--- PASS: TestDecodeSystemDescriptor_PeripheralCountReadError (0.00s)
+PASS
+ok  	github.com/Manu343726/cucaracha/pkg/system	0.012s
+?   	github.com/Manu343726/cucaracha/pkg/ui	[no test files]
+?   	github.com/Manu343726/cucaracha/pkg/ui/debugger	[no test files]
+=== RUN   TestIntegration
+=== RUN   TestIntegration/load_program.repl
+[DEBUG] Original: loadsystem, KebabCase: loadsystem, PascalCase: Loadsystem, Final: DebuggerCommandLoadsystem
+[DEBUG] Original: loadruntime, KebabCase: loadruntime, PascalCase: Loadruntime, Final: DebuggerCommandLoadruntime
+[DEBUG] Original: loadprogram, KebabCase: loadprogram, PascalCase: Loadprogram, Final: DebuggerCommandLoadprogram
+    integration_test.go:187: Parsed 4 command outputs from load_program.repl
+    integration_test.go:200: 
+        	Error Trace:	/workspaces/cucaracha/pkg/ui/repl/integration_test.go:200
+        	Error:      	Not equal: 
+        	            	expected: true
+        	            	actual  : false
+        	Test:       	TestIntegration/load_program.repl
+        	Messages:   	:0 'loadsystem default' unexpected result
+    integration_test.go:201: 
+        	Error Trace:	/workspaces/cucaracha/pkg/ui/repl/integration_test.go:201
+        	Error:      	Not equal: 
+        	            	expected: "system loaded"
+        	            	actual  : "Error: unknown DebuggerCommandId: DebuggerCommandLoadsystem"
+        	            	
+        	            	Diff:
+        	            	--- Expected
+        	            	+++ Actual
+        	            	@@ -1 +1 @@
+        	            	-system loaded
+        	            	+Error: unknown DebuggerCommandId: DebuggerCommandLoadsystem
+        	Test:       	TestIntegration/load_program.repl
+        	Messages:   	:0 'loadsystem default' unexpected output
+    integration_test.go:200: 
+        	Error Trace:	/workspaces/cucaracha/pkg/ui/repl/integration_test.go:200
+        	Error:      	Not equal: 
+        	            	expected: true
+        	            	actual  : false
+        	Test:       	TestIntegration/load_program.repl
+        	Messages:   	:0 'loadruntime interpreter' unexpected result
+    integration_test.go:201: 
+        	Error Trace:	/workspaces/cucaracha/pkg/ui/repl/integration_test.go:201
+        	Error:      	Not equal: 
+        	            	expected: "runtime loaded"
+        	            	actual  : "Error: unknown DebuggerCommandId: DebuggerCommandLoadruntime"
+        	            	
+        	            	Diff:
+        	            	--- Expected
+        	            	+++ Actual
+        	            	@@ -1 +1 @@
+        	            	-runtime loaded
+        	            	+Error: unknown DebuggerCommandId: DebuggerCommandLoadruntime
+        	Test:       	TestIntegration/load_program.repl
+        	Messages:   	:0 'loadruntime interpreter' unexpected output
+    integration_test.go:200: 
+        	Error Trace:	/workspaces/cucaracha/pkg/ui/repl/integration_test.go:200
+        	Error:      	Not equal: 
+        	            	expected: true
+        	            	actual  : false
+        	Test:       	TestIntegration/load_program.repl
+        	Messages:   	:0 'loadprogram programs/program.c' unexpected result
+    integration_test.go:201: 
+        	Error Trace:	/workspaces/cucaracha/pkg/ui/repl/integration_test.go:201
+        	Error:      	Not equal: 
+        	            	expected: "programs/program.c loaded"
+        	            	actual  : "Error: unknown DebuggerCommandId: DebuggerCommandLoadprogram"
+        	            	
+        	            	Diff:
+        	            	--- Expected
+        	            	+++ Actual
+        	            	@@ -1 +1 @@
+        	            	-programs/program.c loaded
+        	            	+Error: unknown DebuggerCommandId: DebuggerCommandLoadprogram
+        	Test:       	TestIntegration/load_program.repl
+        	Messages:   	:0 'loadprogram programs/program.c' unexpected output
+--- FAIL: TestIntegration (0.00s)
+    --- FAIL: TestIntegration/load_program.repl (0.00s)
+FAIL
+FAIL	github.com/Manu343726/cucaracha/pkg/ui/repl	0.009s
+?   	github.com/Manu343726/cucaracha/pkg/ui/tui	[no test files]
+?   	github.com/Manu343726/cucaracha/pkg/ui/tui/tview	[no test files]
+=== RUN   TestNewManager
+--- PASS: TestNewManager (0.00s)
+=== RUN   TestManagerGetTheme
+--- PASS: TestManagerGetTheme (0.00s)
+=== RUN   TestManagerSetTheme
+--- PASS: TestManagerSetTheme (0.00s)
+=== RUN   TestManagerGetThemeNames
+--- PASS: TestManagerGetThemeNames (0.00s)
+=== RUN   TestManagerGetThemeByIndex
+--- PASS: TestManagerGetThemeByIndex (0.00s)
+=== RUN   TestManagerSelectThemeByIndex
+--- PASS: TestManagerSelectThemeByIndex (0.00s)
+=== RUN   TestManagerGetThemeByName
+--- PASS: TestManagerGetThemeByName (0.00s)
+=== RUN   TestManagerGetCurrentThemeName
+--- PASS: TestManagerGetCurrentThemeName (0.00s)
+=== RUN   TestManagerGetThemes
+--- PASS: TestManagerGetThemes (0.00s)
+=== RUN   TestManagerConsistency
+--- PASS: TestManagerConsistency (0.00s)
+=== RUN   TestManagerThemeProperties
+--- PASS: TestManagerThemeProperties (0.00s)
+=== RUN   TestManagerThemeColors
+--- PASS: TestManagerThemeColors (0.00s)
+=== RUN   TestFormatError
+--- PASS: TestFormatError (0.00s)
+=== RUN   TestFormatSuccess
+--- PASS: TestFormatSuccess (0.00s)
+=== RUN   TestFormatWarning
+--- PASS: TestFormatWarning (0.00s)
+=== RUN   TestFormatInfo
+--- PASS: TestFormatInfo (0.00s)
+=== RUN   TestFormatPrompt
+--- PASS: TestFormatPrompt (0.00s)
+=== RUN   TestThemesGlobalMap
+--- PASS: TestThemesGlobalMap (0.00s)
+=== RUN   TestMonokaiDarkTheme
+--- PASS: TestMonokaiDarkTheme (0.00s)
+=== RUN   TestDraculaTheme
+--- PASS: TestDraculaTheme (0.00s)
+=== RUN   TestNordTheme
+--- PASS: TestNordTheme (0.00s)
+=== RUN   TestSolarizedDarkTheme
+--- PASS: TestSolarizedDarkTheme (0.00s)
+=== RUN   TestGruvboxDarkTheme
+--- PASS: TestGruvboxDarkTheme (0.00s)
+=== RUN   TestOneDarkTheme
+--- PASS: TestOneDarkTheme (0.00s)
+=== RUN   TestThemeConsistency
+--- PASS: TestThemeConsistency (0.00s)
+=== RUN   TestThemeMapConsistency
+--- PASS: TestThemeMapConsistency (0.00s)
+PASS
+ok  	github.com/Manu343726/cucaracha/pkg/ui/tui/tview/themes	0.009s
+=== RUN   TestFuzzyMatch
+=== RUN   TestFuzzyMatch/exact_match
+=== RUN   TestFuzzyMatch/case_insensitive
+=== RUN   TestFuzzyMatch/fuzzy_match
+=== RUN   TestFuzzyMatch/fuzzy_match_partial
+=== RUN   TestFuzzyMatch/no_match
+=== RUN   TestFuzzyMatch/empty_pattern
+=== RUN   TestFuzzyMatch/empty_pattern_and_text
+=== RUN   TestFuzzyMatch/single_char
+=== RUN   TestFuzzyMatch/order_matters
+=== RUN   TestFuzzyMatch/substring_match
+=== RUN   TestFuzzyMatch/case_insensitive_fuzzy
+--- PASS: TestFuzzyMatch (0.00s)
+    --- PASS: TestFuzzyMatch/exact_match (0.00s)
+    --- PASS: TestFuzzyMatch/case_insensitive (0.00s)
+    --- PASS: TestFuzzyMatch/fuzzy_match (0.00s)
+    --- PASS: TestFuzzyMatch/fuzzy_match_partial (0.00s)
+    --- PASS: TestFuzzyMatch/no_match (0.00s)
+    --- PASS: TestFuzzyMatch/empty_pattern (0.00s)
+    --- PASS: TestFuzzyMatch/empty_pattern_and_text (0.00s)
+    --- PASS: TestFuzzyMatch/single_char (0.00s)
+    --- PASS: TestFuzzyMatch/order_matters (0.00s)
+    --- PASS: TestFuzzyMatch/substring_match (0.00s)
+    --- PASS: TestFuzzyMatch/case_insensitive_fuzzy (0.00s)
+=== RUN   TestFuzzyMatchScore
+=== RUN   TestFuzzyMatchScore/exact_match_scores_high
+=== RUN   TestFuzzyMatchScore/partial_match_scores_lower
+=== RUN   TestFuzzyMatchScore/consecutive_match_scores_high
+=== RUN   TestFuzzyMatchScore/empty_pattern
+=== RUN   TestFuzzyMatchScore/single_char
+--- PASS: TestFuzzyMatchScore (0.00s)
+    --- PASS: TestFuzzyMatchScore/exact_match_scores_high (0.00s)
+    --- PASS: TestFuzzyMatchScore/partial_match_scores_lower (0.00s)
+    --- PASS: TestFuzzyMatchScore/consecutive_match_scores_high (0.00s)
+    --- PASS: TestFuzzyMatchScore/empty_pattern (0.00s)
+    --- PASS: TestFuzzyMatchScore/single_char (0.00s)
+=== RUN   TestThemeSelectorCreation
+--- PASS: TestThemeSelectorCreation (0.00s)
+=== RUN   TestThemeSelectorFilterThemes
+--- PASS: TestThemeSelectorFilterThemes (0.00s)
+=== RUN   TestThemeSelectorFuzzyFiltering
+--- PASS: TestThemeSelectorFuzzyFiltering (0.00s)
+=== RUN   TestThemeSelectorGetSelectedTheme
+--- PASS: TestThemeSelectorGetSelectedTheme (0.00s)
+=== RUN   TestThemeSelectorCallbacks
+--- PASS: TestThemeSelectorCallbacks (0.00s)
+=== RUN   TestThemeSelectorSearchQuery
+--- PASS: TestThemeSelectorSearchQuery (0.00s)
+=== RUN   TestThemeSelectorThemeIndexMapping
+--- PASS: TestThemeSelectorThemeIndexMapping (0.00s)
+=== RUN   TestThemeSelectorListItem
+--- PASS: TestThemeSelectorListItem (0.00s)
+=== RUN   TestThemeSelectorPreviewWidget
+--- PASS: TestThemeSelectorPreviewWidget (0.00s)
+=== RUN   TestThemeSelectorSetTheme
+--- PASS: TestThemeSelectorSetTheme (0.00s)
+=== RUN   TestThemeSelectorUpdatePreviewWithNilTheme
+--- PASS: TestThemeSelectorUpdatePreviewWithNilTheme (0.00s)
+=== RUN   TestThemeSelectorThemeItemPreviewOutOfBounds
+--- PASS: TestThemeSelectorThemeItemPreviewOutOfBounds (0.00s)
+=== RUN   TestThemeSelectorThemeItemSelectedOutOfBounds
+--- PASS: TestThemeSelectorThemeItemSelectedOutOfBounds (0.00s)
+=== RUN   TestThemeSelectorInputCapture
+--- PASS: TestThemeSelectorInputCapture (0.00s)
+=== RUN   TestPopulateList
+--- PASS: TestPopulateList (0.00s)
+=== RUN   TestFilterThemesScoreSorting
+--- PASS: TestFilterThemesScoreSorting (0.00s)
+=== RUN   TestFuzzyMatchEdgeCases
+=== RUN   TestFuzzyMatchEdgeCases/unicode_characters
+=== RUN   TestFuzzyMatchEdgeCases/numeric_match
+=== RUN   TestFuzzyMatchEdgeCases/special_characters
+=== RUN   TestFuzzyMatchEdgeCases/whitespace
+=== RUN   TestFuzzyMatchEdgeCases/very_long_text
+--- PASS: TestFuzzyMatchEdgeCases (0.00s)
+    --- PASS: TestFuzzyMatchEdgeCases/unicode_characters (0.00s)
+    --- PASS: TestFuzzyMatchEdgeCases/numeric_match (0.00s)
+    --- PASS: TestFuzzyMatchEdgeCases/special_characters (0.00s)
+    --- PASS: TestFuzzyMatchEdgeCases/whitespace (0.00s)
+    --- PASS: TestFuzzyMatchEdgeCases/very_long_text (0.00s)
+=== RUN   TestFuzzyMatchScoreConsistency
+--- PASS: TestFuzzyMatchScoreConsistency (0.00s)
+=== RUN   TestThemeSelectorFilterThemesEmptyBuiltIn
+--- PASS: TestThemeSelectorFilterThemesEmptyBuiltIn (0.00s)
+=== RUN   TestThemeSelectorCallbackWithVSCodeTheme
+--- PASS: TestThemeSelectorCallbackWithVSCodeTheme (0.00s)
+=== RUN   TestThemeSelectorSelectedCallbackWithVSCodeTheme
+--- PASS: TestThemeSelectorSelectedCallbackWithVSCodeTheme (0.00s)
+=== RUN   TestThemeSelectorListItemTextFormatting
+--- PASS: TestThemeSelectorListItemTextFormatting (0.00s)
+=== RUN   TestThemeSelectorStatus
+--- PASS: TestThemeSelectorStatus (0.00s)
+=== RUN   TestThemeSelectorGetListWidget
+--- PASS: TestThemeSelectorGetListWidget (0.00s)
+=== RUN   TestThemeSelectorFilterThemesMultipleMatches
+--- PASS: TestThemeSelectorFilterThemesMultipleMatches (0.00s)
+PASS
+ok  	github.com/Manu343726/cucaracha/pkg/ui/tui/tview/widgets	0.007s
+=== RUN   TestAsciiFrame_NoFields
+--- PASS: TestAsciiFrame_NoFields (0.00s)
+=== RUN   TestAsciiFrame_SingleField
+--- PASS: TestAsciiFrame_SingleField (0.00s)
+=== RUN   TestAsciiFrame_SingleField_NotFittingFullFrame
+--- PASS: TestAsciiFrame_SingleField_NotFittingFullFrame (0.00s)
+=== RUN   TestAsciiFrame_SingleField_WithTextPadding
+--- PASS: TestAsciiFrame_SingleField_WithTextPadding (0.00s)
+=== RUN   TestAsciiFrame_AVeryLooooooongField
+--- PASS: TestAsciiFrame_AVeryLooooooongField (0.00s)
+=== RUN   TestAsciiFrame_TwoConsecutiveFields
+--- PASS: TestAsciiFrame_TwoConsecutiveFields (0.00s)
+=== RUN   TestAsciiFrame_TwoConsecutiveFields_LeftToRight
+--- PASS: TestAsciiFrame_TwoConsecutiveFields_LeftToRight (0.00s)
+=== RUN   TestAsciiFrame_TwoFieldsWithAGap
+--- PASS: TestAsciiFrame_TwoFieldsWithAGap (0.00s)
+=== RUN   TestStructToMap_WithMap
+--- PASS: TestStructToMap_WithMap (0.00s)
+=== RUN   TestStructToMap_WithNil
+--- PASS: TestStructToMap_WithNil (0.00s)
+=== RUN   TestStructToMap_WithAnonymousStruct
+--- PASS: TestStructToMap_WithAnonymousStruct (0.00s)
+=== RUN   TestStructToMap_WithStructPointer
+--- PASS: TestStructToMap_WithStructPointer (0.00s)
+=== RUN   TestStructToMap_WithMixedFields
+--- PASS: TestStructToMap_WithMixedFields (0.00s)
+=== RUN   TestStructToMap_WithComplexTypes
+--- PASS: TestStructToMap_WithComplexTypes (0.00s)
+=== RUN   TestStructToMap_WithNestedStruct
+--- PASS: TestStructToMap_WithNestedStruct (0.00s)
+=== RUN   TestStructToMap_WithPrimitiveType
+--- PASS: TestStructToMap_WithPrimitiveType (0.00s)
+=== RUN   TestStructToMap_WithString
+--- PASS: TestStructToMap_WithString (0.00s)
+=== RUN   TestStructToMap_WithEmptyStruct
+--- PASS: TestStructToMap_WithEmptyStruct (0.00s)
+=== RUN   TestStructToMap_RealWorldExample
+--- PASS: TestStructToMap_RealWorldExample (0.00s)
+=== RUN   TestStructToMap_LowercaseFieldNames
+--- PASS: TestStructToMap_LowercaseFieldNames (0.00s)
+=== RUN   TestStructToMap_MixedCaseFieldNames
+--- PASS: TestStructToMap_MixedCaseFieldNames (0.00s)
+PASS
+ok  	github.com/Manu343726/cucaracha/pkg/utils	0.004s
+=== RUN   TestEnsureThat_WithAnonymousStruct
+--- PASS: TestEnsureThat_WithAnonymousStruct (0.00s)
+=== RUN   TestEnsureThat_WithAnonymousStruct_Fails
+--- PASS: TestEnsureThat_WithAnonymousStruct_Fails (0.00s)
+=== RUN   TestRequireThat_WithAnonymousStruct
+--- PASS: TestRequireThat_WithAnonymousStruct (0.00s)
+=== RUN   TestRequireThat_WithAnonymousStruct_Fails
+--- PASS: TestRequireThat_WithAnonymousStruct_Fails (0.00s)
+=== RUN   TestInvariantThat_WithAnonymousStruct
+--- PASS: TestInvariantThat_WithAnonymousStruct (0.00s)
+=== RUN   TestInvariantThat_WithAnonymousStruct_Fails
+--- PASS: TestInvariantThat_WithAnonymousStruct_Fails (0.00s)
+=== RUN   TestAutoCapture_MixedMapAndStruct
+--- PASS: TestAutoCapture_MixedMapAndStruct (0.00s)
+=== RUN   TestAutoCapture_VariableProvider_Integration
+--- PASS: TestAutoCapture_VariableProvider_Integration (0.00s)
+=== RUN   TestAutoCapture_ComplexStruct
+--- PASS: TestAutoCapture_ComplexStruct (0.00s)
+=== RUN   TestAutoCapture_StructPointer
+--- PASS: TestAutoCapture_StructPointer (0.00s)
+=== RUN   TestThatCapture_UnexportedFields
+--- PASS: TestThatCapture_UnexportedFields (0.00s)
+=== RUN   TestBase_Log
+--- PASS: TestBase_Log (0.00s)
+=== RUN   TestBase_Require_Success
+--- PASS: TestBase_Require_Success (0.00s)
+=== RUN   TestBase_Require_SuccessWithFormatted
+--- PASS: TestBase_Require_SuccessWithFormatted (0.00s)
+=== RUN   TestBase_Require_Failure
+--- PASS: TestBase_Require_Failure (0.00s)
+=== RUN   TestBase_Require_FailureWithFormatted
+--- PASS: TestBase_Require_FailureWithFormatted (0.00s)
+=== RUN   TestBase_RequireDefaultMessage
+--- PASS: TestBase_RequireDefaultMessage (0.00s)
+=== RUN   TestBase_Ensure_Success
+--- PASS: TestBase_Ensure_Success (0.00s)
+=== RUN   TestBase_Ensure_SuccessWithFormatted
+--- PASS: TestBase_Ensure_SuccessWithFormatted (0.00s)
+=== RUN   TestBase_Ensure_Failure
+--- PASS: TestBase_Ensure_Failure (0.00s)
+=== RUN   TestBase_Ensure_FailureWithFormatted
+--- PASS: TestBase_Ensure_FailureWithFormatted (0.00s)
+=== RUN   TestBase_Invariant_Success
+--- PASS: TestBase_Invariant_Success (0.00s)
+=== RUN   TestBase_Invariant_SuccessWithFormatted
+--- PASS: TestBase_Invariant_SuccessWithFormatted (0.00s)
+=== RUN   TestBase_Invariant_Failure
+--- PASS: TestBase_Invariant_Failure (0.00s)
+=== RUN   TestBase_Invariant_FailureWithFormatted
+--- PASS: TestBase_Invariant_FailureWithFormatted (0.00s)
+=== RUN   TestBase_NotNil_Success
+--- PASS: TestBase_NotNil_Success (0.00s)
+=== RUN   TestBase_NotNil_SuccessWithMessage
+--- PASS: TestBase_NotNil_SuccessWithMessage (0.00s)
+=== RUN   TestBase_NotNil_SuccessWithFormatted
+--- PASS: TestBase_NotNil_SuccessWithFormatted (0.00s)
+=== RUN   TestBase_NotNil_Failure
+--- PASS: TestBase_NotNil_Failure (0.00s)
+=== RUN   TestBase_NotNil_FailureWithMessage
+--- PASS: TestBase_NotNil_FailureWithMessage (0.00s)
+=== RUN   TestBase_NotNil_FailureWithFormatted
+--- PASS: TestBase_NotNil_FailureWithFormatted (0.00s)
+=== RUN   TestBase_NotEmpty_Success
+--- PASS: TestBase_NotEmpty_Success (0.00s)
+=== RUN   TestBase_NotEmpty_SuccessWithMessage
+--- PASS: TestBase_NotEmpty_SuccessWithMessage (0.00s)
+=== RUN   TestBase_NotEmpty_SuccessWithFormatted
+--- PASS: TestBase_NotEmpty_SuccessWithFormatted (0.00s)
+=== RUN   TestBase_NotEmpty_Failure
+--- PASS: TestBase_NotEmpty_Failure (0.00s)
+=== RUN   TestBase_NotEmptySlice_Success
+--- PASS: TestBase_NotEmptySlice_Success (0.00s)
+=== RUN   TestBase_NotEmptySlice_SuccessWithMessage
+--- PASS: TestBase_NotEmptySlice_SuccessWithMessage (0.00s)
+=== RUN   TestBase_NotEmptySlice_SuccessWithFormatted
+--- PASS: TestBase_NotEmptySlice_SuccessWithFormatted (0.00s)
+=== RUN   TestBase_NotEmptySlice_Failure
+--- PASS: TestBase_NotEmptySlice_Failure (0.00s)
+=== RUN   TestBase_NotEmptySlice_FailureWithMessage
+--- PASS: TestBase_NotEmptySlice_FailureWithMessage (0.00s)
+=== RUN   TestBase_NotEmptySlice_FailureWithFormatted
+--- PASS: TestBase_NotEmptySlice_FailureWithFormatted (0.00s)
+=== RUN   TestBase_IntegrationExample
+--- PASS: TestBase_IntegrationExample (0.00s)
+=== RUN   TestBase_EmbeddedInCustomType
+--- PASS: TestBase_EmbeddedInCustomType (0.00s)
+=== RUN   TestBase_ChainedCalls
+--- PASS: TestBase_ChainedCalls (0.00s)
+=== RUN   TestRequire_Success
+--- PASS: TestRequire_Success (0.00s)
+=== RUN   TestRequire_Failure
+--- PASS: TestRequire_Failure (0.00s)
+=== RUN   TestRequireValue_WithValidator_Success
+--- PASS: TestRequireValue_WithValidator_Success (0.00s)
+=== RUN   TestRequireValue_WithValidator_Failure
+--- PASS: TestRequireValue_WithValidator_Failure (0.00s)
+=== RUN   TestRequireEach_AllPass
+--- PASS: TestRequireEach_AllPass (0.00s)
+=== RUN   TestRequireEach_OneFails
+--- PASS: TestRequireEach_OneFails (0.00s)
+=== RUN   TestEnsure_Success
+--- PASS: TestEnsure_Success (0.00s)
+=== RUN   TestEnsure_Failure
+--- PASS: TestEnsure_Failure (0.00s)
+=== RUN   TestEnsureValue_WithValidator
+--- PASS: TestEnsureValue_WithValidator (0.00s)
+=== RUN   TestEnsureValue_WithValidator_Failure
+--- PASS: TestEnsureValue_WithValidator_Failure (0.00s)
+=== RUN   TestInvariant_Success
+--- PASS: TestInvariant_Success (0.00s)
+=== RUN   TestInvariant_Failure
+--- PASS: TestInvariant_Failure (0.00s)
+=== RUN   TestInvariantEach_AllPass
+--- PASS: TestInvariantEach_AllPass (0.00s)
+=== RUN   TestInvariantEach_OneFails
+--- PASS: TestInvariantEach_OneFails (0.00s)
+=== RUN   TestRangeInt_InBounds
+--- PASS: TestRangeInt_InBounds (0.00s)
+=== RUN   TestRangeInt_BelowMin
+--- PASS: TestRangeInt_BelowMin (0.00s)
+=== RUN   TestRangeInt_AboveMax
+--- PASS: TestRangeInt_AboveMax (0.00s)
+=== RUN   TestNotNil_Valid
+--- PASS: TestNotNil_Valid (0.00s)
+=== RUN   TestNotNil_Nil
+--- PASS: TestNotNil_Nil (0.00s)
+=== RUN   TestNotEmpty_Valid
+--- PASS: TestNotEmpty_Valid (0.00s)
+=== RUN   TestNotEmpty_Empty
+--- PASS: TestNotEmpty_Empty (0.00s)
+=== RUN   TestNotEmptySlice_Valid
+--- PASS: TestNotEmptySlice_Valid (0.00s)
+=== RUN   TestNotEmptySlice_Empty
+--- PASS: TestNotEmptySlice_Empty (0.00s)
+=== RUN   TestRequireValue_WithMultipleTypes
+--- PASS: TestRequireValue_WithMultipleTypes (0.00s)
+=== RUN   TestContractWithAttributes
+--- PASS: TestContractWithAttributes (0.00s)
+=== RUN   TestParseExpr_BraceSyntax_Simple
+--- PASS: TestParseExpr_BraceSyntax_Simple (0.00s)
+=== RUN   TestExpr_BraceSyntax_Evaluation
+--- PASS: TestExpr_BraceSyntax_Evaluation (0.00s)
+=== RUN   TestExpr_BraceSyntax_MultipleVars
+--- PASS: TestExpr_BraceSyntax_MultipleVars (0.00s)
+=== RUN   TestExpr_BraceSyntax_WithStrings
+--- PASS: TestExpr_BraceSyntax_WithStrings (0.00s)
+=== RUN   TestExpr_BraceSyntax_WithArithmetic
+--- PASS: TestExpr_BraceSyntax_WithArithmetic (0.00s)
+=== RUN   TestExpr_MixedSyntax_DollarAndBrace
+--- PASS: TestExpr_MixedSyntax_DollarAndBrace (0.00s)
+=== RUN   TestExpr_BraceSyntax_StringInterpolation
+--- PASS: TestExpr_BraceSyntax_StringInterpolation (0.00s)
+=== RUN   TestExpr_BraceSyntax_Chaining
+--- PASS: TestExpr_BraceSyntax_Chaining (0.00s)
+=== RUN   TestExpr_BraceSyntax_ComplexExpression
+--- PASS: TestExpr_BraceSyntax_ComplexExpression (0.00s)
+=== RUN   TestExpr_BraceSyntax_Error_MissingVar
+--- PASS: TestExpr_BraceSyntax_Error_MissingVar (0.00s)
+=== RUN   TestExpr_BraceSyntax_Negative
+--- PASS: TestExpr_BraceSyntax_Negative (0.00s)
+=== RUN   TestExpr_BraceSyntax_FloatingPoint
+--- PASS: TestExpr_BraceSyntax_FloatingPoint (0.00s)
+=== RUN   TestExpr_BraceSyntax_OrOperator
+--- PASS: TestExpr_BraceSyntax_OrOperator (0.00s)
+=== RUN   TestExpr_SetVars_ReturnsExpr
+--- PASS: TestExpr_SetVars_ReturnsExpr (0.00s)
+=== RUN   TestParseExpr_SimpleComparison
+--- PASS: TestParseExpr_SimpleComparison (0.00s)
+=== RUN   TestParseExpr_StringComparison
+--- PASS: TestParseExpr_StringComparison (0.00s)
+=== RUN   TestParseExpr_LogicalAnd
+--- PASS: TestParseExpr_LogicalAnd (0.00s)
+=== RUN   TestParseExpr_LogicalOr
+--- PASS: TestParseExpr_LogicalOr (0.00s)
+=== RUN   TestParseExpr_Complex
+--- PASS: TestParseExpr_Complex (0.00s)
+=== RUN   TestParseExpr_Arithmetic
+--- PASS: TestParseExpr_Arithmetic (0.00s)
+=== RUN   TestParseExpr_InvalidExpr
+--- PASS: TestParseExpr_InvalidExpr (0.00s)
+=== RUN   TestExpr_SimpleGreater
+--- PASS: TestExpr_SimpleGreater (0.00s)
+=== RUN   TestExpr_SimpleGreater_False
+--- PASS: TestExpr_SimpleGreater_False (0.00s)
+=== RUN   TestExpr_Equal
+--- PASS: TestExpr_Equal (0.00s)
+=== RUN   TestExpr_NotEqual
+--- PASS: TestExpr_NotEqual (0.00s)
+=== RUN   TestExpr_LogicalAnd_True
+--- PASS: TestExpr_LogicalAnd_True (0.00s)
+=== RUN   TestExpr_LogicalAnd_False
+--- PASS: TestExpr_LogicalAnd_False (0.00s)
+=== RUN   TestExpr_LogicalOr_True
+--- PASS: TestExpr_LogicalOr_True (0.00s)
+=== RUN   TestExpr_LogicalOr_False
+--- PASS: TestExpr_LogicalOr_False (0.00s)
+=== RUN   TestExpr_Arithmetic_Addition
+--- PASS: TestExpr_Arithmetic_Addition (0.00s)
+=== RUN   TestExpr_Arithmetic_Multiplication
+--- PASS: TestExpr_Arithmetic_Multiplication (0.00s)
+=== RUN   TestExpr_Parentheses
+--- PASS: TestExpr_Parentheses (0.00s)
+=== RUN   TestExpr_SetVars
+--- PASS: TestExpr_SetVars (0.00s)
+=== RUN   TestExpr_UndefinedVariable
+--- PASS: TestExpr_UndefinedVariable (0.00s)
+=== RUN   TestExpr_String_Output
+--- PASS: TestExpr_String_Output (0.00s)
+=== RUN   TestExpr_LessThanOrEqual
+--- PASS: TestExpr_LessThanOrEqual (0.00s)
+=== RUN   TestExpr_GreaterThanOrEqual
+--- PASS: TestExpr_GreaterThanOrEqual (0.00s)
+=== RUN   TestExpr_DivisionByZero
+--- PASS: TestExpr_DivisionByZero (0.00s)
+=== RUN   TestRequireExpr_Success
+--- PASS: TestRequireExpr_Success (0.00s)
+=== RUN   TestRequireExpr_Failure
+--- PASS: TestRequireExpr_Failure (0.00s)
+=== RUN   TestEnsureExpr_Success
+--- PASS: TestEnsureExpr_Success (0.00s)
+=== RUN   TestEnsureExpr_Failure
+--- PASS: TestEnsureExpr_Failure (0.00s)
+=== RUN   TestInvariantExpr_Success
+--- PASS: TestInvariantExpr_Success (0.00s)
+=== RUN   TestInvariantExpr_Failure
+--- PASS: TestInvariantExpr_Failure (0.00s)
+=== RUN   TestRequireExpr_WithFormatting
+--- PASS: TestRequireExpr_WithFormatting (0.00s)
+=== RUN   TestExpr_ComplexExpression
+--- PASS: TestExpr_ComplexExpression (0.00s)
+=== RUN   TestExpr_IntegerConversion
+--- PASS: TestExpr_IntegerConversion (0.00s)
+=== RUN   TestExpr_NegativeNumbers
+--- PASS: TestExpr_NegativeNumbers (0.00s)
+=== RUN   TestExpr_FloatingPoint
+--- PASS: TestExpr_FloatingPoint (0.00s)
+=== RUN   TestExtractVariableNames_Simple
+--- PASS: TestExtractVariableNames_Simple (0.00s)
+=== RUN   TestExtractVariableNames_Multiple
+--- PASS: TestExtractVariableNames_Multiple (0.00s)
+=== RUN   TestExtractVariableNames_MultipleDistinct
+--- PASS: TestExtractVariableNames_MultipleDistinct (0.00s)
+=== RUN   TestExtractVariableNames_WithStrings
+--- PASS: TestExtractVariableNames_WithStrings (0.00s)
+=== RUN   TestExtractVariableNames_IgnoresKeywords
+--- PASS: TestExtractVariableNames_IgnoresKeywords (0.00s)
+=== RUN   TestExtractVariableNames_ComplexExpression
+--- PASS: TestExtractVariableNames_ComplexExpression (0.00s)
+=== RUN   TestParseArguments_Simple
+--- PASS: TestParseArguments_Simple (0.00s)
+=== RUN   TestParseArguments_WithNested
+--- PASS: TestParseArguments_WithNested (0.00s)
+=== RUN   TestParseArguments_WithStrings
+--- PASS: TestParseArguments_WithStrings (0.00s)
+=== RUN   TestExtractCallArgument_Simple
+--- PASS: TestExtractCallArgument_Simple (0.00s)
+=== RUN   TestExtractCallArgument_Complex
+--- PASS: TestExtractCallArgument_Complex (0.00s)
+=== RUN   TestEnsureAuto_Success
+--- PASS: TestEnsureAuto_Success (0.00s)
+=== RUN   TestRequireAuto_Success
+--- PASS: TestRequireAuto_Success (0.00s)
+=== RUN   TestInvariantAuto_Success
+--- PASS: TestInvariantAuto_Success (0.00s)
+=== RUN   TestEnsureThat_Success
+--- PASS: TestEnsureThat_Success (0.00s)
+=== RUN   TestEnsureThat_Failure
+--- PASS: TestEnsureThat_Failure (0.00s)
+=== RUN   TestExpectThat_Success
+--- PASS: TestExpectThat_Success (0.00s)
+=== RUN   TestExpectThat_Failure
+--- PASS: TestExpectThat_Failure (0.00s)
+=== RUN   TestInvariantThat_Success
+--- PASS: TestInvariantThat_Success (0.00s)
+=== RUN   TestInvariantThat_Failure
+--- PASS: TestInvariantThat_Failure (0.00s)
+=== RUN   TestCompileExpression_SimpleComparison
+--- PASS: TestCompileExpression_SimpleComparison (0.00s)
+=== RUN   TestCompileExpression_ComplexExpression
+--- PASS: TestCompileExpression_ComplexExpression (0.00s)
+=== RUN   TestEvaluateAST_SimpleComparison
+--- PASS: TestEvaluateAST_SimpleComparison (0.00s)
+=== RUN   TestEvaluateAST_FailingCondition
+--- PASS: TestEvaluateAST_FailingCondition (0.00s)
+=== RUN   TestEvaluateAST_CompoundExpression
+--- PASS: TestEvaluateAST_CompoundExpression (0.00s)
+=== RUN   TestFormatASTFailure_SimpleCondition
+--- PASS: TestFormatASTFailure_SimpleCondition (0.00s)
+=== RUN   TestAST_ExtractVariableNames_Simple
+--- PASS: TestAST_ExtractVariableNames_Simple (0.00s)
+=== RUN   TestAST_ExtractVariableNames_Multiple
+--- PASS: TestAST_ExtractVariableNames_Multiple (0.00s)
+=== RUN   TestToVariableMap_WithMap
+--- PASS: TestToVariableMap_WithMap (0.00s)
+=== RUN   TestToVariableMap_WithNil
+--- PASS: TestToVariableMap_WithNil (0.00s)
+=== RUN   TestToVariableMap_WithAnonymousStruct
+--- PASS: TestToVariableMap_WithAnonymousStruct (0.00s)
+=== RUN   TestToVariableMap_WithStructPointer
+--- PASS: TestToVariableMap_WithStructPointer (0.00s)
+=== RUN   TestToVariableMap_WithMixedFields
+--- PASS: TestToVariableMap_WithMixedFields (0.00s)
+=== RUN   TestToVariableMap_WithComplexTypes
+--- PASS: TestToVariableMap_WithComplexTypes (0.00s)
+=== RUN   TestToVariableMap_WithNestedStruct
+--- PASS: TestToVariableMap_WithNestedStruct (0.00s)
+=== RUN   TestToVariableMap_WithVariableProvider
+--- PASS: TestToVariableMap_WithVariableProvider (0.00s)
+=== RUN   TestToVariableMap_WithPrimitiveType
+--- PASS: TestToVariableMap_WithPrimitiveType (0.00s)
+=== RUN   TestToVariableMap_WithString
+--- PASS: TestToVariableMap_WithString (0.00s)
+=== RUN   TestToVariableMap_WithEmptyStruct
+--- PASS: TestToVariableMap_WithEmptyStruct (0.00s)
+=== RUN   TestToVariableMap_RealWorldExample
+--- PASS: TestToVariableMap_RealWorldExample (0.00s)
+=== RUN   TestToVariableMap_LowercaseFieldNames
+--- PASS: TestToVariableMap_LowercaseFieldNames (0.00s)
+=== RUN   TestToVariableMap_MixedCaseFieldNames
+--- PASS: TestToVariableMap_MixedCaseFieldNames (0.00s)
+PASS
+ok  	github.com/Manu343726/cucaracha/pkg/utils/contract	0.007s
+=== RUN   TestGlobalRegistry
+--- PASS: TestGlobalRegistry (0.00s)
+=== RUN   TestPackageLoggers
+=== RUN   TestPackageLoggers/runtime
+=== RUN   TestPackageLoggers/runtime.program
+=== RUN   TestPackageLoggers/hw
+=== RUN   TestPackageLoggers/hw.cpu
+=== RUN   TestPackageLoggers/hw.memory
+=== RUN   TestPackageLoggers/hw.peripheral
+=== RUN   TestPackageLoggers/debugger
+=== RUN   TestPackageLoggers/debugger.core
+=== RUN   TestPackageLoggers/interpreter
+=== RUN   TestPackageLoggers/llvm
+=== RUN   TestPackageLoggers/llvm.templates
+=== RUN   TestPackageLoggers/system
+=== RUN   TestPackageLoggers/ui
+=== RUN   TestPackageLoggers/ui.tui
+--- PASS: TestPackageLoggers (0.00s)
+    --- PASS: TestPackageLoggers/runtime (0.00s)
+    --- PASS: TestPackageLoggers/runtime.program (0.00s)
+    --- PASS: TestPackageLoggers/hw (0.00s)
+    --- PASS: TestPackageLoggers/hw.cpu (0.00s)
+    --- PASS: TestPackageLoggers/hw.memory (0.00s)
+    --- PASS: TestPackageLoggers/hw.peripheral (0.00s)
+    --- PASS: TestPackageLoggers/debugger (0.00s)
+    --- PASS: TestPackageLoggers/debugger.core (0.00s)
+    --- PASS: TestPackageLoggers/interpreter (0.00s)
+    --- PASS: TestPackageLoggers/llvm (0.00s)
+    --- PASS: TestPackageLoggers/llvm.templates (0.00s)
+    --- PASS: TestPackageLoggers/system (0.00s)
+    --- PASS: TestPackageLoggers/ui (0.00s)
+    --- PASS: TestPackageLoggers/ui.tui (0.00s)
+=== RUN   TestHierarchicalResolution
+--- PASS: TestHierarchicalResolution (0.00s)
+=== RUN   TestSink_Creation
+--- PASS: TestSink_Creation (0.00s)
+=== RUN   TestSink_Immutable
+--- PASS: TestSink_Immutable (0.00s)
+=== RUN   TestRegisteredLogger_Creation
+--- PASS: TestRegisteredLogger_Creation (0.00s)
+=== RUN   TestRegisteredLogger_Immutable
+--- PASS: TestRegisteredLogger_Immutable (0.00s)
+=== RUN   TestLogger_Creation
+--- PASS: TestLogger_Creation (0.00s)
+=== RUN   TestLogger_WithAttrs
+--- PASS: TestLogger_WithAttrs (0.00s)
+=== RUN   TestLogger_WithGroup
+--- PASS: TestLogger_WithGroup (0.00s)
+=== RUN   TestLogger_Child
+--- PASS: TestLogger_Child (0.00s)
+=== RUN   TestRegistry_RegisterSinks
+--- PASS: TestRegistry_RegisterSinks (0.00s)
+=== RUN   TestRegistry_RegisterLoggers
+--- PASS: TestRegistry_RegisterLoggers (0.00s)
+=== RUN   TestRegistry_ResolveLogger
+=== RUN   TestRegistry_ResolveLogger/exact_match
+=== RUN   TestRegistry_ResolveLogger/exact_child
+=== RUN   TestRegistry_ResolveLogger/parent_resolution
+=== RUN   TestRegistry_ResolveLogger/root_resolution
+=== RUN   TestRegistry_ResolveLogger/not_found
+--- PASS: TestRegistry_ResolveLogger (0.00s)
+    --- PASS: TestRegistry_ResolveLogger/exact_match (0.00s)
+    --- PASS: TestRegistry_ResolveLogger/exact_child (0.00s)
+    --- PASS: TestRegistry_ResolveLogger/parent_resolution (0.00s)
+    --- PASS: TestRegistry_ResolveLogger/root_resolution (0.00s)
+    --- PASS: TestRegistry_ResolveLogger/not_found (0.00s)
+=== RUN   TestRegistry_Get
+--- PASS: TestRegistry_Get (0.00s)
+=== RUN   TestRegistry_List
+--- PASS: TestRegistry_List (0.00s)
+=== RUN   TestRegistry_Clear
+--- PASS: TestRegistry_Clear (0.00s)
+=== RUN   TestLogger_Logging
+--- PASS: TestLogger_Logging (0.00s)
+=== RUN   TestLogger_ContextPropagation
+--- PASS: TestLogger_ContextPropagation (0.00s)
+=== RUN   TestConfig_FromString
+--- PASS: TestConfig_FromString (0.00s)
+=== RUN   TestConfig_Apply
+--- PASS: TestConfig_Apply (0.00s)
+=== RUN   TestConfig_ApplyErrors
+--- PASS: TestConfig_ApplyErrors (0.00s)
+=== RUN   TestLogger_HierarchicalLogging
+--- PASS: TestLogger_HierarchicalLogging (0.00s)
+=== RUN   TestLogger_MultipleAttrs
+--- PASS: TestLogger_MultipleAttrs (0.00s)
+=== RUN   TestLogger_ChainedOperations
+--- PASS: TestLogger_ChainedOperations (0.00s)
+=== RUN   TestLogger_OptionalContext
+--- PASS: TestLogger_OptionalContext (0.00s)
+=== RUN   TestLogger_ContextVersions
+--- PASS: TestLogger_ContextVersions (0.00s)
+=== RUN   TestLogger_Panic
+--- PASS: TestLogger_Panic (0.00s)
+=== RUN   TestLogger_PanicContext
+--- PASS: TestLogger_PanicContext (0.00s)
+=== RUN   TestRegisteredLogger_Panic
+--- PASS: TestRegisteredLogger_Panic (0.00s)
+PASS
+ok  	github.com/Manu343726/cucaracha/pkg/utils/logging	0.007s
+FAIL

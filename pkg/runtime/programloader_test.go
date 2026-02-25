@@ -155,6 +155,7 @@ func TestLoadCode_MatchingCodeRegion(t *testing.T) {
 
 	// Setup program with code region 0x400, size 0x400
 	progLayout := createMemoryLayout(0x400, 0x400)
+	mockProgram.On("FileName").Return("test.cucaracha")
 	mockProgram.On("MemoryLayout").Return(progLayout)
 	mockProgram.On("Instructions").Return([]program.Instruction{})
 
@@ -177,6 +178,7 @@ func TestLoadCode_CodeBaseMismatch(t *testing.T) {
 
 	// Setup program with code base 0x400
 	progLayout := createMemoryLayout(0x400, 0x400)
+	mockProgram.On("FileName").Return("test.cucaracha")
 	mockProgram.On("MemoryLayout").Return(progLayout)
 
 	// Setup runtime with different code base 0x500
@@ -199,6 +201,7 @@ func TestLoadCode_RuntimeCodeSizeLarger(t *testing.T) {
 
 	// Setup program with code size 0x400
 	progLayout := createMemoryLayout(0x400, 0x400)
+	mockProgram.On("FileName").Return("test.cucaracha")
 	mockProgram.On("MemoryLayout").Return(progLayout)
 	mockProgram.On("Instructions").Return([]program.Instruction{})
 
@@ -222,6 +225,7 @@ func TestLoadCode_ProgramCodeSizeTooLarge(t *testing.T) {
 
 	// Setup program with code size 0x800
 	progLayout := createMemoryLayout(0x400, 0x800)
+	mockProgram.On("FileName").Return("test.cucaracha")
 	mockProgram.On("MemoryLayout").Return(progLayout)
 
 	// Setup runtime with smaller code size 0x400
@@ -244,6 +248,7 @@ func TestLoadCode_CodeBaseAndSizeMismatch(t *testing.T) {
 
 	// Setup program with code region 0x400, size 0x800
 	progLayout := createMemoryLayout(0x400, 0x800)
+	mockProgram.On("FileName").Return("test.cucaracha")
 	mockProgram.On("MemoryLayout").Return(progLayout)
 
 	// Setup runtime with different code base and smaller size
@@ -266,6 +271,7 @@ func TestLoadCode_NoMemoryLayout(t *testing.T) {
 	mockRuntime := new(MockRuntime)
 
 	// Setup program with nil memory layout
+	mockProgram.On("FileName").Return("test.cucaracha")
 	mockProgram.On("MemoryLayout").Return(nil)
 
 	loader := NewProgramLoader(mockProgram, mockRuntime)
@@ -284,6 +290,7 @@ func TestLoadCode_OtherRegionsMismatch(t *testing.T) {
 	progLayout := createMemoryLayout(0x400, 0x400)
 	// But different data region
 	progLayout.DataBase = 0x800
+	mockProgram.On("FileName").Return("test.cucaracha")
 	mockProgram.On("MemoryLayout").Return(progLayout)
 	mockProgram.On("Instructions").Return([]program.Instruction{})
 
@@ -311,6 +318,7 @@ func TestLoadCode_DifferentHeapStackRegions(t *testing.T) {
 	progLayout := createMemoryLayout(0x400, 0x400)
 	progLayout.HeapBase = 0x1000
 	progLayout.StackBase = 0x8000
+	mockProgram.On("FileName").Return("test.cucaracha")
 	mockProgram.On("MemoryLayout").Return(progLayout)
 	mockProgram.On("Instructions").Return([]program.Instruction{})
 

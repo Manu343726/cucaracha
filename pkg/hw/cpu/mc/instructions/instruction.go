@@ -59,7 +59,8 @@ func (i *Instruction) LoggingAttribute(name string) slog.Attr {
 
 func NewInstruction(descriptor *InstructionDescriptor, operands []OperandValue) (*Instruction, error) {
 	// Validate operand count
-	expectedOperands := len(descriptor.Operands)
+	realOperands := descriptor.RealOperands()
+	expectedOperands := len(realOperands)
 	if len(operands) != expectedOperands {
 		return nil, fmt.Errorf("instruction %s expects %d operands, got %d",
 			descriptor.OpCode.Mnemonic, expectedOperands, len(operands))
@@ -67,7 +68,7 @@ func NewInstruction(descriptor *InstructionDescriptor, operands []OperandValue) 
 
 	// Validate operand types
 	for i, op := range operands {
-		desc := descriptor.Operands[i]
+		desc := realOperands[i]
 		if op.Kind() != desc.Kind {
 			return nil, fmt.Errorf("operand %d of %s: expected %s, got %s",
 				i, descriptor.OpCode.Mnemonic, desc.Kind, op.Kind())

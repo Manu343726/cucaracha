@@ -368,17 +368,19 @@ func TestResolveMemory_WithSymbolReferences(t *testing.T) {
 		FunctionsValue:  map[string]Function{},
 		InstructionsValue: []Instruction{
 			{
-				LineNumber: 1,
-				Text:       "movimm16l counter@lo, r0",
+				LineNumber:  1,
+				Text:        "movimm16l counter@lo, r0",
+				Instruction: MovImm16L(0xDEAD, "r0"),
 				Symbols: []SymbolReference{
-					{Name: "counter", Usage: SymbolUsageLo},
+					{Name: "counter", Usage: SymbolUsageLo, Global: &global},
 				},
 			},
 			{
-				LineNumber: 2,
-				Text:       "movimm16h counter@hi, r0",
+				LineNumber:  2,
+				Text:        "movimm16h counter@hi, r0",
+				Instruction: MovImm16H(0xBEEF, "r0"),
 				Symbols: []SymbolReference{
-					{Name: "counter", Usage: SymbolUsageHi},
+					{Name: "counter", Usage: SymbolUsageHi, Global: &global},
 				},
 			},
 		},

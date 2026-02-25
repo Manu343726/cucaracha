@@ -510,11 +510,10 @@ func TestFixupEncodingCompatibleWithMOVIMM16H(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Build instruction using program.Instr with actual instruction descriptors
-			// MOVIMM16H now has format: imm, dst, src (same encoding order as MOVIMM16L)
+			// MOVIMM16H now has format: imm, dst (same encoding order as MOVIMM16L)
 			instr := program.Instr(instructions.OpCode_MOV_IMM16H).
 				U(uint32(tt.immediate)).
 				NamedR(tt.register). // dst
-				NamedR(tt.register). // src (tied to dst)
 				MustBuild()
 
 			// Encode the instruction using the real encoder
@@ -533,7 +532,6 @@ func TestFixupEncodingCompatibleWithMOVIMM16H(t *testing.T) {
 			// Verify that applying a fixup to a zero-immediate instruction produces same result
 			zeroImmInstr := program.Instr(instructions.OpCode_MOV_IMM16H).
 				U(0).
-				NamedR(tt.register).
 				NamedR(tt.register).
 				MustBuild()
 			zeroEncoded := encodeInstruction(zeroImmInstr)
@@ -596,7 +594,6 @@ func TestFixupEncoding32BitAddressWithMOVInstructions(t *testing.T) {
 			// Build MOVIMM16H instruction for the high bits (now uses same operand order)
 			hiInstr := program.Instr(instructions.OpCode_MOV_IMM16H).
 				U(hiImm).
-				NamedR(register).
 				NamedR(register).
 				MustBuild()
 			hiEncoded := encodeInstruction(hiInstr)
@@ -688,7 +685,6 @@ func TestFixupEncodingWithRealCucarachaOpcodes(t *testing.T) {
 			t.Run(name, func(t *testing.T) {
 				instr := program.Instr(instructions.OpCode_MOV_IMM16H).
 					U(uint32(imm)).
-					NamedR(reg).
 					NamedR(reg).
 					MustBuild()
 

@@ -74,10 +74,6 @@ func newCPUWithRAM(memorySize int) *CPU {
 
 // EncodeImmInstruction is a helper for immediate instructions (MOVIMM16L/H)
 func EncodeImmInstruction(opcode instructions.OpCode, imm16 uint16, dst uint8) uint32 {
-	if opcode == instructions.OpCode_MOV_IMM16H {
-		// MOVIMM16H has 3 operands: (imm, dst, src) where src is tied to dst
-		return EncodeInstruction(opcode, uint32(imm16), GPR(dst), GPR(dst))
-	}
 	return EncodeInstruction(opcode, uint32(imm16), GPR(dst))
 }
 
