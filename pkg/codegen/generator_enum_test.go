@@ -76,9 +76,11 @@ func TestGenerateEnumValuesMapSorted(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create an enum with the test constants
 			enum := &cucarachareflex.Enum{
-				Type: &cucarachareflex.TypeReference{
-					Name: "TestEnum",
-				},
+				Type: cucarachareflex.MakeTypeReference(&cucarachareflex.Type{
+					Name:         "TestEnum",
+					Kind:         cucarachareflex.TypeKindTypedef,
+					OriginalType: cucarachareflex.MakeTypeReference(cucarachareflex.TypeInt),
+				}),
 				Values: tt.constants,
 			}
 
@@ -114,9 +116,11 @@ func TestGenerateEnumValuesMapDeterministic(t *testing.T) {
 		}
 
 		enum := &cucarachareflex.Enum{
-			Type: &cucarachareflex.TypeReference{
-				Name: "TestEnum",
-			},
+			Type: cucarachareflex.MakeTypeReference(&cucarachareflex.Type{
+				Name:         "TestEnum",
+				Kind:         cucarachareflex.TypeKindTypedef,
+				OriginalType: cucarachareflex.MakeTypeReference(cucarachareflex.TypeInt),
+			}),
 			Values: constants,
 		}
 
@@ -146,9 +150,11 @@ func TestGenerateEnumValuesMapContainsAllValues(t *testing.T) {
 		}
 
 		enum := &cucarachareflex.Enum{
-			Type: &cucarachareflex.TypeReference{
-				Name: "TestEnum",
-			},
+			Type: cucarachareflex.MakeTypeReference(&cucarachareflex.Type{
+				Name:         "TestEnum",
+				Kind:         cucarachareflex.TypeKindTypedef,
+				OriginalType: cucarachareflex.MakeTypeReference(cucarachareflex.TypeInt),
+			}),
 			Values: constants,
 		}
 
@@ -181,9 +187,11 @@ func TestGenerateEnumValuesMapWithStrings(t *testing.T) {
 		}
 
 		enum := &cucarachareflex.Enum{
-			Type: &cucarachareflex.TypeReference{
-				Name: "StringEnum",
-			},
+			Type: cucarachareflex.MakeTypeReference(&cucarachareflex.Type{
+				Name:         "StringEnum",
+				Kind:         cucarachareflex.TypeKindTypedef,
+				OriginalType: cucarachareflex.MakeTypeReference(cucarachareflex.TypeString),
+			}),
 			Values: constants,
 		}
 
@@ -217,9 +225,11 @@ func TestGenerateEnumValuesMapNoDuplicateEntries(t *testing.T) {
 		}
 
 		enum := &cucarachareflex.Enum{
-			Type: &cucarachareflex.TypeReference{
-				Name: "TestEnum",
-			},
+			Type: cucarachareflex.MakeTypeReference(&cucarachareflex.Type{
+				Name:         "TestEnum",
+				Kind:         cucarachareflex.TypeKindTypedef,
+				OriginalType: cucarachareflex.MakeTypeReference(cucarachareflex.TypeInt),
+			}),
 			Values: constants,
 		}
 
@@ -248,9 +258,11 @@ func TestGenerateEnumValuesMapMapKeyType(t *testing.T) {
 		}
 
 		enum := &cucarachareflex.Enum{
-			Type: &cucarachareflex.TypeReference{
-				Name: "MyEnum",
-			},
+			Type: cucarachareflex.MakeTypeReference(&cucarachareflex.Type{
+				Name:         "MyEnum",
+				Kind:         cucarachareflex.TypeKindTypedef,
+				OriginalType: cucarachareflex.MakeTypeReference(cucarachareflex.TypeInt),
+			}),
 			Values: constants,
 		}
 

@@ -522,7 +522,7 @@ func (g *Generator) generateEnumValuesMap(enum *cucarachareflex.Enum) error {
 		Name: enum.Type.Name + "Values",
 		Value: &cucarachareflex.Value{
 			Type: cucarachareflex.MakeTypeReference(cucarachareflex.Map(
-				cucarachareflex.Typedef(enum.Type.Name, cucarachareflex.TypeInt),
+				enum.Type.Type,
 				cucarachareflex.TypeBool)),
 			Value: utils.GenMapFromKeys(
 				utils.Map(enum.Values, func(val *cucarachareflex.Constant) *cucarachareflex.Value {
