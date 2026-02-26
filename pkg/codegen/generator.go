@@ -915,16 +915,45 @@ func (g *Generator) generateMapValue(value *cucarachareflex.Value, indent int) e
 		return a.Compare(b)
 	})
 
+	// Check if the key type is an enum - if so, we'll use constant names instead of raw values
+	keyTypeName := value.Type.Type.Key.Name
+	var enumDef *cucarachareflex.Enum
+	if g.pkg != nil && g.pkg.Enums != nil {
+		enumDef = g.pkg.Enums[keyTypeName]
+	}
+
 	// Iterate over sorted keys
 	for _, key := range keys {
 		val := mapValues[key]
 		fmt.Fprintf(g.w, "%s", indentStr)
-		err := g.generateValueInternal(key, nextIndent)
-		if err != nil {
-			return fmt.Errorf("failed to generate value for map key: %w", err)
+
+		// If the key type is an enum, look up the constant name
+		if enumDef != nil {
+			constantName := ""
+			for _, constant := range enumDef.Values {
+				if constant.Value.Compare(key) == 0 {
+					constantName = constant.Name
+					break
+				}
+			}
+			if constantName != "" {
+				io.WriteString(g.w, constantName)
+			} else {
+				// Fallback to raw value if constant not found
+				err := g.generateValueInternal(key, nextIndent)
+				if err != nil {
+					return fmt.Errorf("failed to generate value for map key: %w", err)
+				}
+			}
+		} else {
+			err := g.generateValueInternal(key, nextIndent)
+			if err != nil {
+				return fmt.Errorf("failed to generate value for map key: %w", err)
+			}
 		}
+
 		io.WriteString(g.w, ": ")
-		err = g.generateValueInternal(val, nextIndent)
+		err := g.generateValueInternal(val, nextIndent)
 		if err != nil {
 			return fmt.Errorf("failed to generate value for map value: %w", err)
 		}
@@ -1492,8 +1521,16 @@ func Generate(file *File, outputPath string) error {
 		return fmt.Errorf("failed to create output file: %w", err)
 	}
 
+	// Create a package from the file's enums so the generator can look them up
+	pkg := &cucarachareflex.Package{
+		Enums: make(map[string]*cucarachareflex.Enum),
+	}
+	for _, enum := range file.Enums {
+		pkg.Enums[enum.Type.Name] = enum
+	}
+
 	// Create a new generator and generate the file content
-	generator := NewGenerator(nil, f) // We don't need a package reference for file generation
+	generator := NewGenerator(pkg, f)
 	if err := generator.GenerateFile(file); err != nil {
 		f.Close()
 		os.Remove(tempFile)
