@@ -68,7 +68,7 @@ RUN add-apt-repository ppa:deadsnakes/ppa && \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Go (latest stable)
-ARG GO_VERSION=1.22.0
+ARG GO_VERSION=1.25.0
 RUN curl -fsSL https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz | tar -C /usr/local -xzf - \
     && ln -s /usr/local/go/bin/go /usr/local/bin/go \
     && ln -s /usr/local/go/bin/gofmt /usr/local/bin/gofmt
@@ -78,6 +78,24 @@ ENV PATH="${GOPATH}/bin:/usr/local/go/bin:${PATH}"
 
 # Install zsh and oh-my-zsh
 RUN apt-get update && apt-get install -y zsh \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install act - GitHub Actions local testing tool
+RUN curl -fsSL https://raw.githubusercontent.com/nektos/act/master/install.sh | bash -s -- -b /usr/local/bin
+
+# Install golangci-lint - Go linter aggregator
+RUN curl -fsSL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b /usr/local/bin
+
+# Install Docker CLI (for docker build/run commands in Makefile)
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    curl \
+    gnupg \
+    lsb-release \
+    && mkdir -m 0755 -p /etc/apt/keyrings \
+    && curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg \
+    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null \
+    && apt-get update && apt-get install -y docker-ce-cli \
     && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user 'vscode' with sudo access
@@ -102,6 +120,11 @@ RUN sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master
 
 # Create Go workspace directory
 RUN mkdir -p $GOPATH/bin $GOPATH/src $GOPATH/pkg
+
+# Install Go development tools and code generation tools
+RUN go install github.com/go-delve/delve/cmd/dlv@latest && \
+    go install golang.org/x/tools/gopls@latest && \
+    go install golang.org/x/tools/cmd/stringer@latest
 
 # Set default shell to zsh
 ENV SHELL=/usr/bin/zsh

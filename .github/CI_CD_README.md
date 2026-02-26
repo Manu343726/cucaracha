@@ -94,7 +94,7 @@ The workflow runs on:
 
 ## Environment Variables
 
-- `GO_VERSION`: Go version to install (default: 1.24.0)
+- `GO_VERSION`: Go version to install (default: 1.25.0)
 - `CMAKE_BUILD_PARALLEL_LEVEL`: Number of parallel build jobs for LLVM
 - `CC`: Set to `clang` for C compilation
 - `CXX`: Set to `clang++` for C++ compilation

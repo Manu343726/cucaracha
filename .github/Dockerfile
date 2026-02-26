@@ -48,7 +48,7 @@ FROM ubuntu:22.04
 ENV DEBIAN_FRONTEND=noninteractive \
     CLANG_INSTALL_DIR=/opt/clang \
     PATH=/opt/clang/bin:/usr/local/go/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
-    GO_VERSION=1.24.0 \
+    GO_VERSION=1.25.0 \
     CGO_ENABLED=1 \
     CC=clang \
     CXX=clang++

@@ -10,7 +10,8 @@
             "request": "launch",
             "mode": "auto",
             "program": "${workspaceFolder}/main.go",
-            "cwd": "${workspaceFolder}"
+            "cwd": "${workspaceFolder}",
+            "preLaunchTask": "make build"
         },
         {
             "name": "Launch Generate LLVM TableGen",
@@ -22,7 +23,8 @@
             "args": [
                 "tools",
                 "generateLlvmTableGen"
-            ]
+            ],
+            "preLaunchTask": "make build"
         },
         {
             "name": "Debug Debugger TUI",
@@ -38,7 +40,8 @@
             "cwd": "${workspaceFolder}",
             "console": "integratedTerminal",
             "showLog": false,
-            "logOutput": "rpc"
+            "logOutput": "rpc",
+            "preLaunchTask": "make build"
         },
         {
             "name": "Debug Debugger REPL",
@@ -54,7 +57,8 @@
             "cwd": "${workspaceFolder}",
             "console": "integratedTerminal",
             "showLog": false,
-            "logOutput": "rpc"
+            "logOutput": "rpc",
+            "preLaunchTask": "make build"
         },
         {
             "name": "Debug Code Generator (ui/debugger)",
@@ -69,7 +73,8 @@
             "cwd": "${workspaceFolder}/pkg/ui/debugger",
             "console": "integratedTerminal",
             "showLog": false,
-            "logOutput": "rpc"
+            "logOutput": "rpc",
+            "preLaunchTask": "make build"
         }
     ]
 }
