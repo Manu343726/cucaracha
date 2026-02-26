@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"reflect"
+	"slices"
 	"strings"
 	"text/template"
 
@@ -905,7 +906,18 @@ func (g *Generator) generateMapValue(value *cucarachareflex.Value, indent int) e
 	nextIndent := indent + 1
 	indentStr := strings.Repeat("\t", nextIndent)
 
-	for key, val := range mapValues {
+	// Sort the keys for deterministic output
+	keys := make([]*cucarachareflex.Value, 0, len(mapValues))
+	for key := range mapValues {
+		keys = append(keys, key)
+	}
+	slices.SortFunc(keys, func(a, b *cucarachareflex.Value) int {
+		return a.Compare(b)
+	})
+
+	// Iterate over sorted keys
+	for _, key := range keys {
+		val := mapValues[key]
 		fmt.Fprintf(g.w, "%s", indentStr)
 		err := g.generateValueInternal(key, nextIndent)
 		if err != nil {
@@ -969,13 +981,14 @@ func (g *Generator) GenerateGoValue(value interface{}) error {
 
 func (g *Generator) generateGoValueInternal(value interface{}, indent int) error {
 	rVal := reflect.ValueOf(value)
-	rType := rVal.Type()
 
-	// Handle nil values
+	// Handle nil values - check IsValid() FIRST before calling Type()
 	if !rVal.IsValid() {
 		io.WriteString(g.w, "nil")
 		return nil
 	}
+
+	rType := rVal.Type()
 
 	// Handle pointer dereferencing
 	if rType.Kind() == reflect.Ptr {
@@ -1112,8 +1125,14 @@ func (g *Generator) generateMapGoValue(rVal reflect.Value, rType reflect.Type, i
 		nextIndent := indent + 1
 		indentStr := strings.Repeat("\t", nextIndent)
 
-		// Get keys for iteration
+		// Get keys for iteration and sort them for deterministic output
 		keys := rVal.MapKeys()
+		slices.SortFunc(keys, func(a, b reflect.Value) int {
+			// Create Value objects from the reflect values for comparison
+			aVal := &cucarachareflex.Value{Value: a.Interface()}
+			bVal := &cucarachareflex.Value{Value: b.Interface()}
+			return aVal.Compare(bVal)
+		})
 
 		for i, key := range keys {
 			io.WriteString(g.w, indentStr)

@@ -12,7 +12,8 @@
                 "ms-vscode.cmake-tools",
                 "llvm-vs-code-extensions.vscode-clangd",
                 "ms-python.python",
-                "ms-vscode.makefile-tools"
+                "ms-vscode.makefile-tools",
+                "github.vscode-github-actions"
             ],
             "settings": {
                 "go.toolsManagement.autoUpdate": true,

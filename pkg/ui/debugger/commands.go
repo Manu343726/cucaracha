@@ -126,7 +126,7 @@
 //                           "isEmbedded": false
 //                         }
 //                       ],
-//                       "sourcePos": 1027231
+//                       "sourcePos": 1026680
 //                     }
 //                   },
 //                   "tag": "json:\"sourceLocation\"",
@@ -214,7 +214,7 @@
 //                       "name": "WatchpointType",
 //                       "kind": "typedef",
 //                       "doc": "Represents the action that triggers a watchpoint\n",
-//                       "sourcePos": 1022978
+//                       "sourcePos": 1022427
 //                     }
 //                   },
 //                   "tag": "json:\"type\"",
@@ -402,7 +402,7 @@
 //                   "isEmbedded": false
 //                 }
 //               ],
-//               "sourcePos": 1025936
+//               "sourcePos": 1025385
 //             }
 //           },
 //           "tag": "json:\"memoryargs\"",
@@ -456,7 +456,7 @@
 //                           "isEmbedded": false
 //                         }
 //                       ],
-//                       "sourcePos": 1027231
+//                       "sourcePos": 1026680
 //                     }
 //                   },
 //                   "tag": "json:\"location\"",
@@ -959,7 +959,7 @@
 //                       "name": "StopReason",
 //                       "kind": "typedef",
 //                       "doc": "Indicates the reason why the execution stopped\n",
-//                       "sourcePos": 987067
+//                       "sourcePos": 986516
 //                     }
 //                   },
 //                   "tag": "json:\"stopReason\"",
@@ -1097,7 +1097,7 @@
 //                                   "isEmbedded": false
 //                                 }
 //                               ],
-//                               "sourcePos": 1027231
+//                               "sourcePos": 1026680
 //                             }
 //                           },
 //                           "tag": "json:\"location\"",
@@ -1105,7 +1105,7 @@
 //                           "isEmbedded": false
 //                         }
 //                       ],
-//                       "sourcePos": 1018222
+//                       "sourcePos": 1017671
 //                     }
 //                   },
 //                   "tag": "json:\"breakpoint\"",
@@ -1194,7 +1194,7 @@
 //                                       "name": "MemoryRegionType",
 //                                       "kind": "typedef",
 //                                       "doc": "Classifies memory regions depending on their purpose\n",
-//                                       "sourcePos": 1024738
+//                                       "sourcePos": 1024187
 //                                     }
 //                                   },
 //                                   "tag": "json:\"regionType\"",
@@ -1202,7 +1202,7 @@
 //                                   "isEmbedded": false
 //                                 }
 //                               ],
-//                               "sourcePos": 1024328
+//                               "sourcePos": 1023777
 //                             }
 //                           },
 //                           "tag": "json:\"range\"",
@@ -1217,7 +1217,7 @@
 //                               "name": "WatchpointType",
 //                               "kind": "typedef",
 //                               "doc": "Represents the action that triggers a watchpoint\n",
-//                               "sourcePos": 1022978
+//                               "sourcePos": 1022427
 //                             }
 //                           },
 //                           "tag": "json:\"type\"",
@@ -1239,7 +1239,7 @@
 //                           "isEmbedded": false
 //                         }
 //                       ],
-//                       "sourcePos": 1024005
+//                       "sourcePos": 1023454
 //                     }
 //                   },
 //                   "tag": "json:\"watchpoint\"",
@@ -1298,7 +1298,7 @@
 //                           "isEmbedded": false
 //                         }
 //                       ],
-//                       "sourcePos": 1027231
+//                       "sourcePos": 1026680
 //                     }
 //                   },
 //                   "tag": "json:\"lastLocation\"",
@@ -1320,7 +1320,7 @@
 //                   "isEmbedded": false
 //                 }
 //               ],
-//               "sourcePos": 988753
+//               "sourcePos": 988202
 //             }
 //           },
 //           "tag": "json:\"stepresult\"",
@@ -1344,7 +1344,7 @@
 //                       "name": "StopReason",
 //                       "kind": "typedef",
 //                       "doc": "Indicates the reason why the execution stopped\n",
-//                       "sourcePos": 987067
+//                       "sourcePos": 986516
 //                     }
 //                   },
 //                   "tag": "json:\"stopReason\"",
@@ -1482,7 +1482,7 @@
 //                                   "isEmbedded": false
 //                                 }
 //                               ],
-//                               "sourcePos": 1027231
+//                               "sourcePos": 1026680
 //                             }
 //                           },
 //                           "tag": "json:\"location\"",
@@ -1490,7 +1490,7 @@
 //                           "isEmbedded": false
 //                         }
 //                       ],
-//                       "sourcePos": 1018222
+//                       "sourcePos": 1017671
 //                     }
 //                   },
 //                   "tag": "json:\"breakpoint\"",
@@ -1579,7 +1579,7 @@
 //                                       "name": "MemoryRegionType",
 //                                       "kind": "typedef",
 //                                       "doc": "Classifies memory regions depending on their purpose\n",
-//                                       "sourcePos": 1024738
+//                                       "sourcePos": 1024187
 //                                     }
 //                                   },
 //                                   "tag": "json:\"regionType\"",
@@ -1587,7 +1587,7 @@
 //                                   "isEmbedded": false
 //                                 }
 //                               ],
-//                               "sourcePos": 1024328
+//                               "sourcePos": 1023777
 //                             }
 //                           },
 //                           "tag": "json:\"range\"",
@@ -1602,7 +1602,7 @@
 //                               "name": "WatchpointType",
 //                               "kind": "typedef",
 //                               "doc": "Represents the action that triggers a watchpoint\n",
-//                               "sourcePos": 1022978
+//                               "sourcePos": 1022427
 //                             }
 //                           },
 //                           "tag": "json:\"type\"",
@@ -1624,7 +1624,7 @@
 //                           "isEmbedded": false
 //                         }
 //                       ],
-//                       "sourcePos": 1024005
+//                       "sourcePos": 1023454
 //                     }
 //                   },
 //                   "tag": "json:\"watchpoint\"",
@@ -1683,7 +1683,7 @@
 //                           "isEmbedded": false
 //                         }
 //                       ],
-//                       "sourcePos": 1027231
+//                       "sourcePos": 1026680
 //                     }
 //                   },
 //                   "tag": "json:\"lastLocation\"",
@@ -1705,7 +1705,7 @@
 //                   "isEmbedded": false
 //                 }
 //               ],
-//               "sourcePos": 988753
+//               "sourcePos": 988202
 //             }
 //           },
 //           "tag": "json:\"continueresult\"",
@@ -1729,7 +1729,7 @@
 //                       "name": "StopReason",
 //                       "kind": "typedef",
 //                       "doc": "Indicates the reason why the execution stopped\n",
-//                       "sourcePos": 987067
+//                       "sourcePos": 986516
 //                     }
 //                   },
 //                   "tag": "json:\"stopReason\"",
@@ -1867,7 +1867,7 @@
 //                                   "isEmbedded": false
 //                                 }
 //                               ],
-//                               "sourcePos": 1027231
+//                               "sourcePos": 1026680
 //                             }
 //                           },
 //                           "tag": "json:\"location\"",
@@ -1875,7 +1875,7 @@
 //                           "isEmbedded": false
 //                         }
 //                       ],
-//                       "sourcePos": 1018222
+//                       "sourcePos": 1017671
 //                     }
 //                   },
 //                   "tag": "json:\"breakpoint\"",
@@ -1964,7 +1964,7 @@
 //                                       "name": "MemoryRegionType",
 //                                       "kind": "typedef",
 //                                       "doc": "Classifies memory regions depending on their purpose\n",
-//                                       "sourcePos": 1024738
+//                                       "sourcePos": 1024187
 //                                     }
 //                                   },
 //                                   "tag": "json:\"regionType\"",
@@ -1972,7 +1972,7 @@
 //                                   "isEmbedded": false
 //                                 }
 //                               ],
-//                               "sourcePos": 1024328
+//                               "sourcePos": 1023777
 //                             }
 //                           },
 //                           "tag": "json:\"range\"",
@@ -1987,7 +1987,7 @@
 //                               "name": "WatchpointType",
 //                               "kind": "typedef",
 //                               "doc": "Represents the action that triggers a watchpoint\n",
-//                               "sourcePos": 1022978
+//                               "sourcePos": 1022427
 //                             }
 //                           },
 //                           "tag": "json:\"type\"",
@@ -2009,7 +2009,7 @@
 //                           "isEmbedded": false
 //                         }
 //                       ],
-//                       "sourcePos": 1024005
+//                       "sourcePos": 1023454
 //                     }
 //                   },
 //                   "tag": "json:\"watchpoint\"",
@@ -2068,7 +2068,7 @@
 //                           "isEmbedded": false
 //                         }
 //                       ],
-//                       "sourcePos": 1027231
+//                       "sourcePos": 1026680
 //                     }
 //                   },
 //                   "tag": "json:\"lastLocation\"",
@@ -2090,7 +2090,7 @@
 //                   "isEmbedded": false
 //                 }
 //               ],
-//               "sourcePos": 988753
+//               "sourcePos": 988202
 //             }
 //           },
 //           "tag": "json:\"runresult\"",
@@ -2114,7 +2114,7 @@
 //                       "name": "StopReason",
 //                       "kind": "typedef",
 //                       "doc": "Indicates the reason why the execution stopped\n",
-//                       "sourcePos": 987067
+//                       "sourcePos": 986516
 //                     }
 //                   },
 //                   "tag": "json:\"stopReason\"",
@@ -2252,7 +2252,7 @@
 //                                   "isEmbedded": false
 //                                 }
 //                               ],
-//                               "sourcePos": 1027231
+//                               "sourcePos": 1026680
 //                             }
 //                           },
 //                           "tag": "json:\"location\"",
@@ -2260,7 +2260,7 @@
 //                           "isEmbedded": false
 //                         }
 //                       ],
-//                       "sourcePos": 1018222
+//                       "sourcePos": 1017671
 //                     }
 //                   },
 //                   "tag": "json:\"breakpoint\"",
@@ -2349,7 +2349,7 @@
 //                                       "name": "MemoryRegionType",
 //                                       "kind": "typedef",
 //                                       "doc": "Classifies memory regions depending on their purpose\n",
-//                                       "sourcePos": 1024738
+//                                       "sourcePos": 1024187
 //                                     }
 //                                   },
 //                                   "tag": "json:\"regionType\"",
@@ -2357,7 +2357,7 @@
 //                                   "isEmbedded": false
 //                                 }
 //                               ],
-//                               "sourcePos": 1024328
+//                               "sourcePos": 1023777
 //                             }
 //                           },
 //                           "tag": "json:\"range\"",
@@ -2372,7 +2372,7 @@
 //                               "name": "WatchpointType",
 //                               "kind": "typedef",
 //                               "doc": "Represents the action that triggers a watchpoint\n",
-//                               "sourcePos": 1022978
+//                               "sourcePos": 1022427
 //                             }
 //                           },
 //                           "tag": "json:\"type\"",
@@ -2394,7 +2394,7 @@
 //                           "isEmbedded": false
 //                         }
 //                       ],
-//                       "sourcePos": 1024005
+//                       "sourcePos": 1023454
 //                     }
 //                   },
 //                   "tag": "json:\"watchpoint\"",
@@ -2453,7 +2453,7 @@
 //                           "isEmbedded": false
 //                         }
 //                       ],
-//                       "sourcePos": 1027231
+//                       "sourcePos": 1026680
 //                     }
 //                   },
 //                   "tag": "json:\"lastLocation\"",
@@ -2475,7 +2475,7 @@
 //                   "isEmbedded": false
 //                 }
 //               ],
-//               "sourcePos": 988753
+//               "sourcePos": 988202
 //             }
 //           },
 //           "tag": "json:\"interruptresult\"",
@@ -2594,7 +2594,7 @@
 //                                   "isEmbedded": false
 //                                 }
 //                               ],
-//                               "sourcePos": 1027231
+//                               "sourcePos": 1026680
 //                             }
 //                           },
 //                           "tag": "json:\"location\"",
@@ -2602,7 +2602,7 @@
 //                           "isEmbedded": false
 //                         }
 //                       ],
-//                       "sourcePos": 1018222
+//                       "sourcePos": 1017671
 //                     }
 //                   },
 //                   "tag": "json:\"breakpoint\"",
@@ -2722,7 +2722,7 @@
 //                                       "name": "MemoryRegionType",
 //                                       "kind": "typedef",
 //                                       "doc": "Classifies memory regions depending on their purpose\n",
-//                                       "sourcePos": 1024738
+//                                       "sourcePos": 1024187
 //                                     }
 //                                   },
 //                                   "tag": "json:\"regionType\"",
@@ -2730,7 +2730,7 @@
 //                                   "isEmbedded": false
 //                                 }
 //                               ],
-//                               "sourcePos": 1024328
+//                               "sourcePos": 1023777
 //                             }
 //                           },
 //                           "tag": "json:\"range\"",
@@ -2745,7 +2745,7 @@
 //                               "name": "WatchpointType",
 //                               "kind": "typedef",
 //                               "doc": "Represents the action that triggers a watchpoint\n",
-//                               "sourcePos": 1022978
+//                               "sourcePos": 1022427
 //                             }
 //                           },
 //                           "tag": "json:\"type\"",
@@ -2767,7 +2767,7 @@
 //                           "isEmbedded": false
 //                         }
 //                       ],
-//                       "sourcePos": 1024005
+//                       "sourcePos": 1023454
 //                     }
 //                   },
 //                   "tag": "json:\"watchpoint\"",
@@ -2894,7 +2894,7 @@
 //                                   "isEmbedded": false
 //                                 }
 //                               ],
-//                               "sourcePos": 1027231
+//                               "sourcePos": 1026680
 //                             }
 //                           },
 //                           "tag": "json:\"location\"",
@@ -2902,7 +2902,7 @@
 //                           "isEmbedded": false
 //                         }
 //                       ],
-//                       "sourcePos": 1018222
+//                       "sourcePos": 1017671
 //                     }
 //                   },
 //                   "tag": "json:\"breakpoint\"",
@@ -3022,7 +3022,7 @@
 //                                       "name": "MemoryRegionType",
 //                                       "kind": "typedef",
 //                                       "doc": "Classifies memory regions depending on their purpose\n",
-//                                       "sourcePos": 1024738
+//                                       "sourcePos": 1024187
 //                                     }
 //                                   },
 //                                   "tag": "json:\"regionType\"",
@@ -3030,7 +3030,7 @@
 //                                   "isEmbedded": false
 //                                 }
 //                               ],
-//                               "sourcePos": 1024328
+//                               "sourcePos": 1023777
 //                             }
 //                           },
 //                           "tag": "json:\"range\"",
@@ -3045,7 +3045,7 @@
 //                               "name": "WatchpointType",
 //                               "kind": "typedef",
 //                               "doc": "Represents the action that triggers a watchpoint\n",
-//                               "sourcePos": 1022978
+//                               "sourcePos": 1022427
 //                             }
 //                           },
 //                           "tag": "json:\"type\"",
@@ -3067,7 +3067,7 @@
 //                           "isEmbedded": false
 //                         }
 //                       ],
-//                       "sourcePos": 1024005
+//                       "sourcePos": 1023454
 //                     }
 //                   },
 //                   "tag": "json:\"watchpoint\"",
@@ -3194,7 +3194,7 @@
 //                                   "isEmbedded": false
 //                                 }
 //                               ],
-//                               "sourcePos": 1027231
+//                               "sourcePos": 1026680
 //                             }
 //                           },
 //                           "tag": "json:\"location\"",
@@ -3202,7 +3202,7 @@
 //                           "isEmbedded": false
 //                         }
 //                       ],
-//                       "sourcePos": 1018222
+//                       "sourcePos": 1017671
 //                     }
 //                   },
 //                   "tag": "json:\"breakpoints\"",
@@ -3291,7 +3291,7 @@
 //                                       "name": "MemoryRegionType",
 //                                       "kind": "typedef",
 //                                       "doc": "Classifies memory regions depending on their purpose\n",
-//                                       "sourcePos": 1024738
+//                                       "sourcePos": 1024187
 //                                     }
 //                                   },
 //                                   "tag": "json:\"regionType\"",
@@ -3299,7 +3299,7 @@
 //                                   "isEmbedded": false
 //                                 }
 //                               ],
-//                               "sourcePos": 1024328
+//                               "sourcePos": 1023777
 //                             }
 //                           },
 //                           "tag": "json:\"range\"",
@@ -3314,7 +3314,7 @@
 //                               "name": "WatchpointType",
 //                               "kind": "typedef",
 //                               "doc": "Represents the action that triggers a watchpoint\n",
-//                               "sourcePos": 1022978
+//                               "sourcePos": 1022427
 //                             }
 //                           },
 //                           "tag": "json:\"type\"",
@@ -3336,7 +3336,7 @@
 //                           "isEmbedded": false
 //                         }
 //                       ],
-//                       "sourcePos": 1024005
+//                       "sourcePos": 1023454
 //                     }
 //                   },
 //                   "tag": "json:\"watchpoints\"",
@@ -3456,7 +3456,7 @@
 //                                       "name": "InstructionOperandKind",
 //                                       "kind": "typedef",
 //                                       "doc": "Kind of an instruction operand\n",
-//                                       "sourcePos": 1017173
+//                                       "sourcePos": 1016622
 //                                     }
 //                                   },
 //                                   "tag": "json:\"kind\"",
@@ -3515,7 +3515,7 @@
 //                                           "isEmbedded": false
 //                                         }
 //                                       ],
-//                                       "sourcePos": 1026494
+//                                       "sourcePos": 1025943
 //                                     }
 //                                   },
 //                                   "tag": "json:\"register\"",
@@ -3537,7 +3537,7 @@
 //                                   "isEmbedded": false
 //                                 }
 //                               ],
-//                               "sourcePos": 1018618
+//                               "sourcePos": 1018067
 //                             }
 //                           },
 //                           "tag": "json:\"operands\"",
@@ -3633,7 +3633,7 @@
 //                                           "isEmbedded": false
 //                                         }
 //                                       ],
-//                                       "sourcePos": 1027231
+//                                       "sourcePos": 1026680
 //                                     }
 //                                   },
 //                                   "tag": "json:\"location\"",
@@ -3641,7 +3641,7 @@
 //                                   "isEmbedded": false
 //                                 }
 //                               ],
-//                               "sourcePos": 1018222
+//                               "sourcePos": 1017671
 //                             }
 //                           },
 //                           "tag": "json:\"breakpoints\"",
@@ -3730,7 +3730,7 @@
 //                                               "name": "MemoryRegionType",
 //                                               "kind": "typedef",
 //                                               "doc": "Classifies memory regions depending on their purpose\n",
-//                                               "sourcePos": 1024738
+//                                               "sourcePos": 1024187
 //                                             }
 //                                           },
 //                                           "tag": "json:\"regionType\"",
@@ -3738,7 +3738,7 @@
 //                                           "isEmbedded": false
 //                                         }
 //                                       ],
-//                                       "sourcePos": 1024328
+//                                       "sourcePos": 1023777
 //                                     }
 //                                   },
 //                                   "tag": "json:\"range\"",
@@ -3753,7 +3753,7 @@
 //                                       "name": "WatchpointType",
 //                                       "kind": "typedef",
 //                                       "doc": "Represents the action that triggers a watchpoint\n",
-//                                       "sourcePos": 1022978
+//                                       "sourcePos": 1022427
 //                                     }
 //                                   },
 //                                   "tag": "json:\"type\"",
@@ -3775,7 +3775,7 @@
 //                                   "isEmbedded": false
 //                                 }
 //                               ],
-//                               "sourcePos": 1024005
+//                               "sourcePos": 1023454
 //                             }
 //                           },
 //                           "tag": "json:\"watchpoints\"",
@@ -3871,7 +3871,7 @@
 //                                           "isEmbedded": false
 //                                         }
 //                                       ],
-//                                       "sourcePos": 1027231
+//                                       "sourcePos": 1026680
 //                                     }
 //                                   },
 //                                   "tag": "json:\"location\"",
@@ -3995,7 +3995,7 @@
 //                                                   "isEmbedded": false
 //                                                 }
 //                                               ],
-//                                               "sourcePos": 1027231
+//                                               "sourcePos": 1026680
 //                                             }
 //                                           },
 //                                           "tag": "json:\"location\"",
@@ -4003,7 +4003,7 @@
 //                                           "isEmbedded": false
 //                                         }
 //                                       ],
-//                                       "sourcePos": 1018222
+//                                       "sourcePos": 1017671
 //                                     }
 //                                   },
 //                                   "tag": "json:\"breakpoints\"",
@@ -4092,7 +4092,7 @@
 //                                                       "name": "MemoryRegionType",
 //                                                       "kind": "typedef",
 //                                                       "doc": "Classifies memory regions depending on their purpose\n",
-//                                                       "sourcePos": 1024738
+//                                                       "sourcePos": 1024187
 //                                                     }
 //                                                   },
 //                                                   "tag": "json:\"regionType\"",
@@ -4100,7 +4100,7 @@
 //                                                   "isEmbedded": false
 //                                                 }
 //                                               ],
-//                                               "sourcePos": 1024328
+//                                               "sourcePos": 1023777
 //                                             }
 //                                           },
 //                                           "tag": "json:\"range\"",
@@ -4115,7 +4115,7 @@
 //                                               "name": "WatchpointType",
 //                                               "kind": "typedef",
 //                                               "doc": "Represents the action that triggers a watchpoint\n",
-//                                               "sourcePos": 1022978
+//                                               "sourcePos": 1022427
 //                                             }
 //                                           },
 //                                           "tag": "json:\"type\"",
@@ -4137,7 +4137,7 @@
 //                                           "isEmbedded": false
 //                                         }
 //                                       ],
-//                                       "sourcePos": 1024005
+//                                       "sourcePos": 1023454
 //                                     }
 //                                   },
 //                                   "tag": "json:\"watchpoints\"",
@@ -4159,7 +4159,7 @@
 //                                   "isEmbedded": false
 //                                 }
 //                               ],
-//                               "sourcePos": 1027773
+//                               "sourcePos": 1027222
 //                             }
 //                           },
 //                           "tag": "json:\"sourceLine\"",
@@ -4167,7 +4167,7 @@
 //                           "isEmbedded": false
 //                         }
 //                       ],
-//                       "sourcePos": 1018959
+//                       "sourcePos": 1018408
 //                     }
 //                   },
 //                   "tag": "json:\"instructions\"",
@@ -4198,7 +4198,7 @@
 //                           "isEmbedded": false
 //                         }
 //                       ],
-//                       "sourcePos": 1020503
+//                       "sourcePos": 1019952
 //                     }
 //                   },
 //                   "tag": "json:\"controlFlowGraph\"",
@@ -4206,7 +4206,7 @@
 //                   "isEmbedded": false
 //                 }
 //               ],
-//               "sourcePos": 1020097
+//               "sourcePos": 1019546
 //             }
 //           },
 //           "tag": "json:\"disasmresult\"",
@@ -4318,7 +4318,7 @@
 //                                       "name": "InstructionOperandKind",
 //                                       "kind": "typedef",
 //                                       "doc": "Kind of an instruction operand\n",
-//                                       "sourcePos": 1017173
+//                                       "sourcePos": 1016622
 //                                     }
 //                                   },
 //                                   "tag": "json:\"kind\"",
@@ -4377,7 +4377,7 @@
 //                                           "isEmbedded": false
 //                                         }
 //                                       ],
-//                                       "sourcePos": 1026494
+//                                       "sourcePos": 1025943
 //                                     }
 //                                   },
 //                                   "tag": "json:\"register\"",
@@ -4399,7 +4399,7 @@
 //                                   "isEmbedded": false
 //                                 }
 //                               ],
-//                               "sourcePos": 1018618
+//                               "sourcePos": 1018067
 //                             }
 //                           },
 //                           "tag": "json:\"operands\"",
@@ -4495,7 +4495,7 @@
 //                                           "isEmbedded": false
 //                                         }
 //                                       ],
-//                                       "sourcePos": 1027231
+//                                       "sourcePos": 1026680
 //                                     }
 //                                   },
 //                                   "tag": "json:\"location\"",
@@ -4503,7 +4503,7 @@
 //                                   "isEmbedded": false
 //                                 }
 //                               ],
-//                               "sourcePos": 1018222
+//                               "sourcePos": 1017671
 //                             }
 //                           },
 //                           "tag": "json:\"breakpoints\"",
@@ -4592,7 +4592,7 @@
 //                                               "name": "MemoryRegionType",
 //                                               "kind": "typedef",
 //                                               "doc": "Classifies memory regions depending on their purpose\n",
-//                                               "sourcePos": 1024738
+//                                               "sourcePos": 1024187
 //                                             }
 //                                           },
 //                                           "tag": "json:\"regionType\"",
@@ -4600,7 +4600,7 @@
 //                                           "isEmbedded": false
 //                                         }
 //                                       ],
-//                                       "sourcePos": 1024328
+//                                       "sourcePos": 1023777
 //                                     }
 //                                   },
 //                                   "tag": "json:\"range\"",
@@ -4615,7 +4615,7 @@
 //                                       "name": "WatchpointType",
 //                                       "kind": "typedef",
 //                                       "doc": "Represents the action that triggers a watchpoint\n",
-//                                       "sourcePos": 1022978
+//                                       "sourcePos": 1022427
 //                                     }
 //                                   },
 //                                   "tag": "json:\"type\"",
@@ -4637,7 +4637,7 @@
 //                                   "isEmbedded": false
 //                                 }
 //                               ],
-//                               "sourcePos": 1024005
+//                               "sourcePos": 1023454
 //                             }
 //                           },
 //                           "tag": "json:\"watchpoints\"",
@@ -4733,7 +4733,7 @@
 //                                           "isEmbedded": false
 //                                         }
 //                                       ],
-//                                       "sourcePos": 1027231
+//                                       "sourcePos": 1026680
 //                                     }
 //                                   },
 //                                   "tag": "json:\"location\"",
@@ -4857,7 +4857,7 @@
 //                                                   "isEmbedded": false
 //                                                 }
 //                                               ],
-//                                               "sourcePos": 1027231
+//                                               "sourcePos": 1026680
 //                                             }
 //                                           },
 //                                           "tag": "json:\"location\"",
@@ -4865,7 +4865,7 @@
 //                                           "isEmbedded": false
 //                                         }
 //                                       ],
-//                                       "sourcePos": 1018222
+//                                       "sourcePos": 1017671
 //                                     }
 //                                   },
 //                                   "tag": "json:\"breakpoints\"",
@@ -4954,7 +4954,7 @@
 //                                                       "name": "MemoryRegionType",
 //                                                       "kind": "typedef",
 //                                                       "doc": "Classifies memory regions depending on their purpose\n",
-//                                                       "sourcePos": 1024738
+//                                                       "sourcePos": 1024187
 //                                                     }
 //                                                   },
 //                                                   "tag": "json:\"regionType\"",
@@ -4962,7 +4962,7 @@
 //                                                   "isEmbedded": false
 //                                                 }
 //                                               ],
-//                                               "sourcePos": 1024328
+//                                               "sourcePos": 1023777
 //                                             }
 //                                           },
 //                                           "tag": "json:\"range\"",
@@ -4977,7 +4977,7 @@
 //                                               "name": "WatchpointType",
 //                                               "kind": "typedef",
 //                                               "doc": "Represents the action that triggers a watchpoint\n",
-//                                               "sourcePos": 1022978
+//                                               "sourcePos": 1022427
 //                                             }
 //                                           },
 //                                           "tag": "json:\"type\"",
@@ -4999,7 +4999,7 @@
 //                                           "isEmbedded": false
 //                                         }
 //                                       ],
-//                                       "sourcePos": 1024005
+//                                       "sourcePos": 1023454
 //                                     }
 //                                   },
 //                                   "tag": "json:\"watchpoints\"",
@@ -5021,7 +5021,7 @@
 //                                   "isEmbedded": false
 //                                 }
 //                               ],
-//                               "sourcePos": 1027773
+//                               "sourcePos": 1027222
 //                             }
 //                           },
 //                           "tag": "json:\"sourceLine\"",
@@ -5029,7 +5029,7 @@
 //                           "isEmbedded": false
 //                         }
 //                       ],
-//                       "sourcePos": 1018959
+//                       "sourcePos": 1018408
 //                     }
 //                   },
 //                   "tag": "json:\"instruction\"",
@@ -5037,7 +5037,7 @@
 //                   "isEmbedded": false
 //                 }
 //               ],
-//               "sourcePos": 1020667
+//               "sourcePos": 1020116
 //             }
 //           },
 //           "tag": "json:\"currentinstructionresult\"",
@@ -5154,7 +5154,7 @@
 //                               "name": "MemoryRegionType",
 //                               "kind": "typedef",
 //                               "doc": "Classifies memory regions depending on their purpose\n",
-//                               "sourcePos": 1024738
+//                               "sourcePos": 1024187
 //                             }
 //                           },
 //                           "tag": "json:\"regionType\"",
@@ -5162,7 +5162,7 @@
 //                           "isEmbedded": false
 //                         }
 //                       ],
-//                       "sourcePos": 1024328
+//                       "sourcePos": 1023777
 //                     }
 //                   },
 //                   "tag": "json:\"regions\"",
@@ -5170,7 +5170,7 @@
 //                   "isEmbedded": false
 //                 }
 //               ],
-//               "sourcePos": 1026170
+//               "sourcePos": 1025619
 //             }
 //           },
 //           "tag": "json:\"memoryresult\"",
@@ -5256,7 +5256,7 @@
 //                                           "isEmbedded": false
 //                                         }
 //                                       ],
-//                                       "sourcePos": 1027231
+//                                       "sourcePos": 1026680
 //                                     }
 //                                   },
 //                                   "tag": "json:\"start\"",
@@ -5278,7 +5278,7 @@
 //                                   "isEmbedded": false
 //                                 }
 //                               ],
-//                               "sourcePos": 1027382
+//                               "sourcePos": 1026831
 //                             }
 //                           },
 //                           "tag": "json:\"sourceRange\"",
@@ -5332,7 +5332,7 @@
 //                                           "isEmbedded": false
 //                                         }
 //                                       ],
-//                                       "sourcePos": 1027231
+//                                       "sourcePos": 1026680
 //                                     }
 //                                   },
 //                                   "tag": "json:\"location\"",
@@ -5456,7 +5456,7 @@
 //                                                   "isEmbedded": false
 //                                                 }
 //                                               ],
-//                                               "sourcePos": 1027231
+//                                               "sourcePos": 1026680
 //                                             }
 //                                           },
 //                                           "tag": "json:\"location\"",
@@ -5464,7 +5464,7 @@
 //                                           "isEmbedded": false
 //                                         }
 //                                       ],
-//                                       "sourcePos": 1018222
+//                                       "sourcePos": 1017671
 //                                     }
 //                                   },
 //                                   "tag": "json:\"breakpoints\"",
@@ -5553,7 +5553,7 @@
 //                                                       "name": "MemoryRegionType",
 //                                                       "kind": "typedef",
 //                                                       "doc": "Classifies memory regions depending on their purpose\n",
-//                                                       "sourcePos": 1024738
+//                                                       "sourcePos": 1024187
 //                                                     }
 //                                                   },
 //                                                   "tag": "json:\"regionType\"",
@@ -5561,7 +5561,7 @@
 //                                                   "isEmbedded": false
 //                                                 }
 //                                               ],
-//                                               "sourcePos": 1024328
+//                                               "sourcePos": 1023777
 //                                             }
 //                                           },
 //                                           "tag": "json:\"range\"",
@@ -5576,7 +5576,7 @@
 //                                               "name": "WatchpointType",
 //                                               "kind": "typedef",
 //                                               "doc": "Represents the action that triggers a watchpoint\n",
-//                                               "sourcePos": 1022978
+//                                               "sourcePos": 1022427
 //                                             }
 //                                           },
 //                                           "tag": "json:\"type\"",
@@ -5598,7 +5598,7 @@
 //                                           "isEmbedded": false
 //                                         }
 //                                       ],
-//                                       "sourcePos": 1024005
+//                                       "sourcePos": 1023454
 //                                     }
 //                                   },
 //                                   "tag": "json:\"watchpoints\"",
@@ -5620,7 +5620,7 @@
 //                                   "isEmbedded": false
 //                                 }
 //                               ],
-//                               "sourcePos": 1027773
+//                               "sourcePos": 1027222
 //                             }
 //                           },
 //                           "tag": "json:\"lines\"",
@@ -5628,7 +5628,7 @@
 //                           "isEmbedded": false
 //                         }
 //                       ],
-//                       "sourcePos": 1027563
+//                       "sourcePos": 1027012
 //                     }
 //                   },
 //                   "tag": "json:\"snippet\"",
@@ -5722,7 +5722,7 @@
 //                                           "isEmbedded": false
 //                                         }
 //                                       ],
-//                                       "sourcePos": 1027231
+//                                       "sourcePos": 1026680
 //                                     }
 //                                   },
 //                                   "tag": "json:\"start\"",
@@ -5744,7 +5744,7 @@
 //                                   "isEmbedded": false
 //                                 }
 //                               ],
-//                               "sourcePos": 1027382
+//                               "sourcePos": 1026831
 //                             }
 //                           },
 //                           "tag": "json:\"sourceRange\"",
@@ -5798,7 +5798,7 @@
 //                                           "isEmbedded": false
 //                                         }
 //                                       ],
-//                                       "sourcePos": 1027231
+//                                       "sourcePos": 1026680
 //                                     }
 //                                   },
 //                                   "tag": "json:\"location\"",
@@ -5922,7 +5922,7 @@
 //                                                   "isEmbedded": false
 //                                                 }
 //                                               ],
-//                                               "sourcePos": 1027231
+//                                               "sourcePos": 1026680
 //                                             }
 //                                           },
 //                                           "tag": "json:\"location\"",
@@ -5930,7 +5930,7 @@
 //                                           "isEmbedded": false
 //                                         }
 //                                       ],
-//                                       "sourcePos": 1018222
+//                                       "sourcePos": 1017671
 //                                     }
 //                                   },
 //                                   "tag": "json:\"breakpoints\"",
@@ -6019,7 +6019,7 @@
 //                                                       "name": "MemoryRegionType",
 //                                                       "kind": "typedef",
 //                                                       "doc": "Classifies memory regions depending on their purpose\n",
-//                                                       "sourcePos": 1024738
+//                                                       "sourcePos": 1024187
 //                                                     }
 //                                                   },
 //                                                   "tag": "json:\"regionType\"",
@@ -6027,7 +6027,7 @@
 //                                                   "isEmbedded": false
 //                                                 }
 //                                               ],
-//                                               "sourcePos": 1024328
+//                                               "sourcePos": 1023777
 //                                             }
 //                                           },
 //                                           "tag": "json:\"range\"",
@@ -6042,7 +6042,7 @@
 //                                               "name": "WatchpointType",
 //                                               "kind": "typedef",
 //                                               "doc": "Represents the action that triggers a watchpoint\n",
-//                                               "sourcePos": 1022978
+//                                               "sourcePos": 1022427
 //                                             }
 //                                           },
 //                                           "tag": "json:\"type\"",
@@ -6064,7 +6064,7 @@
 //                                           "isEmbedded": false
 //                                         }
 //                                       ],
-//                                       "sourcePos": 1024005
+//                                       "sourcePos": 1023454
 //                                     }
 //                                   },
 //                                   "tag": "json:\"watchpoints\"",
@@ -6086,7 +6086,7 @@
 //                                   "isEmbedded": false
 //                                 }
 //                               ],
-//                               "sourcePos": 1027773
+//                               "sourcePos": 1027222
 //                             }
 //                           },
 //                           "tag": "json:\"lines\"",
@@ -6094,7 +6094,7 @@
 //                           "isEmbedded": false
 //                         }
 //                       ],
-//                       "sourcePos": 1027563
+//                       "sourcePos": 1027012
 //                     }
 //                   },
 //                   "tag": "json:\"snippet\"",
@@ -6222,7 +6222,7 @@
 //                               "name": "DebuggerStatus",
 //                               "kind": "typedef",
 //                               "doc": "Represents the status of the debugger\n",
-//                               "sourcePos": 989729
+//                               "sourcePos": 989178
 //                             }
 //                           },
 //                           "tag": "json:\"status\"",
@@ -6281,7 +6281,7 @@
 //                                   "isEmbedded": false
 //                                 }
 //                               ],
-//                               "sourcePos": 1026494
+//                               "sourcePos": 1025943
 //                             }
 //                           },
 //                           "tag": "json:\"registers\"",
@@ -6354,7 +6354,7 @@
 //                                   "isEmbedded": false
 //                                 }
 //                               ],
-//                               "sourcePos": 1026752
+//                               "sourcePos": 1026201
 //                             }
 //                           },
 //                           "tag": "json:\"flags\"",
@@ -6362,7 +6362,7 @@
 //                           "isEmbedded": false
 //                         }
 //                       ],
-//                       "sourcePos": 991892
+//                       "sourcePos": 991341
 //                     }
 //                   },
 //                   "tag": "json:\"debuggerState\"",
@@ -6747,7 +6747,7 @@
 //                   "isEmbedded": false
 //                 }
 //               ],
-//               "sourcePos": 996799
+//               "sourcePos": 996248
 //             }
 //           },
 //           "tag": "json:\"inforesult\"",
@@ -6829,7 +6829,7 @@
 //                           "isEmbedded": false
 //                         }
 //                       ],
-//                       "sourcePos": 1026494
+//                       "sourcePos": 1025943
 //                     }
 //                   },
 //                   "tag": "json:\"registers\"",
@@ -6902,7 +6902,7 @@
 //                           "isEmbedded": false
 //                         }
 //                       ],
-//                       "sourcePos": 1026752
+//                       "sourcePos": 1026201
 //                     }
 //                   },
 //                   "tag": "json:\"flags\"",
@@ -6910,7 +6910,7 @@
 //                   "isEmbedded": false
 //                 }
 //               ],
-//               "sourcePos": 1026927
+//               "sourcePos": 1026376
 //             }
 //           },
 //           "tag": "json:\"registersresult\"",
@@ -7015,7 +7015,7 @@
 //                                   "isEmbedded": false
 //                                 }
 //                               ],
-//                               "sourcePos": 1027231
+//                               "sourcePos": 1026680
 //                             }
 //                           },
 //                           "tag": "json:\"sourceLocation\"",
@@ -7095,7 +7095,7 @@
 //                                       "name": "MemoryRegionType",
 //                                       "kind": "typedef",
 //                                       "doc": "Classifies memory regions depending on their purpose\n",
-//                                       "sourcePos": 1024738
+//                                       "sourcePos": 1024187
 //                                     }
 //                                   },
 //                                   "tag": "json:\"regionType\"",
@@ -7103,7 +7103,7 @@
 //                                   "isEmbedded": false
 //                                 }
 //                               ],
-//                               "sourcePos": 1024328
+//                               "sourcePos": 1023777
 //                             }
 //                           },
 //                           "tag": "json:\"memory\"",
@@ -7111,7 +7111,7 @@
 //                           "isEmbedded": false
 //                         }
 //                       ],
-//                       "sourcePos": 996067
+//                       "sourcePos": 995516
 //                     }
 //                   },
 //                   "tag": "json:\"stackFrames\"",
@@ -7119,7 +7119,7 @@
 //                   "isEmbedded": false
 //                 }
 //               ],
-//               "sourcePos": 997299
+//               "sourcePos": 996748
 //             }
 //           },
 //           "tag": "json:\"stackresult\"",
@@ -7287,7 +7287,7 @@
 //                                       "name": "MemoryRegionType",
 //                                       "kind": "typedef",
 //                                       "doc": "Classifies memory regions depending on their purpose\n",
-//                                       "sourcePos": 1024738
+//                                       "sourcePos": 1024187
 //                                     }
 //                                   },
 //                                   "tag": "json:\"regionType\"",
@@ -7295,7 +7295,7 @@
 //                                   "isEmbedded": false
 //                                 }
 //                               ],
-//                               "sourcePos": 1024328
+//                               "sourcePos": 1023777
 //                             }
 //                           },
 //                           "tag": "json:\"memoryLocation\"",
@@ -7303,7 +7303,7 @@
 //                           "isEmbedded": false
 //                         }
 //                       ],
-//                       "sourcePos": 995423
+//                       "sourcePos": 994872
 //                     }
 //                   },
 //                   "tag": "json:\"variables\"",
@@ -7311,7 +7311,7 @@
 //                   "isEmbedded": false
 //                 }
 //               ],
-//               "sourcePos": 997651
+//               "sourcePos": 997100
 //             }
 //           },
 //           "tag": "json:\"varsresult\"",
@@ -7463,7 +7463,7 @@
 //                           "isEmbedded": false
 //                         }
 //                       ],
-//                       "sourcePos": 1020875
+//                       "sourcePos": 1020324
 //                     }
 //                   },
 //                   "tag": "json:\"functions\"",
@@ -7564,7 +7564,7 @@
 //                           "isEmbedded": false
 //                         }
 //                       ],
-//                       "sourcePos": 1021613
+//                       "sourcePos": 1021062
 //                     }
 //                   },
 //                   "tag": "json:\"globals\"",
@@ -7623,7 +7623,7 @@
 //                           "isEmbedded": false
 //                         }
 //                       ],
-//                       "sourcePos": 1022105
+//                       "sourcePos": 1021554
 //                     }
 //                   },
 //                   "tag": "json:\"labels\"",
@@ -7631,7 +7631,7 @@
 //                   "isEmbedded": false
 //                 }
 //               ],
-//               "sourcePos": 1022456
+//               "sourcePos": 1021905
 //             }
 //           },
 //           "tag": "json:\"symbolsresult\"",
@@ -7655,7 +7655,7 @@
 //                       "name": "StopReason",
 //                       "kind": "typedef",
 //                       "doc": "Indicates the reason why the execution stopped\n",
-//                       "sourcePos": 987067
+//                       "sourcePos": 986516
 //                     }
 //                   },
 //                   "tag": "json:\"stopReason\"",
@@ -7793,7 +7793,7 @@
 //                                   "isEmbedded": false
 //                                 }
 //                               ],
-//                               "sourcePos": 1027231
+//                               "sourcePos": 1026680
 //                             }
 //                           },
 //                           "tag": "json:\"location\"",
@@ -7801,7 +7801,7 @@
 //                           "isEmbedded": false
 //                         }
 //                       ],
-//                       "sourcePos": 1018222
+//                       "sourcePos": 1017671
 //                     }
 //                   },
 //                   "tag": "json:\"breakpoint\"",
@@ -7890,7 +7890,7 @@
 //                                       "name": "MemoryRegionType",
 //                                       "kind": "typedef",
 //                                       "doc": "Classifies memory regions depending on their purpose\n",
-//                                       "sourcePos": 1024738
+//                                       "sourcePos": 1024187
 //                                     }
 //                                   },
 //                                   "tag": "json:\"regionType\"",
@@ -7898,7 +7898,7 @@
 //                                   "isEmbedded": false
 //                                 }
 //                               ],
-//                               "sourcePos": 1024328
+//                               "sourcePos": 1023777
 //                             }
 //                           },
 //                           "tag": "json:\"range\"",
@@ -7913,7 +7913,7 @@
 //                               "name": "WatchpointType",
 //                               "kind": "typedef",
 //                               "doc": "Represents the action that triggers a watchpoint\n",
-//                               "sourcePos": 1022978
+//                               "sourcePos": 1022427
 //                             }
 //                           },
 //                           "tag": "json:\"type\"",
@@ -7935,7 +7935,7 @@
 //                           "isEmbedded": false
 //                         }
 //                       ],
-//                       "sourcePos": 1024005
+//                       "sourcePos": 1023454
 //                     }
 //                   },
 //                   "tag": "json:\"watchpoint\"",
@@ -7994,7 +7994,7 @@
 //                           "isEmbedded": false
 //                         }
 //                       ],
-//                       "sourcePos": 1027231
+//                       "sourcePos": 1026680
 //                     }
 //                   },
 //                   "tag": "json:\"lastLocation\"",
@@ -8016,7 +8016,7 @@
 //                   "isEmbedded": false
 //                 }
 //               ],
-//               "sourcePos": 988753
+//               "sourcePos": 988202
 //             }
 //           },
 //           "tag": "json:\"resetresult\"",
@@ -8040,7 +8040,7 @@
 //                       "name": "StopReason",
 //                       "kind": "typedef",
 //                       "doc": "Indicates the reason why the execution stopped\n",
-//                       "sourcePos": 987067
+//                       "sourcePos": 986516
 //                     }
 //                   },
 //                   "tag": "json:\"stopReason\"",
@@ -8178,7 +8178,7 @@
 //                                   "isEmbedded": false
 //                                 }
 //                               ],
-//                               "sourcePos": 1027231
+//                               "sourcePos": 1026680
 //                             }
 //                           },
 //                           "tag": "json:\"location\"",
@@ -8186,7 +8186,7 @@
 //                           "isEmbedded": false
 //                         }
 //                       ],
-//                       "sourcePos": 1018222
+//                       "sourcePos": 1017671
 //                     }
 //                   },
 //                   "tag": "json:\"breakpoint\"",
@@ -8275,7 +8275,7 @@
 //                                       "name": "MemoryRegionType",
 //                                       "kind": "typedef",
 //                                       "doc": "Classifies memory regions depending on their purpose\n",
-//                                       "sourcePos": 1024738
+//                                       "sourcePos": 1024187
 //                                     }
 //                                   },
 //                                   "tag": "json:\"regionType\"",
@@ -8283,7 +8283,7 @@
 //                                   "isEmbedded": false
 //                                 }
 //                               ],
-//                               "sourcePos": 1024328
+//                               "sourcePos": 1023777
 //                             }
 //                           },
 //                           "tag": "json:\"range\"",
@@ -8298,7 +8298,7 @@
 //                               "name": "WatchpointType",
 //                               "kind": "typedef",
 //                               "doc": "Represents the action that triggers a watchpoint\n",
-//                               "sourcePos": 1022978
+//                               "sourcePos": 1022427
 //                             }
 //                           },
 //                           "tag": "json:\"type\"",
@@ -8320,7 +8320,7 @@
 //                           "isEmbedded": false
 //                         }
 //                       ],
-//                       "sourcePos": 1024005
+//                       "sourcePos": 1023454
 //                     }
 //                   },
 //                   "tag": "json:\"watchpoint\"",
@@ -8379,7 +8379,7 @@
 //                           "isEmbedded": false
 //                         }
 //                       ],
-//                       "sourcePos": 1027231
+//                       "sourcePos": 1026680
 //                     }
 //                   },
 //                   "tag": "json:\"lastLocation\"",
@@ -8401,7 +8401,7 @@
 //                   "isEmbedded": false
 //                 }
 //               ],
-//               "sourcePos": 988753
+//               "sourcePos": 988202
 //             }
 //           },
 //           "tag": "json:\"restartresult\"",
@@ -10182,7 +10182,7 @@
 //                         "name": "StopReason",
 //                         "kind": "typedef",
 //                         "doc": "Indicates the reason why the execution stopped\n",
-//                         "sourcePos": 987067
+//                         "sourcePos": 986516
 //                       }
 //                     },
 //                     "tag": "json:\"stopReason\"",
@@ -10320,7 +10320,7 @@
 //                                     "isEmbedded": false
 //                                   }
 //                                 ],
-//                                 "sourcePos": 1027231
+//                                 "sourcePos": 1026680
 //                               }
 //                             },
 //                             "tag": "json:\"location\"",
@@ -10328,7 +10328,7 @@
 //                             "isEmbedded": false
 //                           }
 //                         ],
-//                         "sourcePos": 1018222
+//                         "sourcePos": 1017671
 //                       }
 //                     },
 //                     "tag": "json:\"breakpoint\"",
@@ -10417,7 +10417,7 @@
 //                                         "name": "MemoryRegionType",
 //                                         "kind": "typedef",
 //                                         "doc": "Classifies memory regions depending on their purpose\n",
-//                                         "sourcePos": 1024738
+//                                         "sourcePos": 1024187
 //                                       }
 //                                     },
 //                                     "tag": "json:\"regionType\"",
@@ -10425,7 +10425,7 @@
 //                                     "isEmbedded": false
 //                                   }
 //                                 ],
-//                                 "sourcePos": 1024328
+//                                 "sourcePos": 1023777
 //                               }
 //                             },
 //                             "tag": "json:\"range\"",
@@ -10440,7 +10440,7 @@
 //                                 "name": "WatchpointType",
 //                                 "kind": "typedef",
 //                                 "doc": "Represents the action that triggers a watchpoint\n",
-//                                 "sourcePos": 1022978
+//                                 "sourcePos": 1022427
 //                               }
 //                             },
 //                             "tag": "json:\"type\"",
@@ -10462,7 +10462,7 @@
 //                             "isEmbedded": false
 //                           }
 //                         ],
-//                         "sourcePos": 1024005
+//                         "sourcePos": 1023454
 //                       }
 //                     },
 //                     "tag": "json:\"watchpoint\"",
@@ -10521,7 +10521,7 @@
 //                             "isEmbedded": false
 //                           }
 //                         ],
-//                         "sourcePos": 1027231
+//                         "sourcePos": 1026680
 //                       }
 //                     },
 //                     "tag": "json:\"lastLocation\"",
@@ -10543,7 +10543,7 @@
 //                     "isEmbedded": false
 //                   }
 //                 ],
-//                 "sourcePos": 988753
+//                 "sourcePos": 988202
 //               }
 //             },
 //             "Index": 0
@@ -10569,7 +10569,7 @@
 //                         "name": "StopReason",
 //                         "kind": "typedef",
 //                         "doc": "Indicates the reason why the execution stopped\n",
-//                         "sourcePos": 987067
+//                         "sourcePos": 986516
 //                       }
 //                     },
 //                     "tag": "json:\"stopReason\"",
@@ -10707,7 +10707,7 @@
 //                                     "isEmbedded": false
 //                                   }
 //                                 ],
-//                                 "sourcePos": 1027231
+//                                 "sourcePos": 1026680
 //                               }
 //                             },
 //                             "tag": "json:\"location\"",
@@ -10715,7 +10715,7 @@
 //                             "isEmbedded": false
 //                           }
 //                         ],
-//                         "sourcePos": 1018222
+//                         "sourcePos": 1017671
 //                       }
 //                     },
 //                     "tag": "json:\"breakpoint\"",
@@ -10804,7 +10804,7 @@
 //                                         "name": "MemoryRegionType",
 //                                         "kind": "typedef",
 //                                         "doc": "Classifies memory regions depending on their purpose\n",
-//                                         "sourcePos": 1024738
+//                                         "sourcePos": 1024187
 //                                       }
 //                                     },
 //                                     "tag": "json:\"regionType\"",
@@ -10812,7 +10812,7 @@
 //                                     "isEmbedded": false
 //                                   }
 //                                 ],
-//                                 "sourcePos": 1024328
+//                                 "sourcePos": 1023777
 //                               }
 //                             },
 //                             "tag": "json:\"range\"",
@@ -10827,7 +10827,7 @@
 //                                 "name": "WatchpointType",
 //                                 "kind": "typedef",
 //                                 "doc": "Represents the action that triggers a watchpoint\n",
-//                                 "sourcePos": 1022978
+//                                 "sourcePos": 1022427
 //                               }
 //                             },
 //                             "tag": "json:\"type\"",
@@ -10849,7 +10849,7 @@
 //                             "isEmbedded": false
 //                           }
 //                         ],
-//                         "sourcePos": 1024005
+//                         "sourcePos": 1023454
 //                       }
 //                     },
 //                     "tag": "json:\"watchpoint\"",
@@ -10908,7 +10908,7 @@
 //                             "isEmbedded": false
 //                           }
 //                         ],
-//                         "sourcePos": 1027231
+//                         "sourcePos": 1026680
 //                       }
 //                     },
 //                     "tag": "json:\"lastLocation\"",
@@ -10930,7 +10930,7 @@
 //                     "isEmbedded": false
 //                   }
 //                 ],
-//                 "sourcePos": 988753
+//                 "sourcePos": 988202
 //               }
 //             },
 //             "Index": 1
@@ -10956,7 +10956,7 @@
 //                         "name": "StopReason",
 //                         "kind": "typedef",
 //                         "doc": "Indicates the reason why the execution stopped\n",
-//                         "sourcePos": 987067
+//                         "sourcePos": 986516
 //                       }
 //                     },
 //                     "tag": "json:\"stopReason\"",
@@ -11094,7 +11094,7 @@
 //                                     "isEmbedded": false
 //                                   }
 //                                 ],
-//                                 "sourcePos": 1027231
+//                                 "sourcePos": 1026680
 //                               }
 //                             },
 //                             "tag": "json:\"location\"",
@@ -11102,7 +11102,7 @@
 //                             "isEmbedded": false
 //                           }
 //                         ],
-//                         "sourcePos": 1018222
+//                         "sourcePos": 1017671
 //                       }
 //                     },
 //                     "tag": "json:\"breakpoint\"",
@@ -11191,7 +11191,7 @@
 //                                         "name": "MemoryRegionType",
 //                                         "kind": "typedef",
 //                                         "doc": "Classifies memory regions depending on their purpose\n",
-//                                         "sourcePos": 1024738
+//                                         "sourcePos": 1024187
 //                                       }
 //                                     },
 //                                     "tag": "json:\"regionType\"",
@@ -11199,7 +11199,7 @@
 //                                     "isEmbedded": false
 //                                   }
 //                                 ],
-//                                 "sourcePos": 1024328
+//                                 "sourcePos": 1023777
 //                               }
 //                             },
 //                             "tag": "json:\"range\"",
@@ -11214,7 +11214,7 @@
 //                                 "name": "WatchpointType",
 //                                 "kind": "typedef",
 //                                 "doc": "Represents the action that triggers a watchpoint\n",
-//                                 "sourcePos": 1022978
+//                                 "sourcePos": 1022427
 //                               }
 //                             },
 //                             "tag": "json:\"type\"",
@@ -11236,7 +11236,7 @@
 //                             "isEmbedded": false
 //                           }
 //                         ],
-//                         "sourcePos": 1024005
+//                         "sourcePos": 1023454
 //                       }
 //                     },
 //                     "tag": "json:\"watchpoint\"",
@@ -11295,7 +11295,7 @@
 //                             "isEmbedded": false
 //                           }
 //                         ],
-//                         "sourcePos": 1027231
+//                         "sourcePos": 1026680
 //                       }
 //                     },
 //                     "tag": "json:\"lastLocation\"",
@@ -11317,7 +11317,7 @@
 //                     "isEmbedded": false
 //                   }
 //                 ],
-//                 "sourcePos": 988753
+//                 "sourcePos": 988202
 //               }
 //             },
 //             "Index": 2
@@ -11343,7 +11343,7 @@
 //                         "name": "StopReason",
 //                         "kind": "typedef",
 //                         "doc": "Indicates the reason why the execution stopped\n",
-//                         "sourcePos": 987067
+//                         "sourcePos": 986516
 //                       }
 //                     },
 //                     "tag": "json:\"stopReason\"",
@@ -11481,7 +11481,7 @@
 //                                     "isEmbedded": false
 //                                   }
 //                                 ],
-//                                 "sourcePos": 1027231
+//                                 "sourcePos": 1026680
 //                               }
 //                             },
 //                             "tag": "json:\"location\"",
@@ -11489,7 +11489,7 @@
 //                             "isEmbedded": false
 //                           }
 //                         ],
-//                         "sourcePos": 1018222
+//                         "sourcePos": 1017671
 //                       }
 //                     },
 //                     "tag": "json:\"breakpoint\"",
@@ -11578,7 +11578,7 @@
 //                                         "name": "MemoryRegionType",
 //                                         "kind": "typedef",
 //                                         "doc": "Classifies memory regions depending on their purpose\n",
-//                                         "sourcePos": 1024738
+//                                         "sourcePos": 1024187
 //                                       }
 //                                     },
 //                                     "tag": "json:\"regionType\"",
@@ -11586,7 +11586,7 @@
 //                                     "isEmbedded": false
 //                                   }
 //                                 ],
-//                                 "sourcePos": 1024328
+//                                 "sourcePos": 1023777
 //                               }
 //                             },
 //                             "tag": "json:\"range\"",
@@ -11601,7 +11601,7 @@
 //                                 "name": "WatchpointType",
 //                                 "kind": "typedef",
 //                                 "doc": "Represents the action that triggers a watchpoint\n",
-//                                 "sourcePos": 1022978
+//                                 "sourcePos": 1022427
 //                               }
 //                             },
 //                             "tag": "json:\"type\"",
@@ -11623,7 +11623,7 @@
 //                             "isEmbedded": false
 //                           }
 //                         ],
-//                         "sourcePos": 1024005
+//                         "sourcePos": 1023454
 //                       }
 //                     },
 //                     "tag": "json:\"watchpoint\"",
@@ -11682,7 +11682,7 @@
 //                             "isEmbedded": false
 //                           }
 //                         ],
-//                         "sourcePos": 1027231
+//                         "sourcePos": 1026680
 //                       }
 //                     },
 //                     "tag": "json:\"lastLocation\"",
@@ -11704,7 +11704,7 @@
 //                     "isEmbedded": false
 //                   }
 //                 ],
-//                 "sourcePos": 988753
+//                 "sourcePos": 988202
 //               }
 //             },
 //             "Index": 3
@@ -11759,7 +11759,7 @@
 //                             "isEmbedded": false
 //                           }
 //                         ],
-//                         "sourcePos": 1027231
+//                         "sourcePos": 1026680
 //                       }
 //                     },
 //                     "tag": "json:\"sourceLocation\"",
@@ -11894,7 +11894,7 @@
 //                                     "isEmbedded": false
 //                                   }
 //                                 ],
-//                                 "sourcePos": 1027231
+//                                 "sourcePos": 1026680
 //                               }
 //                             },
 //                             "tag": "json:\"location\"",
@@ -11902,7 +11902,7 @@
 //                             "isEmbedded": false
 //                           }
 //                         ],
-//                         "sourcePos": 1018222
+//                         "sourcePos": 1017671
 //                       }
 //                     },
 //                     "tag": "json:\"breakpoint\"",
@@ -11977,7 +11977,7 @@
 //                         "name": "WatchpointType",
 //                         "kind": "typedef",
 //                         "doc": "Represents the action that triggers a watchpoint\n",
-//                         "sourcePos": 1022978
+//                         "sourcePos": 1022427
 //                       }
 //                     },
 //                     "tag": "json:\"type\"",
@@ -12091,7 +12091,7 @@
 //                                         "name": "MemoryRegionType",
 //                                         "kind": "typedef",
 //                                         "doc": "Classifies memory regions depending on their purpose\n",
-//                                         "sourcePos": 1024738
+//                                         "sourcePos": 1024187
 //                                       }
 //                                     },
 //                                     "tag": "json:\"regionType\"",
@@ -12099,7 +12099,7 @@
 //                                     "isEmbedded": false
 //                                   }
 //                                 ],
-//                                 "sourcePos": 1024328
+//                                 "sourcePos": 1023777
 //                               }
 //                             },
 //                             "tag": "json:\"range\"",
@@ -12114,7 +12114,7 @@
 //                                 "name": "WatchpointType",
 //                                 "kind": "typedef",
 //                                 "doc": "Represents the action that triggers a watchpoint\n",
-//                                 "sourcePos": 1022978
+//                                 "sourcePos": 1022427
 //                               }
 //                             },
 //                             "tag": "json:\"type\"",
@@ -12136,7 +12136,7 @@
 //                             "isEmbedded": false
 //                           }
 //                         ],
-//                         "sourcePos": 1024005
+//                         "sourcePos": 1023454
 //                       }
 //                     },
 //                     "tag": "json:\"watchpoint\"",
@@ -12289,7 +12289,7 @@
 //                                     "isEmbedded": false
 //                                   }
 //                                 ],
-//                                 "sourcePos": 1027231
+//                                 "sourcePos": 1026680
 //                               }
 //                             },
 //                             "tag": "json:\"location\"",
@@ -12297,7 +12297,7 @@
 //                             "isEmbedded": false
 //                           }
 //                         ],
-//                         "sourcePos": 1018222
+//                         "sourcePos": 1017671
 //                       }
 //                     },
 //                     "tag": "json:\"breakpoint\"",
@@ -12443,7 +12443,7 @@
 //                                         "name": "MemoryRegionType",
 //                                         "kind": "typedef",
 //                                         "doc": "Classifies memory regions depending on their purpose\n",
-//                                         "sourcePos": 1024738
+//                                         "sourcePos": 1024187
 //                                       }
 //                                     },
 //                                     "tag": "json:\"regionType\"",
@@ -12451,7 +12451,7 @@
 //                                     "isEmbedded": false
 //                                   }
 //                                 ],
-//                                 "sourcePos": 1024328
+//                                 "sourcePos": 1023777
 //                               }
 //                             },
 //                             "tag": "json:\"range\"",
@@ -12466,7 +12466,7 @@
 //                                 "name": "WatchpointType",
 //                                 "kind": "typedef",
 //                                 "doc": "Represents the action that triggers a watchpoint\n",
-//                                 "sourcePos": 1022978
+//                                 "sourcePos": 1022427
 //                               }
 //                             },
 //                             "tag": "json:\"type\"",
@@ -12488,7 +12488,7 @@
 //                             "isEmbedded": false
 //                           }
 //                         ],
-//                         "sourcePos": 1024005
+//                         "sourcePos": 1023454
 //                       }
 //                     },
 //                     "tag": "json:\"watchpoint\"",
@@ -12617,7 +12617,7 @@
 //                                     "isEmbedded": false
 //                                   }
 //                                 ],
-//                                 "sourcePos": 1027231
+//                                 "sourcePos": 1026680
 //                               }
 //                             },
 //                             "tag": "json:\"location\"",
@@ -12625,7 +12625,7 @@
 //                             "isEmbedded": false
 //                           }
 //                         ],
-//                         "sourcePos": 1018222
+//                         "sourcePos": 1017671
 //                       }
 //                     },
 //                     "tag": "json:\"breakpoints\"",
@@ -12714,7 +12714,7 @@
 //                                         "name": "MemoryRegionType",
 //                                         "kind": "typedef",
 //                                         "doc": "Classifies memory regions depending on their purpose\n",
-//                                         "sourcePos": 1024738
+//                                         "sourcePos": 1024187
 //                                       }
 //                                     },
 //                                     "tag": "json:\"regionType\"",
@@ -12722,7 +12722,7 @@
 //                                     "isEmbedded": false
 //                                   }
 //                                 ],
-//                                 "sourcePos": 1024328
+//                                 "sourcePos": 1023777
 //                               }
 //                             },
 //                             "tag": "json:\"range\"",
@@ -12737,7 +12737,7 @@
 //                                 "name": "WatchpointType",
 //                                 "kind": "typedef",
 //                                 "doc": "Represents the action that triggers a watchpoint\n",
-//                                 "sourcePos": 1022978
+//                                 "sourcePos": 1022427
 //                               }
 //                             },
 //                             "tag": "json:\"type\"",
@@ -12759,7 +12759,7 @@
 //                             "isEmbedded": false
 //                           }
 //                         ],
-//                         "sourcePos": 1024005
+//                         "sourcePos": 1023454
 //                       }
 //                     },
 //                     "tag": "json:\"watchpoints\"",
@@ -12947,7 +12947,7 @@
 //                                         "name": "InstructionOperandKind",
 //                                         "kind": "typedef",
 //                                         "doc": "Kind of an instruction operand\n",
-//                                         "sourcePos": 1017173
+//                                         "sourcePos": 1016622
 //                                       }
 //                                     },
 //                                     "tag": "json:\"kind\"",
@@ -13006,7 +13006,7 @@
 //                                             "isEmbedded": false
 //                                           }
 //                                         ],
-//                                         "sourcePos": 1026494
+//                                         "sourcePos": 1025943
 //                                       }
 //                                     },
 //                                     "tag": "json:\"register\"",
@@ -13028,7 +13028,7 @@
 //                                     "isEmbedded": false
 //                                   }
 //                                 ],
-//                                 "sourcePos": 1018618
+//                                 "sourcePos": 1018067
 //                               }
 //                             },
 //                             "tag": "json:\"operands\"",
@@ -13124,7 +13124,7 @@
 //                                             "isEmbedded": false
 //                                           }
 //                                         ],
-//                                         "sourcePos": 1027231
+//                                         "sourcePos": 1026680
 //                                       }
 //                                     },
 //                                     "tag": "json:\"location\"",
@@ -13132,7 +13132,7 @@
 //                                     "isEmbedded": false
 //                                   }
 //                                 ],
-//                                 "sourcePos": 1018222
+//                                 "sourcePos": 1017671
 //                               }
 //                             },
 //                             "tag": "json:\"breakpoints\"",
@@ -13221,7 +13221,7 @@
 //                                                 "name": "MemoryRegionType",
 //                                                 "kind": "typedef",
 //                                                 "doc": "Classifies memory regions depending on their purpose\n",
-//                                                 "sourcePos": 1024738
+//                                                 "sourcePos": 1024187
 //                                               }
 //                                             },
 //                                             "tag": "json:\"regionType\"",
@@ -13229,7 +13229,7 @@
 //                                             "isEmbedded": false
 //                                           }
 //                                         ],
-//                                         "sourcePos": 1024328
+//                                         "sourcePos": 1023777
 //                                       }
 //                                     },
 //                                     "tag": "json:\"range\"",
@@ -13244,7 +13244,7 @@
 //                                         "name": "WatchpointType",
 //                                         "kind": "typedef",
 //                                         "doc": "Represents the action that triggers a watchpoint\n",
-//                                         "sourcePos": 1022978
+//                                         "sourcePos": 1022427
 //                                       }
 //                                     },
 //                                     "tag": "json:\"type\"",
@@ -13266,7 +13266,7 @@
 //                                     "isEmbedded": false
 //                                   }
 //                                 ],
-//                                 "sourcePos": 1024005
+//                                 "sourcePos": 1023454
 //                               }
 //                             },
 //                             "tag": "json:\"watchpoints\"",
@@ -13362,7 +13362,7 @@
 //                                             "isEmbedded": false
 //                                           }
 //                                         ],
-//                                         "sourcePos": 1027231
+//                                         "sourcePos": 1026680
 //                                       }
 //                                     },
 //                                     "tag": "json:\"location\"",
@@ -13486,7 +13486,7 @@
 //                                                     "isEmbedded": false
 //                                                   }
 //                                                 ],
-//                                                 "sourcePos": 1027231
+//                                                 "sourcePos": 1026680
 //                                               }
 //                                             },
 //                                             "tag": "json:\"location\"",
@@ -13494,7 +13494,7 @@
 //                                             "isEmbedded": false
 //                                           }
 //                                         ],
-//                                         "sourcePos": 1018222
+//                                         "sourcePos": 1017671
 //                                       }
 //                                     },
 //                                     "tag": "json:\"breakpoints\"",
@@ -13583,7 +13583,7 @@
 //                                                         "name": "MemoryRegionType",
 //                                                         "kind": "typedef",
 //                                                         "doc": "Classifies memory regions depending on their purpose\n",
-//                                                         "sourcePos": 1024738
+//                                                         "sourcePos": 1024187
 //                                                       }
 //                                                     },
 //                                                     "tag": "json:\"regionType\"",
@@ -13591,7 +13591,7 @@
 //                                                     "isEmbedded": false
 //                                                   }
 //                                                 ],
-//                                                 "sourcePos": 1024328
+//                                                 "sourcePos": 1023777
 //                                               }
 //                                             },
 //                                             "tag": "json:\"range\"",
@@ -13606,7 +13606,7 @@
 //                                                 "name": "WatchpointType",
 //                                                 "kind": "typedef",
 //                                                 "doc": "Represents the action that triggers a watchpoint\n",
-//                                                 "sourcePos": 1022978
+//                                                 "sourcePos": 1022427
 //                                               }
 //                                             },
 //                                             "tag": "json:\"type\"",
@@ -13628,7 +13628,7 @@
 //                                             "isEmbedded": false
 //                                           }
 //                                         ],
-//                                         "sourcePos": 1024005
+//                                         "sourcePos": 1023454
 //                                       }
 //                                     },
 //                                     "tag": "json:\"watchpoints\"",
@@ -13650,7 +13650,7 @@
 //                                     "isEmbedded": false
 //                                   }
 //                                 ],
-//                                 "sourcePos": 1027773
+//                                 "sourcePos": 1027222
 //                               }
 //                             },
 //                             "tag": "json:\"sourceLine\"",
@@ -13658,7 +13658,7 @@
 //                             "isEmbedded": false
 //                           }
 //                         ],
-//                         "sourcePos": 1018959
+//                         "sourcePos": 1018408
 //                       }
 //                     },
 //                     "tag": "json:\"instructions\"",
@@ -13689,7 +13689,7 @@
 //                             "isEmbedded": false
 //                           }
 //                         ],
-//                         "sourcePos": 1020503
+//                         "sourcePos": 1019952
 //                       }
 //                     },
 //                     "tag": "json:\"controlFlowGraph\"",
@@ -13697,7 +13697,7 @@
 //                     "isEmbedded": false
 //                   }
 //                 ],
-//                 "sourcePos": 1020097
+//                 "sourcePos": 1019546
 //               }
 //             },
 //             "Index": 9
@@ -13811,7 +13811,7 @@
 //                                         "name": "InstructionOperandKind",
 //                                         "kind": "typedef",
 //                                         "doc": "Kind of an instruction operand\n",
-//                                         "sourcePos": 1017173
+//                                         "sourcePos": 1016622
 //                                       }
 //                                     },
 //                                     "tag": "json:\"kind\"",
@@ -13870,7 +13870,7 @@
 //                                             "isEmbedded": false
 //                                           }
 //                                         ],
-//                                         "sourcePos": 1026494
+//                                         "sourcePos": 1025943
 //                                       }
 //                                     },
 //                                     "tag": "json:\"register\"",
@@ -13892,7 +13892,7 @@
 //                                     "isEmbedded": false
 //                                   }
 //                                 ],
-//                                 "sourcePos": 1018618
+//                                 "sourcePos": 1018067
 //                               }
 //                             },
 //                             "tag": "json:\"operands\"",
@@ -13988,7 +13988,7 @@
 //                                             "isEmbedded": false
 //                                           }
 //                                         ],
-//                                         "sourcePos": 1027231
+//                                         "sourcePos": 1026680
 //                                       }
 //                                     },
 //                                     "tag": "json:\"location\"",
@@ -13996,7 +13996,7 @@
 //                                     "isEmbedded": false
 //                                   }
 //                                 ],
-//                                 "sourcePos": 1018222
+//                                 "sourcePos": 1017671
 //                               }
 //                             },
 //                             "tag": "json:\"breakpoints\"",
@@ -14085,7 +14085,7 @@
 //                                                 "name": "MemoryRegionType",
 //                                                 "kind": "typedef",
 //                                                 "doc": "Classifies memory regions depending on their purpose\n",
-//                                                 "sourcePos": 1024738
+//                                                 "sourcePos": 1024187
 //                                               }
 //                                             },
 //                                             "tag": "json:\"regionType\"",
@@ -14093,7 +14093,7 @@
 //                                             "isEmbedded": false
 //                                           }
 //                                         ],
-//                                         "sourcePos": 1024328
+//                                         "sourcePos": 1023777
 //                                       }
 //                                     },
 //                                     "tag": "json:\"range\"",
@@ -14108,7 +14108,7 @@
 //                                         "name": "WatchpointType",
 //                                         "kind": "typedef",
 //                                         "doc": "Represents the action that triggers a watchpoint\n",
-//                                         "sourcePos": 1022978
+//                                         "sourcePos": 1022427
 //                                       }
 //                                     },
 //                                     "tag": "json:\"type\"",
@@ -14130,7 +14130,7 @@
 //                                     "isEmbedded": false
 //                                   }
 //                                 ],
-//                                 "sourcePos": 1024005
+//                                 "sourcePos": 1023454
 //                               }
 //                             },
 //                             "tag": "json:\"watchpoints\"",
@@ -14226,7 +14226,7 @@
 //                                             "isEmbedded": false
 //                                           }
 //                                         ],
-//                                         "sourcePos": 1027231
+//                                         "sourcePos": 1026680
 //                                       }
 //                                     },
 //                                     "tag": "json:\"location\"",
@@ -14350,7 +14350,7 @@
 //                                                     "isEmbedded": false
 //                                                   }
 //                                                 ],
-//                                                 "sourcePos": 1027231
+//                                                 "sourcePos": 1026680
 //                                               }
 //                                             },
 //                                             "tag": "json:\"location\"",
@@ -14358,7 +14358,7 @@
 //                                             "isEmbedded": false
 //                                           }
 //                                         ],
-//                                         "sourcePos": 1018222
+//                                         "sourcePos": 1017671
 //                                       }
 //                                     },
 //                                     "tag": "json:\"breakpoints\"",
@@ -14447,7 +14447,7 @@
 //                                                         "name": "MemoryRegionType",
 //                                                         "kind": "typedef",
 //                                                         "doc": "Classifies memory regions depending on their purpose\n",
-//                                                         "sourcePos": 1024738
+//                                                         "sourcePos": 1024187
 //                                                       }
 //                                                     },
 //                                                     "tag": "json:\"regionType\"",
@@ -14455,7 +14455,7 @@
 //                                                     "isEmbedded": false
 //                                                   }
 //                                                 ],
-//                                                 "sourcePos": 1024328
+//                                                 "sourcePos": 1023777
 //                                               }
 //                                             },
 //                                             "tag": "json:\"range\"",
@@ -14470,7 +14470,7 @@
 //                                                 "name": "WatchpointType",
 //                                                 "kind": "typedef",
 //                                                 "doc": "Represents the action that triggers a watchpoint\n",
-//                                                 "sourcePos": 1022978
+//                                                 "sourcePos": 1022427
 //                                               }
 //                                             },
 //                                             "tag": "json:\"type\"",
@@ -14492,7 +14492,7 @@
 //                                             "isEmbedded": false
 //                                           }
 //                                         ],
-//                                         "sourcePos": 1024005
+//                                         "sourcePos": 1023454
 //                                       }
 //                                     },
 //                                     "tag": "json:\"watchpoints\"",
@@ -14514,7 +14514,7 @@
 //                                     "isEmbedded": false
 //                                   }
 //                                 ],
-//                                 "sourcePos": 1027773
+//                                 "sourcePos": 1027222
 //                               }
 //                             },
 //                             "tag": "json:\"sourceLine\"",
@@ -14522,7 +14522,7 @@
 //                             "isEmbedded": false
 //                           }
 //                         ],
-//                         "sourcePos": 1018959
+//                         "sourcePos": 1018408
 //                       }
 //                     },
 //                     "tag": "json:\"instruction\"",
@@ -14530,7 +14530,7 @@
 //                     "isEmbedded": false
 //                   }
 //                 ],
-//                 "sourcePos": 1020667
+//                 "sourcePos": 1020116
 //               }
 //             },
 //             "Index": 10
@@ -14576,7 +14576,7 @@
 //                     "isEmbedded": false
 //                   }
 //                 ],
-//                 "sourcePos": 1025936
+//                 "sourcePos": 1025385
 //               }
 //             },
 //             "ResultType": {
@@ -14687,7 +14687,7 @@
 //                                 "name": "MemoryRegionType",
 //                                 "kind": "typedef",
 //                                 "doc": "Classifies memory regions depending on their purpose\n",
-//                                 "sourcePos": 1024738
+//                                 "sourcePos": 1024187
 //                               }
 //                             },
 //                             "tag": "json:\"regionType\"",
@@ -14695,7 +14695,7 @@
 //                             "isEmbedded": false
 //                           }
 //                         ],
-//                         "sourcePos": 1024328
+//                         "sourcePos": 1023777
 //                       }
 //                     },
 //                     "tag": "json:\"regions\"",
@@ -14703,7 +14703,7 @@
 //                     "isEmbedded": false
 //                   }
 //                 ],
-//                 "sourcePos": 1026170
+//                 "sourcePos": 1025619
 //               }
 //             },
 //             "Index": 11
@@ -14758,7 +14758,7 @@
 //                             "isEmbedded": false
 //                           }
 //                         ],
-//                         "sourcePos": 1027231
+//                         "sourcePos": 1026680
 //                       }
 //                     },
 //                     "tag": "json:\"location\"",
@@ -14875,7 +14875,7 @@
 //                                             "isEmbedded": false
 //                                           }
 //                                         ],
-//                                         "sourcePos": 1027231
+//                                         "sourcePos": 1026680
 //                                       }
 //                                     },
 //                                     "tag": "json:\"start\"",
@@ -14897,7 +14897,7 @@
 //                                     "isEmbedded": false
 //                                   }
 //                                 ],
-//                                 "sourcePos": 1027382
+//                                 "sourcePos": 1026831
 //                               }
 //                             },
 //                             "tag": "json:\"sourceRange\"",
@@ -14951,7 +14951,7 @@
 //                                             "isEmbedded": false
 //                                           }
 //                                         ],
-//                                         "sourcePos": 1027231
+//                                         "sourcePos": 1026680
 //                                       }
 //                                     },
 //                                     "tag": "json:\"location\"",
@@ -15075,7 +15075,7 @@
 //                                                     "isEmbedded": false
 //                                                   }
 //                                                 ],
-//                                                 "sourcePos": 1027231
+//                                                 "sourcePos": 1026680
 //                                               }
 //                                             },
 //                                             "tag": "json:\"location\"",
@@ -15083,7 +15083,7 @@
 //                                             "isEmbedded": false
 //                                           }
 //                                         ],
-//                                         "sourcePos": 1018222
+//                                         "sourcePos": 1017671
 //                                       }
 //                                     },
 //                                     "tag": "json:\"breakpoints\"",
@@ -15172,7 +15172,7 @@
 //                                                         "name": "MemoryRegionType",
 //                                                         "kind": "typedef",
 //                                                         "doc": "Classifies memory regions depending on their purpose\n",
-//                                                         "sourcePos": 1024738
+//                                                         "sourcePos": 1024187
 //                                                       }
 //                                                     },
 //                                                     "tag": "json:\"regionType\"",
@@ -15180,7 +15180,7 @@
 //                                                     "isEmbedded": false
 //                                                   }
 //                                                 ],
-//                                                 "sourcePos": 1024328
+//                                                 "sourcePos": 1023777
 //                                               }
 //                                             },
 //                                             "tag": "json:\"range\"",
@@ -15195,7 +15195,7 @@
 //                                                 "name": "WatchpointType",
 //                                                 "kind": "typedef",
 //                                                 "doc": "Represents the action that triggers a watchpoint\n",
-//                                                 "sourcePos": 1022978
+//                                                 "sourcePos": 1022427
 //                                               }
 //                                             },
 //                                             "tag": "json:\"type\"",
@@ -15217,7 +15217,7 @@
 //                                             "isEmbedded": false
 //                                           }
 //                                         ],
-//                                         "sourcePos": 1024005
+//                                         "sourcePos": 1023454
 //                                       }
 //                                     },
 //                                     "tag": "json:\"watchpoints\"",
@@ -15239,7 +15239,7 @@
 //                                     "isEmbedded": false
 //                                   }
 //                                 ],
-//                                 "sourcePos": 1027773
+//                                 "sourcePos": 1027222
 //                               }
 //                             },
 //                             "tag": "json:\"lines\"",
@@ -15247,7 +15247,7 @@
 //                             "isEmbedded": false
 //                           }
 //                         ],
-//                         "sourcePos": 1027563
+//                         "sourcePos": 1027012
 //                       }
 //                     },
 //                     "tag": "json:\"snippet\"",
@@ -15382,7 +15382,7 @@
 //                                             "isEmbedded": false
 //                                           }
 //                                         ],
-//                                         "sourcePos": 1027231
+//                                         "sourcePos": 1026680
 //                                       }
 //                                     },
 //                                     "tag": "json:\"start\"",
@@ -15404,7 +15404,7 @@
 //                                     "isEmbedded": false
 //                                   }
 //                                 ],
-//                                 "sourcePos": 1027382
+//                                 "sourcePos": 1026831
 //                               }
 //                             },
 //                             "tag": "json:\"sourceRange\"",
@@ -15458,7 +15458,7 @@
 //                                             "isEmbedded": false
 //                                           }
 //                                         ],
-//                                         "sourcePos": 1027231
+//                                         "sourcePos": 1026680
 //                                       }
 //                                     },
 //                                     "tag": "json:\"location\"",
@@ -15582,7 +15582,7 @@
 //                                                     "isEmbedded": false
 //                                                   }
 //                                                 ],
-//                                                 "sourcePos": 1027231
+//                                                 "sourcePos": 1026680
 //                                               }
 //                                             },
 //                                             "tag": "json:\"location\"",
@@ -15590,7 +15590,7 @@
 //                                             "isEmbedded": false
 //                                           }
 //                                         ],
-//                                         "sourcePos": 1018222
+//                                         "sourcePos": 1017671
 //                                       }
 //                                     },
 //                                     "tag": "json:\"breakpoints\"",
@@ -15679,7 +15679,7 @@
 //                                                         "name": "MemoryRegionType",
 //                                                         "kind": "typedef",
 //                                                         "doc": "Classifies memory regions depending on their purpose\n",
-//                                                         "sourcePos": 1024738
+//                                                         "sourcePos": 1024187
 //                                                       }
 //                                                     },
 //                                                     "tag": "json:\"regionType\"",
@@ -15687,7 +15687,7 @@
 //                                                     "isEmbedded": false
 //                                                   }
 //                                                 ],
-//                                                 "sourcePos": 1024328
+//                                                 "sourcePos": 1023777
 //                                               }
 //                                             },
 //                                             "tag": "json:\"range\"",
@@ -15702,7 +15702,7 @@
 //                                                 "name": "WatchpointType",
 //                                                 "kind": "typedef",
 //                                                 "doc": "Represents the action that triggers a watchpoint\n",
-//                                                 "sourcePos": 1022978
+//                                                 "sourcePos": 1022427
 //                                               }
 //                                             },
 //                                             "tag": "json:\"type\"",
@@ -15724,7 +15724,7 @@
 //                                             "isEmbedded": false
 //                                           }
 //                                         ],
-//                                         "sourcePos": 1024005
+//                                         "sourcePos": 1023454
 //                                       }
 //                                     },
 //                                     "tag": "json:\"watchpoints\"",
@@ -15746,7 +15746,7 @@
 //                                     "isEmbedded": false
 //                                   }
 //                                 ],
-//                                 "sourcePos": 1027773
+//                                 "sourcePos": 1027222
 //                               }
 //                             },
 //                             "tag": "json:\"lines\"",
@@ -15754,7 +15754,7 @@
 //                             "isEmbedded": false
 //                           }
 //                         ],
-//                         "sourcePos": 1027563
+//                         "sourcePos": 1027012
 //                       }
 //                     },
 //                     "tag": "json:\"snippet\"",
@@ -15935,7 +15935,7 @@
 //                                 "name": "DebuggerStatus",
 //                                 "kind": "typedef",
 //                                 "doc": "Represents the status of the debugger\n",
-//                                 "sourcePos": 989729
+//                                 "sourcePos": 989178
 //                               }
 //                             },
 //                             "tag": "json:\"status\"",
@@ -15994,7 +15994,7 @@
 //                                     "isEmbedded": false
 //                                   }
 //                                 ],
-//                                 "sourcePos": 1026494
+//                                 "sourcePos": 1025943
 //                               }
 //                             },
 //                             "tag": "json:\"registers\"",
@@ -16067,7 +16067,7 @@
 //                                     "isEmbedded": false
 //                                   }
 //                                 ],
-//                                 "sourcePos": 1026752
+//                                 "sourcePos": 1026201
 //                               }
 //                             },
 //                             "tag": "json:\"flags\"",
@@ -16075,7 +16075,7 @@
 //                             "isEmbedded": false
 //                           }
 //                         ],
-//                         "sourcePos": 991892
+//                         "sourcePos": 991341
 //                       }
 //                     },
 //                     "tag": "json:\"debuggerState\"",
@@ -16460,7 +16460,7 @@
 //                     "isEmbedded": false
 //                   }
 //                 ],
-//                 "sourcePos": 996799
+//                 "sourcePos": 996248
 //               }
 //             },
 //             "Index": 15
@@ -16544,7 +16544,7 @@
 //                             "isEmbedded": false
 //                           }
 //                         ],
-//                         "sourcePos": 1026494
+//                         "sourcePos": 1025943
 //                       }
 //                     },
 //                     "tag": "json:\"registers\"",
@@ -16617,7 +16617,7 @@
 //                             "isEmbedded": false
 //                           }
 //                         ],
-//                         "sourcePos": 1026752
+//                         "sourcePos": 1026201
 //                       }
 //                     },
 //                     "tag": "json:\"flags\"",
@@ -16625,7 +16625,7 @@
 //                     "isEmbedded": false
 //                   }
 //                 ],
-//                 "sourcePos": 1026927
+//                 "sourcePos": 1026376
 //               }
 //             },
 //             "Index": 16
@@ -16732,7 +16732,7 @@
 //                                     "isEmbedded": false
 //                                   }
 //                                 ],
-//                                 "sourcePos": 1027231
+//                                 "sourcePos": 1026680
 //                               }
 //                             },
 //                             "tag": "json:\"sourceLocation\"",
@@ -16812,7 +16812,7 @@
 //                                         "name": "MemoryRegionType",
 //                                         "kind": "typedef",
 //                                         "doc": "Classifies memory regions depending on their purpose\n",
-//                                         "sourcePos": 1024738
+//                                         "sourcePos": 1024187
 //                                       }
 //                                     },
 //                                     "tag": "json:\"regionType\"",
@@ -16820,7 +16820,7 @@
 //                                     "isEmbedded": false
 //                                   }
 //                                 ],
-//                                 "sourcePos": 1024328
+//                                 "sourcePos": 1023777
 //                               }
 //                             },
 //                             "tag": "json:\"memory\"",
@@ -16828,7 +16828,7 @@
 //                             "isEmbedded": false
 //                           }
 //                         ],
-//                         "sourcePos": 996067
+//                         "sourcePos": 995516
 //                       }
 //                     },
 //                     "tag": "json:\"stackFrames\"",
@@ -16836,7 +16836,7 @@
 //                     "isEmbedded": false
 //                   }
 //                 ],
-//                 "sourcePos": 997299
+//                 "sourcePos": 996748
 //               }
 //             },
 //             "Index": 17
@@ -17006,7 +17006,7 @@
 //                                         "name": "MemoryRegionType",
 //                                         "kind": "typedef",
 //                                         "doc": "Classifies memory regions depending on their purpose\n",
-//                                         "sourcePos": 1024738
+//                                         "sourcePos": 1024187
 //                                       }
 //                                     },
 //                                     "tag": "json:\"regionType\"",
@@ -17014,7 +17014,7 @@
 //                                     "isEmbedded": false
 //                                   }
 //                                 ],
-//                                 "sourcePos": 1024328
+//                                 "sourcePos": 1023777
 //                               }
 //                             },
 //                             "tag": "json:\"memoryLocation\"",
@@ -17022,7 +17022,7 @@
 //                             "isEmbedded": false
 //                           }
 //                         ],
-//                         "sourcePos": 995423
+//                         "sourcePos": 994872
 //                       }
 //                     },
 //                     "tag": "json:\"variables\"",
@@ -17030,7 +17030,7 @@
 //                     "isEmbedded": false
 //                   }
 //                 ],
-//                 "sourcePos": 997651
+//                 "sourcePos": 997100
 //               }
 //             },
 //             "Index": 18
@@ -17208,7 +17208,7 @@
 //                             "isEmbedded": false
 //                           }
 //                         ],
-//                         "sourcePos": 1020875
+//                         "sourcePos": 1020324
 //                       }
 //                     },
 //                     "tag": "json:\"functions\"",
@@ -17309,7 +17309,7 @@
 //                             "isEmbedded": false
 //                           }
 //                         ],
-//                         "sourcePos": 1021613
+//                         "sourcePos": 1021062
 //                       }
 //                     },
 //                     "tag": "json:\"globals\"",
@@ -17368,7 +17368,7 @@
 //                             "isEmbedded": false
 //                           }
 //                         ],
-//                         "sourcePos": 1022105
+//                         "sourcePos": 1021554
 //                       }
 //                     },
 //                     "tag": "json:\"labels\"",
@@ -17376,7 +17376,7 @@
 //                     "isEmbedded": false
 //                   }
 //                 ],
-//                 "sourcePos": 1022456
+//                 "sourcePos": 1021905
 //               }
 //             },
 //             "Index": 19
@@ -17402,7 +17402,7 @@
 //                         "name": "StopReason",
 //                         "kind": "typedef",
 //                         "doc": "Indicates the reason why the execution stopped\n",
-//                         "sourcePos": 987067
+//                         "sourcePos": 986516
 //                       }
 //                     },
 //                     "tag": "json:\"stopReason\"",
@@ -17540,7 +17540,7 @@
 //                                     "isEmbedded": false
 //                                   }
 //                                 ],
-//                                 "sourcePos": 1027231
+//                                 "sourcePos": 1026680
 //                               }
 //                             },
 //                             "tag": "json:\"location\"",
@@ -17548,7 +17548,7 @@
 //                             "isEmbedded": false
 //                           }
 //                         ],
-//                         "sourcePos": 1018222
+//                         "sourcePos": 1017671
 //                       }
 //                     },
 //                     "tag": "json:\"breakpoint\"",
@@ -17637,7 +17637,7 @@
 //                                         "name": "MemoryRegionType",
 //                                         "kind": "typedef",
 //                                         "doc": "Classifies memory regions depending on their purpose\n",
-//                                         "sourcePos": 1024738
+//                                         "sourcePos": 1024187
 //                                       }
 //                                     },
 //                                     "tag": "json:\"regionType\"",
@@ -17645,7 +17645,7 @@
 //                                     "isEmbedded": false
 //                                   }
 //                                 ],
-//                                 "sourcePos": 1024328
+//                                 "sourcePos": 1023777
 //                               }
 //                             },
 //                             "tag": "json:\"range\"",
@@ -17660,7 +17660,7 @@
 //                                 "name": "WatchpointType",
 //                                 "kind": "typedef",
 //                                 "doc": "Represents the action that triggers a watchpoint\n",
-//                                 "sourcePos": 1022978
+//                                 "sourcePos": 1022427
 //                               }
 //                             },
 //                             "tag": "json:\"type\"",
@@ -17682,7 +17682,7 @@
 //                             "isEmbedded": false
 //                           }
 //                         ],
-//                         "sourcePos": 1024005
+//                         "sourcePos": 1023454
 //                       }
 //                     },
 //                     "tag": "json:\"watchpoint\"",
@@ -17741,7 +17741,7 @@
 //                             "isEmbedded": false
 //                           }
 //                         ],
-//                         "sourcePos": 1027231
+//                         "sourcePos": 1026680
 //                       }
 //                     },
 //                     "tag": "json:\"lastLocation\"",
@@ -17763,7 +17763,7 @@
 //                     "isEmbedded": false
 //                   }
 //                 ],
-//                 "sourcePos": 988753
+//                 "sourcePos": 988202
 //               }
 //             },
 //             "Index": 20
@@ -17789,7 +17789,7 @@
 //                         "name": "StopReason",
 //                         "kind": "typedef",
 //                         "doc": "Indicates the reason why the execution stopped\n",
-//                         "sourcePos": 987067
+//                         "sourcePos": 986516
 //                       }
 //                     },
 //                     "tag": "json:\"stopReason\"",
@@ -17927,7 +17927,7 @@
 //                                     "isEmbedded": false
 //                                   }
 //                                 ],
-//                                 "sourcePos": 1027231
+//                                 "sourcePos": 1026680
 //                               }
 //                             },
 //                             "tag": "json:\"location\"",
@@ -17935,7 +17935,7 @@
 //                             "isEmbedded": false
 //                           }
 //                         ],
-//                         "sourcePos": 1018222
+//                         "sourcePos": 1017671
 //                       }
 //                     },
 //                     "tag": "json:\"breakpoint\"",
@@ -18024,7 +18024,7 @@
 //                                         "name": "MemoryRegionType",
 //                                         "kind": "typedef",
 //                                         "doc": "Classifies memory regions depending on their purpose\n",
-//                                         "sourcePos": 1024738
+//                                         "sourcePos": 1024187
 //                                       }
 //                                     },
 //                                     "tag": "json:\"regionType\"",
@@ -18032,7 +18032,7 @@
 //                                     "isEmbedded": false
 //                                   }
 //                                 ],
-//                                 "sourcePos": 1024328
+//                                 "sourcePos": 1023777
 //                               }
 //                             },
 //                             "tag": "json:\"range\"",
@@ -18047,7 +18047,7 @@
 //                                 "name": "WatchpointType",
 //                                 "kind": "typedef",
 //                                 "doc": "Represents the action that triggers a watchpoint\n",
-//                                 "sourcePos": 1022978
+//                                 "sourcePos": 1022427
 //                               }
 //                             },
 //                             "tag": "json:\"type\"",
@@ -18069,7 +18069,7 @@
 //                             "isEmbedded": false
 //                           }
 //                         ],
-//                         "sourcePos": 1024005
+//                         "sourcePos": 1023454
 //                       }
 //                     },
 //                     "tag": "json:\"watchpoint\"",
@@ -18128,7 +18128,7 @@
 //                             "isEmbedded": false
 //                           }
 //                         ],
-//                         "sourcePos": 1027231
+//                         "sourcePos": 1026680
 //                       }
 //                     },
 //                     "tag": "json:\"lastLocation\"",
@@ -18150,7 +18150,7 @@
 //                     "isEmbedded": false
 //                   }
 //                 ],
-//                 "sourcePos": 988753
+//                 "sourcePos": 988202
 //               }
 //             },
 //             "Index": 21
@@ -21174,33 +21174,33 @@ func (e *DebuggerCommandId) UnmarshalJSON(data []byte) error {
 
 // A map of all DebuggerCommandId values for easy lookup
 var DebuggerCommandIdValues map[DebuggerCommandId]bool = map[DebuggerCommandId]bool{
-	DebuggerCommandId(1):  true,
-	DebuggerCommandId(19): true,
-	DebuggerCommandId(21): true,
-	DebuggerCommandId(22): true,
-	DebuggerCommandId(14): true,
-	DebuggerCommandId(18): true,
-	DebuggerCommandId(7):  true,
-	DebuggerCommandId(10): true,
-	DebuggerCommandId(27): true,
-	DebuggerCommandId(0):  true,
-	DebuggerCommandId(3):  true,
-	DebuggerCommandId(6):  true,
-	DebuggerCommandId(26): true,
-	DebuggerCommandId(8):  true,
-	DebuggerCommandId(15): true,
-	DebuggerCommandId(16): true,
-	DebuggerCommandId(28): true,
-	DebuggerCommandId(4):  true,
-	DebuggerCommandId(25): true,
-	DebuggerCommandId(5):  true,
-	DebuggerCommandId(13): true,
-	DebuggerCommandId(17): true,
-	DebuggerCommandId(20): true,
-	DebuggerCommandId(2):  true,
-	DebuggerCommandId(9):  true,
-	DebuggerCommandId(11): true,
-	DebuggerCommandId(12): true,
-	DebuggerCommandId(23): true,
-	DebuggerCommandId(24): true,
+	0:  true,
+	1:  true,
+	2:  true,
+	3:  true,
+	4:  true,
+	5:  true,
+	6:  true,
+	7:  true,
+	8:  true,
+	9:  true,
+	10: true,
+	11: true,
+	12: true,
+	13: true,
+	14: true,
+	15: true,
+	16: true,
+	17: true,
+	18: true,
+	19: true,
+	20: true,
+	21: true,
+	22: true,
+	23: true,
+	24: true,
+	25: true,
+	26: true,
+	27: true,
+	28: true,
 }

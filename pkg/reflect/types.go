@@ -6,6 +6,8 @@ import (
 	"go/ast"
 	"go/token"
 	"strconv"
+
+	stdreflect "reflect"
 )
 
 // ParsingOptions controls the behavior of parsing operations
@@ -639,6 +641,186 @@ func NewValue(v interface{}) *Value {
 		Type:  MakeTypeReference(FromRuntimeValue(v)),
 		Value: v,
 	}
+}
+
+// Compare performs runtime reflection-based comparison of two Value instances.
+// Returns -1 if v < other, 0 if v == other, 1 if v > other.
+// Supports basic types and recursive comparison of structs with comparable fields.
+func (v *Value) Compare(other *Value) int {
+	if v == nil && other == nil {
+		return 0
+	}
+	if v == nil {
+		return -1
+	}
+	if other == nil {
+		return 1
+	}
+
+	// Get the underlying Go runtime values
+	va := v.Value
+	vb := other.Value
+
+	// Handle nil values
+	if va == nil && vb == nil {
+		return 0
+	}
+	if va == nil {
+		return -1
+	}
+	if vb == nil {
+		return 1
+	}
+
+	// Reflect on the values
+	rvA := stdreflect.ValueOf(va)
+	rvB := stdreflect.ValueOf(vb)
+
+	// Handle different kinds
+	if rvA.Kind() != rvB.Kind() {
+		// Can't compare different kinds, compare their type names
+		typeA := rvA.Type().String()
+		typeB := rvB.Type().String()
+		if typeA < typeB {
+			return -1
+		} else if typeA > typeB {
+			return 1
+		}
+		return 0
+	}
+
+	switch rvA.Kind() {
+	// Integer types
+	case stdreflect.Int, stdreflect.Int8, stdreflect.Int16, stdreflect.Int32, stdreflect.Int64:
+		aVal := rvA.Int()
+		bVal := rvB.Int()
+		if aVal < bVal {
+			return -1
+		} else if aVal > bVal {
+			return 1
+		}
+		return 0
+
+	// Unsigned integer types
+	case stdreflect.Uint, stdreflect.Uint8, stdreflect.Uint16, stdreflect.Uint32, stdreflect.Uint64:
+		aVal := rvA.Uint()
+		bVal := rvB.Uint()
+		if aVal < bVal {
+			return -1
+		} else if aVal > bVal {
+			return 1
+		}
+		return 0
+
+	// Float types
+	case stdreflect.Float32, stdreflect.Float64:
+		aVal := rvA.Float()
+		bVal := rvB.Float()
+		if aVal < bVal {
+			return -1
+		} else if aVal > bVal {
+			return 1
+		}
+		return 0
+
+	// String
+	case stdreflect.String:
+		aVal := rvA.String()
+		bVal := rvB.String()
+		if aVal < bVal {
+			return -1
+		} else if aVal > bVal {
+			return 1
+		}
+		return 0
+
+	// Boolean
+	case stdreflect.Bool:
+		aVal := rvA.Bool()
+		bVal := rvB.Bool()
+		// false < true
+		if !aVal && bVal {
+			return -1
+		} else if aVal && !bVal {
+			return 1
+		}
+		return 0
+
+	// Struct - compare fields recursively
+	case stdreflect.Struct:
+		return compareStructs(rvA, rvB)
+
+	// Array and Slice - compare elements recursively
+	case stdreflect.Array, stdreflect.Slice:
+		aLen := rvA.Len()
+		bLen := rvB.Len()
+		minLen := aLen
+		if bLen < minLen {
+			minLen = bLen
+		}
+
+		// Compare elements up to minLen
+		for i := 0; i < minLen; i++ {
+			aVal := &Value{Value: rvA.Index(i).Interface()}
+			bVal := &Value{Value: rvB.Index(i).Interface()}
+			if cmp := aVal.Compare(bVal); cmp != 0 {
+				return cmp
+			}
+		}
+
+		// If all elements equal, compare lengths
+		if aLen < bLen {
+			return -1
+		} else if aLen > bLen {
+			return 1
+		}
+		return 0
+
+	default:
+		// For other types, try to use their String() methods
+		aStr := fmt.Sprintf("%v", va)
+		bStr := fmt.Sprintf("%v", vb)
+		if aStr < bStr {
+			return -1
+		} else if aStr > bStr {
+			return 1
+		}
+		return 0
+	}
+}
+
+// compareStructs compares two struct values recursively by comparing their fields.
+func compareStructs(a, b stdreflect.Value) int {
+	numFields := a.NumField()
+	if b.NumField() < numFields {
+		numFields = b.NumField()
+	}
+
+	for i := 0; i < numFields; i++ {
+		fA := a.Field(i)
+		fB := b.Field(i)
+
+		// Skip unexported fields
+		if !fA.CanInterface() || !fB.CanInterface() {
+			continue
+		}
+
+		// Create Value wrappers and compare
+		vA := &Value{Value: fA.Interface()}
+		vB := &Value{Value: fB.Interface()}
+
+		if cmp := vA.Compare(vB); cmp != 0 {
+			return cmp
+		}
+	}
+
+	// If all fields equal, compare number of fields
+	if a.NumField() < b.NumField() {
+		return -1
+	} else if a.NumField() > b.NumField() {
+		return 1
+	}
+	return 0
 }
 
 // Variable represents a variable declaration with its initialization value
