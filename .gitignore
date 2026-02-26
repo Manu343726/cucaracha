@@ -22,3 +22,9 @@ go.work
 
 # Ignore the cucaracha binary if present
 cucaracha
+
+# Ignore Go debugger binaries (Delve)
+__debug_bin*
+
+# Ignore build output binaries
+main
