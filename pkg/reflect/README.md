@@ -378,6 +378,140 @@ resultType := codegen.NewStructBuilder("CommandResult").
 code, _ := codegen.NewGenerator(pkg).GenerateStructCode(resultType)
 ```
 
+### Pattern 4: Runtime Value to Code Generation (TransformToValue Pattern)
+
+This is the key pattern used by the debugger generator and other code generators that need to convert runtime Go values into generated code.
+
+**The Pattern:**
+
+1. **TransformToValue()** - Extract runtime Go values into a recursive tree of `*Value` objects with complete type information
+2. **Code Generator** - Consume the `*Value` tree recursively using type metadata to output correct Go code
+
+**Why This Design:**
+
+- `*Value` objects can be created two ways: from runtime values (via `TransformToValue()`) or programmatically (as we do when building enum values maps)
+- The code generator doesn't need to know HOW the value was created—it only uses the type metadata to generate code
+- This separates concerns: runtime extraction vs. code generation
+
+**Example: Generating Documentation Maps**
+
+```go
+import "github.com/Manu343726/cucaracha/pkg/reflect"
+
+// Scenario: You have a runtime map of command documentation that needs to be 
+// generated into Go code. The map keys are typedef'd enum values, map values
+// are structs, and the whole thing is wrapped in a typedef.
+
+// Step 1: Create the runtime Go value
+docs := make(debugger.Documentation) // Documentation is map[DebuggerCommandId]*CommandDocumentation
+docs[DebuggerCommandStep] = &CommandDocumentation{
+    CommandID:   DebuggerCommandStep,
+    CommandName: "step",
+    Summary:     "Single-step the program",
+}
+// ... populate more entries
+
+// Step 2: Create explicit typedef type information
+keyType := &Type{
+    Name: "DebuggerCommandId",
+    Kind: TypeKindTypedef,
+}
+valueType := &Type{
+    Name: "*CommandDocumentation",
+    Kind: TypeKindPointer,
+    Elem: &TypeReference{
+        Name: "CommandDocumentation",
+        Type: &Type{
+            Name: "CommandDocumentation",
+            Kind: TypeKindStruct,
+        },
+    },
+}
+mapType := &Type{
+    Name: "map[DebuggerCommandId]*CommandDocumentation",
+    Kind: TypeKindMap,
+    Key: &TypeReference{Name: "DebuggerCommandId", Type: keyType},
+    Value: &TypeReference{Name: "*CommandDocumentation", Type: valueType},
+}
+
+// Create the typedef wrapper
+docType := &Type{
+    Name: "Documentation",
+    Kind: TypeKindTypedef,
+    OriginalType: &TypeReference{
+        Name: "map[DebuggerCommandId]*CommandDocumentation",
+        Type: mapType,
+    },
+}
+
+// Step 3: Transform the runtime value using the type information
+// This recursively converts ALL leaves to basic Go types within the *Value tree
+transformedValue := NewVariableWithType("CommandsDocumentation", docs, docType)
+
+// Step 4: The code generator uses only the type metadata to output Go code
+// It doesn't look at the runtime value's actual Go type—it looks at transformedValue.Value.Type
+// The generator outputs something like:
+//     var CommandsDocumentation Documentation = Documentation(map[DebuggerCommandId]*CommandDocumentation{
+//         DebuggerCommandStep: &CommandDocumentation{
+//             CommandID: DebuggerCommandStep,
+//             CommandName: "step",
+//             Summary: "Single-step the program",
+//             ...
+//         },
+//         ...
+//     })
+
+gen := codegen.NewGenerator(pkg)
+code, _ := gen.GenerateVariable(transformedValue)
+```
+
+**Why This Works:**
+
+1. **Type Information Preserved**: Unlike raw Go reflection which loses typedef information, `*Value` trees preserve complete type hierarchies including typedefs, aliases, and structural nesting.
+
+2. **Consistent Representation**: All composite values (structs, maps, slices, arrays) are represented as:
+   - `map[*Value]*Value` for struct fields and map entries
+   - `[]*Value` for slice and array elements
+   - Field names are string values wrapped in `*Value` objects
+
+3. **Recursive Generation**: The generator walks the `*Value` tree recursively:
+   - At each node, it checks the type metadata to decide how to output the value
+   - For typedefs, it wraps the underlying value with a type cast
+   - For structs stored as `map[*Value]*Value`, it outputs struct literal syntax by extracting string field names from keys
+   - For maps, it outputs map literal syntax
+   - Basic types at the leaves are formatted directly
+
+4. **Separation of Concerns**:
+   - `TransformToValue()` handles runtime extraction—doesn't generate code
+   - Code generator handles code generation—doesn't do runtime reflection
+   - They communicate through immutable `*Value` trees
+
+**Practical Workflow:**
+
+```go
+// This is what happens in practice:
+
+// 1. You have a runtime Go value that needs to be generated as code
+myEnumValues := make(map[MyEnumType]bool)
+myEnumValues[MyEnumValue1] = true
+myEnumValues[MyEnumValue2] = true
+
+// 2. Optionally provide typedef information (if the declared type is a typedef)
+var declaredType *Type
+if isTypedef {
+    declaredType = &Type{...}
+}
+
+// 3. Transform to *Value (extracts type info recursively)
+valueObj := NewVariableWithType("myVar", myEnumValues, declaredType)
+
+// 4. Generator consumes the *Value tree using type metadata
+gen := codegen.NewGenerator(pkg)
+code, err := gen.GenerateVariable(valueObj)
+
+// Result: Generated Go code that matches the runtime structure with correct types
+```
+
 ## Design Principles
 
 1. **Separation of Concerns**

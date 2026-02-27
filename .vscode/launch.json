@@ -61,7 +61,7 @@
             "preLaunchTask": "make build"
         },
         {
-            "name": "Debug Code Generator (ui/debugger)",
+            "name": "Debug UI/Debugger Generator (go generate)",
             "type": "go",
             "request": "launch",
             "mode": "debug",
@@ -72,9 +72,9 @@
             ],
             "cwd": "${workspaceFolder}/pkg/ui/debugger",
             "console": "integratedTerminal",
-            "showLog": false,
+            "showLog": true,
             "logOutput": "rpc",
-            "preLaunchTask": "make build"
+            "trace": "verbose"
         }
     ]
 }

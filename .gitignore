@@ -28,3 +28,10 @@ __debug_bin*
 
 # Ignore build output binaries
 main
+
+# Ignore bad code generation output (debugging aid)
+*.badcodegen
+
+# Ignore coverage files
+*.cov
+coverage.html

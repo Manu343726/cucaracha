@@ -227,19 +227,15 @@ type Reader interface {
 	})
 
 	t.Run("GenerateEnumCode", func(t *testing.T) {
-		statusType := &reflect.Type{
-			Name:         "Status",
-			Kind:         reflect.TypeKindTypedef,
-			Doc:          "Status enum for items",
-			OriginalType: &reflect.TypeReference{Name: "int"},
-		}
+		statusType := reflect.Typedef("Status", reflect.TypeInt)
+		statusType.Doc = "Status enum for items"
 		enum := &reflect.Enum{
-			Type:         &reflect.TypeReference{Name: "Status", Type: statusType},
+			Type:         reflect.MakeTypeReference(statusType),
 			StringMethod: true,
 			Values: []*reflect.Constant{
-				{Name: "StatusActive", Doc: "Item is active", Value: &reflect.Value{Value: "iota", Type: &reflect.TypeReference{Name: "Status", Type: statusType}}},
-				{Name: "StatusInactive", Doc: "Item is inactive", Value: &reflect.Value{Type: &reflect.TypeReference{Name: "Status", Type: statusType}}},
-				{Name: "StatusPending", Doc: "Item is pending", Value: &reflect.Value{Type: &reflect.TypeReference{Name: "Status", Type: statusType}}},
+				{Name: "StatusActive", Doc: "Item is active", Value: &reflect.Value{Value: "iota", Type: reflect.MakeTypeReference(statusType)}},
+				{Name: "StatusInactive", Doc: "Item is inactive", Value: &reflect.Value{Type: reflect.MakeTypeReference(statusType)}},
+				{Name: "StatusPending", Doc: "Item is pending", Value: &reflect.Value{Type: reflect.MakeTypeReference(statusType)}},
 			},
 		}
 
@@ -259,18 +255,13 @@ type Reader interface {
 	})
 
 	t.Run("GenerateEnumCode without String method", func(t *testing.T) {
-		stringType := &reflect.Type{Name: "string", Kind: reflect.TypeKindBasic}
-		colorType := &reflect.Type{
-			Name:         "Color",
-			Kind:         reflect.TypeKindTypedef,
-			OriginalType: &reflect.TypeReference{Name: "string", Type: stringType},
-		}
+		colorType := reflect.Typedef("Color", reflect.TypeString)
 		enum := &reflect.Enum{
-			Type:         &reflect.TypeReference{Name: "Color", Type: colorType},
+			Type:         reflect.MakeTypeReference(colorType),
 			StringMethod: false,
 			Values: []*reflect.Constant{
-				{Name: "ColorRed", Value: &reflect.Value{Value: "iota", Type: &reflect.TypeReference{Name: "Color", Type: colorType}}},
-				{Name: "ColorGreen", Value: &reflect.Value{Type: &reflect.TypeReference{Name: "Color", Type: colorType}}},
+				{Name: "ColorRed", Value: &reflect.Value{Value: "iota", Type: reflect.MakeTypeReference(colorType)}},
+				{Name: "ColorGreen", Value: &reflect.Value{Type: reflect.MakeTypeReference(colorType)}},
 			},
 		}
 

@@ -284,6 +284,26 @@ func resolveTypeReferences(pkg *Package) {
 
 	// Resolve types in all type definitions
 	for _, typ := range pkg.Types {
+		// Resolve typedef/alias original types
+		if typ.Kind == TypeKindTypedef || typ.Kind == TypeKindAlias {
+			if typ.Underlying != nil {
+				// Convert the AST expression to a type name and resolve it
+				underlyingTypeName := typeToString(typ.Underlying)
+				underlyingType := resolveType(underlyingTypeName, pkg)
+				if underlyingType != nil {
+					typ.OriginalType = &TypeReference{
+						Name: underlyingTypeName,
+						Type: underlyingType,
+					}
+				} else {
+					log().Debug("Could not resolve underlying type for typedef",
+						slog.String("typedefName", typ.Name),
+						slog.String("underlyingTypeName", underlyingTypeName),
+					)
+				}
+			}
+		}
+
 		// Resolve field types
 		if typ.Kind == TypeKindStruct {
 			for _, field := range typ.Fields {

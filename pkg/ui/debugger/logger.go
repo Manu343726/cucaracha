@@ -1,0 +1,10 @@
+package debugger
+
+import (
+	"github.com/Manu343726/cucaracha/pkg/utils/logging"
+)
+
+// log returns the logger for the debugger UI package.
+func log() *logging.Logger {
+	return logging.Get("cucaracha.ui.debugger")
+}

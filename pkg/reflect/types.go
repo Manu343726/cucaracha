@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
+	"reflect"
 	"strconv"
 
 	stdreflect "reflect"
@@ -832,8 +833,146 @@ type Variable struct {
 
 // NewVariable creates a new Variable instance with the given name and initial value from a runtime value
 func NewVariable(name string, value interface{}) *Variable {
+	// Get the type information to handle typedefs/aliases properly
+	var typInfo *Type
+	if runtimeType := FromRuntimeType(reflect.TypeOf(value)); runtimeType != nil {
+		typInfo = runtimeType
+	}
 	return &Variable{
 		Name:  name,
-		Value: NewValue(value),
+		Value: TransformToValueWithType(value, typInfo),
 	}
+}
+
+// NewVariableWithType creates a new Variable with explicit type information
+// This is needed when the declared type is a typedef/alias that can't be detected from runtime reflection alone
+func NewVariableWithType(name string, value interface{}, declaredType *Type) *Variable {
+	return &Variable{
+		Name:  name,
+		Value: TransformToValueWithType(value, declaredType),
+	}
+}
+
+// Transforms a golang value to a Value recursively, so that no raw golang values are left but the value is fully represented as Value instances.
+func TransformToValue(v interface{}) *Value {
+	return TransformToValueWithType(v, nil)
+}
+
+// TransformToValueWithType is like TransformToValue but takes optional type information
+// to handle typedefs and aliases properly. If typInfo is provided and the type is a typedef/alias,
+// the value will be properly wrapped for code generators.
+func TransformToValueWithType(v interface{}, typInfo *Type) *Value {
+	t := reflect.TypeOf(v)
+	if t == reflect.TypeOf(new(Value)) {
+		// If it's already a Value, return it as is
+		return v.(*Value)
+	}
+
+	if typInfo == nil {
+		return transformToValueInternal(v, t)
+	}
+
+	switch typInfo.Kind {
+	case TypeKindTypedef, TypeKindAlias:
+		// For typedef/alias, the OriginalType field contains the actual underlying type
+		// Recursively transform the value using the underlying type
+		var underlyingType *Type
+		if typInfo.OriginalType != nil && typInfo.OriginalType.Type != nil {
+			underlyingType = typInfo.OriginalType.Type
+		}
+		underlyingValue := TransformToValueWithType(v, underlyingType)
+		return &Value{
+			Type:  MakeTypeReference(typInfo),
+			Value: underlyingValue,
+		}
+	case TypeKindPointer:
+		// We need to dereference the pointer value and transform it using the element type
+		if reflect.ValueOf(v).IsNil() {
+			return NewValue(nil)
+		}
+
+		pointed := reflect.ValueOf(v).Elem().Interface() // Dereference the pointer
+
+		pointedValue := TransformToValueWithType(pointed, typInfo.Elem.Type)
+		return &Value{
+			Type:  MakeTypeReference(typInfo),
+			Value: pointedValue,
+		}
+	default:
+		return transformToValueInternal(v, t)
+	}
+}
+
+func transformToValueInternal(v interface{}, t reflect.Type) *Value {
+	if t == reflect.TypeOf(new(Value)) {
+		// If it's already a Value, return it as is
+		return v.(*Value)
+	}
+	switch t.Kind() {
+	case reflect.Bool, reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
+		reflect.Float32, reflect.Float64, reflect.String:
+		return NewValue(v)
+
+	case reflect.Struct:
+		fields := make(map[*Value]*Value)
+		for i := 0; i < t.NumField(); i++ {
+			field := t.Field(i)
+			fieldValue := TransformToValueWithType(reflect.ValueOf(v).Field(i).Interface(), FromRuntimeType(field.Type))
+			fields[NewValue(field.Name)] = fieldValue
+		}
+		// Wrap the field map as a Value with the proper struct type (not inferred as a map type)
+		// Use FromRuntimeType which may return a typedef, but that's OK - the code generator handles it
+		return &Value{
+			Type:  MakeTypeReference(FromRuntimeType(t)),
+			Value: fields,
+		}
+
+	case reflect.Slice, reflect.Array:
+		length := reflect.ValueOf(v).Len()
+		elements := make([]*Value, length)
+		elemType := FromRuntimeType(t.Elem())
+		for i := 0; i < length; i++ {
+			element := TransformToValueWithType(reflect.ValueOf(v).Index(i).Interface(), elemType)
+			elements[i] = element
+		}
+		// Wrap with the proper slice/array type (not inferred as []*Value)
+		return &Value{
+			Type:  MakeTypeReference(FromRuntimeType(t)),
+			Value: elements,
+		}
+
+	case reflect.Map:
+		keys := reflect.ValueOf(v).MapKeys()
+		mapped := make(map[*Value]*Value)
+		keyType := FromRuntimeType(t.Key())
+		valueType := FromRuntimeType(t.Elem())
+		for _, key := range keys {
+			value := TransformToValueWithType(reflect.ValueOf(v).MapIndex(key).Interface(), valueType)
+			k := TransformToValueWithType(key.Interface(), keyType)
+			mapped[k] = value
+		}
+		// Wrap the map with the proper map type (not inferred as map[*Value]*Value)
+		return &Value{
+			Type:  MakeTypeReference(FromRuntimeType(t)),
+			Value: mapped,
+		}
+
+	case reflect.Ptr:
+		if reflect.ValueOf(v).IsNil() {
+			return NewValue(nil)
+		}
+		elemType := FromRuntimeType(t.Elem())
+		return TransformToValueWithType(reflect.ValueOf(v).Elem().Interface(), Pointer(elemType))
+	case reflect.Chan:
+		return NewValue(v)
+	default:
+		panic(fmt.Sprintf("cannot transform to Value: unsupported type: '%s' (kind: %s)", t.String(), t.Kind()))
+	}
+}
+
+// WithDoc sets the documentation comment for the variable
+func (v *Variable) WithDoc(doc string) *Variable {
+	v.Doc = doc
+	return v
 }

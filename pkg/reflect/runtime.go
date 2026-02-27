@@ -29,7 +29,7 @@ func fromRuntimeTypeInternal(t refl.Type, cache map[string]*Type) *Type {
 		return cached
 	}
 
-	// Handle basic types first
+	// Handle built-in basic types first
 	if basicType := GetBasicType(t.Name()); basicType != nil {
 		cache[cacheKey] = basicType
 		return basicType
@@ -43,24 +43,41 @@ func fromRuntimeTypeInternal(t refl.Type, cache map[string]*Type) *Type {
 
 	// Process based on kind
 	kind := t.Kind()
+	hasCustomName := t.Name() != ""
 
 	switch kind {
 	case refl.Ptr:
 		elem := fromRuntimeTypeInternal(t.Elem(), cache)
-		return Pointer(elem)
+		underlyingType := Pointer(elem)
+		if hasCustomName {
+			return Typedef(t.String(), underlyingType)
+		}
+		return underlyingType
 
 	case refl.Slice:
 		elem := fromRuntimeTypeInternal(t.Elem(), cache)
-		return Slice(elem)
+		underlyingType := Slice(elem)
+		if hasCustomName {
+			return Typedef(t.String(), underlyingType)
+		}
+		return underlyingType
 
 	case refl.Array:
 		elem := fromRuntimeTypeInternal(t.Elem(), cache)
-		return Array(elem, t.Len())
+		underlyingType := Array(elem, t.Len())
+		if hasCustomName {
+			return Typedef(t.String(), underlyingType)
+		}
+		return underlyingType
 
 	case refl.Map:
 		keyType := fromRuntimeTypeInternal(t.Key(), cache)
 		valType := fromRuntimeTypeInternal(t.Elem(), cache)
-		return Map(keyType, valType)
+		underlyingType := Map(keyType, valType)
+		if hasCustomName {
+			return Typedef(t.String(), underlyingType)
+		}
+		return underlyingType
 
 	case refl.Chan:
 		elem := fromRuntimeTypeInternal(t.Elem(), cache)
@@ -73,23 +90,48 @@ func fromRuntimeTypeInternal(t refl.Type, cache map[string]*Type) *Type {
 		} else {
 			chanDir = ChanBidirectional
 		}
-		return Chan(elem, chanDir)
+		underlyingType := Chan(elem, chanDir)
+		if hasCustomName {
+			return Typedef(t.String(), underlyingType)
+		}
+		return underlyingType
 
 	case refl.Struct:
 		result.Kind = TypeKindStruct
 		result.Name = t.Name()
 		result.Fields = extractStructFields(t, cache)
+		// Structs are their own types, not typedefs
 
 	case refl.Interface:
 		result.Kind = TypeKindInterface
 		result.Name = t.Name()
 		result.Methods = extractInterfaceMethods(t, cache)
+		// Interfaces are their own types, not typedefs
 
 	case refl.Func:
 		result.Kind = TypeKindFunction
-		result.Args = extractFunctionParams(t.In, cache)
-		result.Results = extractFunctionParams(t.Out, cache)
+		result.Args = extractFunctionParams(t.In, t.NumIn(), cache)
+		result.Results = extractFunctionParams(t.Out, t.NumOut(), cache)
 		result.Name = buildFunctionSignature(t, cache)
+		if hasCustomName {
+			return Typedef(t.String(), result)
+		}
+
+	// Handle basic type typedefs (e.g., type MyInt int)
+	case refl.Bool, refl.Int, refl.Int8, refl.Int16, refl.Int32, refl.Int64,
+		refl.Uint, refl.Uint8, refl.Uint16, refl.Uint32, refl.Uint64, refl.Uintptr,
+		refl.Float32, refl.Float64, refl.Complex64, refl.Complex128, refl.String:
+		// If the type has a custom name (not a built-in), it's a typedef
+		if hasCustomName {
+			// Get the underlying basic type
+			underlyingType := getBasicTypeFromKind(kind)
+			if underlyingType != nil {
+				return Typedef(t.String(), underlyingType)
+			}
+			result.Kind = TypeKindBasic
+		} else {
+			result.Kind = TypeKindBasic
+		}
 
 	default:
 		// For unhandled kinds, assume it's a basic or aliased type
@@ -97,6 +139,48 @@ func fromRuntimeTypeInternal(t refl.Type, cache map[string]*Type) *Type {
 	}
 
 	return result
+}
+
+// getBasicTypeFromKind maps a reflect.Kind to its corresponding basic Type
+func getBasicTypeFromKind(kind refl.Kind) *Type {
+	switch kind {
+	case refl.Bool:
+		return GetBasicType("bool")
+	case refl.Int:
+		return GetBasicType("int")
+	case refl.Int8:
+		return GetBasicType("int8")
+	case refl.Int16:
+		return GetBasicType("int16")
+	case refl.Int32:
+		return GetBasicType("int32")
+	case refl.Int64:
+		return GetBasicType("int64")
+	case refl.Uint:
+		return GetBasicType("uint")
+	case refl.Uint8:
+		return GetBasicType("uint8")
+	case refl.Uint16:
+		return GetBasicType("uint16")
+	case refl.Uint32:
+		return GetBasicType("uint32")
+	case refl.Uint64:
+		return GetBasicType("uint64")
+	case refl.Uintptr:
+		return GetBasicType("uintptr")
+	case refl.Float32:
+		return GetBasicType("float32")
+	case refl.Float64:
+		return GetBasicType("float64")
+	case refl.Complex64:
+		return GetBasicType("complex64")
+	case refl.Complex128:
+		return GetBasicType("complex128")
+	case refl.String:
+		return GetBasicType("string")
+	default:
+		return nil
+	}
 }
 
 // extractStructFields extracts fields from a struct type
@@ -131,8 +215,8 @@ func extractInterfaceMethods(t refl.Type, cache map[string]*Type) []*Method {
 		method := &Method{
 			Name:      m.Name,
 			Signature: buildMethodSignature(m.Type, cache),
-			Args:      typeReferencesToParameters(extractFunctionParams(m.Type.In, cache)),
-			Results:   typeReferencesToParameters(extractFunctionParams(m.Type.Out, cache)),
+			Args:      typeReferencesToParameters(extractFunctionParams(m.Type.In, m.Type.NumIn(), cache)),
+			Results:   typeReferencesToParameters(extractFunctionParams(m.Type.Out, m.Type.NumOut(), cache)),
 		}
 		methods = append(methods, method)
 	}
@@ -141,21 +225,11 @@ func extractInterfaceMethods(t refl.Type, cache map[string]*Type) []*Method {
 }
 
 // extractFunctionParams extracts parameters from a variadic function input/output function
-func extractFunctionParams(typeFunc func(int) refl.Type, cache map[string]*Type) []*TypeReference {
+func extractFunctionParams(typeFunc func(int) refl.Type, count int, cache map[string]*Type) []*TypeReference {
 	var params []*TypeReference
 
 	if typeFunc == nil {
 		return params
-	}
-
-	// Count the number of parameters
-	count := 0
-	for {
-		t := typeFunc(count)
-		if t == nil {
-			break
-		}
-		count++
 	}
 
 	for i := 0; i < count; i++ {
