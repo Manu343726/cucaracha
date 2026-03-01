@@ -107,63 +107,20 @@ func (r *REPL) printGoodbye() {
 }
 
 func (r *REPL) printHelp() {
-	help := `
-Available Commands:
+	r.write("\nAvailable Commands:\n\n")
 
-Execution:
-  step, s                - Step through one instruction
-  continue, c            - Continue execution until breakpoint
-  run, r                 - Run the program
-  interrupt              - Interrupt execution
-  reset                  - Reset program to initial state
-  restart                - Reset and continue execution
+	// Get all command groups from metadata
+	groups := GetCommandGroups()
+	maxNameLen := GetMaxCommandNameLength()
 
-Breakpoints:
-  break <addr>, b <addr> - Set breakpoint at address
-  rbp <id>               - Remove breakpoint by ID
-  watch <addr>, w <addr> - Set watchpoint at address
-  rw <id>                - Remove watchpoint by ID
-  list, l                - List all breakpoints and watchpoints
-
-Inspection:
-  disasm [addr] [cnt]    - Disassemble instructions
-  current                - Show current instruction
-  memory <addr> [cnt]    - Display memory
-  source [path]          - Show source code
-  info [general|runtime| - Show debugger/system/program info
-    program], i
-  registers, reg         - Show CPU registers
-  stack, st              - Show stack trace
-  vars, v                - Show variables
-  eval <expr>, e <expr>  - Evaluate expression
-  symbols [name], sym    - Show loaded symbols
-
-Program Loading:
-  load <file>            - Load program from file
-  loadprogram <file>     - Load program from file
-  loadsystem <file>      - Load system configuration
-  loadruntime <name>     - Load runtime (interpreter)
-
-Settings:
-  set [name] [value]     - Set a REPL setting (or show all with descriptions)
-  get [name]             - Get a setting value (or show all current values)
-  save-settings [file]   - Save current settings to YAML file (uses loaded settings file
-                           if not specified, requires a settings file to be loaded)
-
-Command Aliases:
-  define <name>          - Define a new multi-command alias (supports nesting)
-    ["optional doc"]       Enter commands, one per line. Type 'end' when done.
-  undefine <name>,       - Remove an alias definition
-    unalias <name>
-  save-aliases [file]    - Save all aliases to settings file (loads from settings file if
-                           not specified, requires a settings file to be loaded)
-
-Utility:
-  loggers                - List all registered loggers and their sinks
-  help, h                - Show this help message
-  exit, quit, q          - Exit the debugger
-`
-	r.write("%s", help)
+	// Print each group
+	for _, group := range groups {
+		r.write("%s:\n", group.Name)
+		for _, cmd := range group.Commands {
+			r.write("  %s\n", FormatCommandHelp(&cmd, maxNameLen))
+		}
+		r.write("\n")
+	}
 
 	// Print user-defined aliases if any exist
 	if len(r.aliases) > 0 {

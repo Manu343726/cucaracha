@@ -3,7 +3,6 @@ package reflect
 import (
 	"encoding/json"
 	"fmt"
-	"go/ast"
 	"go/token"
 	"reflect"
 	"strconv"
@@ -21,6 +20,12 @@ type ParsingOptions struct {
 	// A value of 0 means no external resolution. A negative value means unlimited depth.
 	// Default is -1 (unlimited).
 	MaxResolutionDepth int `json:"maxResolutionDepth"`
+
+	// Index enables building a multi-package index during parsing.
+	// When enabled, the parser returns a MultiPackageIndex tracking relationships
+	// across all parsed packages. When disabled, nil is returned for the index.
+	// Default is false.
+	Index bool `json:"index"`
 }
 
 // DefaultParsingOptions returns a ParsingOptions with sensible defaults
@@ -40,7 +45,6 @@ type Package struct {
 	Functions []*Function      `json:"functions"` // All functions in the package
 	Constants []*Constant      `json:"constants"` // All constants in the package
 	Enums     map[string]*Enum `json:"enums"`     // All enums in the package, keyed by enum name
-	FileSet   *token.FileSet   `json:"-"`         // FileSet for position information (not serialized)
 }
 
 // File represents a parsed Go source file.
@@ -98,7 +102,7 @@ type Type struct {
 	Kind       TypeKind  `json:"kind"`                 // struct, interface, alias, slice, map, pointer, etc.
 	Doc        string    `json:"doc,omitempty"`        // Documentation comment
 	Comments   []string  `json:"comments,omitempty"`   // Inline comments
-	Underlying ast.Expr  `json:"-"`                    // The underlying AST expression
+	Underlying *string   `json:"underlying,omitempty"` // For aliases: the underlying type as a string (e.g., "int", "map[string]interface{}")
 	Fields     []*Field  `json:"fields,omitempty"`     // For struct types
 	Methods    []*Method `json:"methods,omitempty"`    // For named types with methods
 	Interfaces []string  `json:"interfaces,omitempty"` // For types implementing interfaces
@@ -602,7 +606,7 @@ func Alias(name string, t *Type) *Type {
 	return &Type{
 		Name:         name,
 		Kind:         TypeKindAlias,
-		Underlying:   t.Underlying, // Preserve the original underlying type for aliases
+		Underlying:   t.Underlying,
 		OriginalType: MakeTypeReference(t),
 	}
 }
@@ -613,7 +617,7 @@ func Typedef(name string, t *Type) *Type {
 	return &Type{
 		Name:         name,
 		Kind:         TypeKindTypedef,
-		Underlying:   t.Underlying, // Preserve the original underlying type for typedefs
+		Underlying:   t.Underlying,
 		OriginalType: MakeTypeReference(t),
 	}
 }
@@ -636,10 +640,22 @@ type Value struct {
 	Value interface{}    `json:"value"` // The actual runtime value
 }
 
+// Pointer returns a new Value that is a pointer to the original value.
+func (v *Value) Pointer() *Value {
+	return &Value{
+		Type:  MakeTypeReference(Pointer(v.Type.Type)),
+		Value: v.Value,
+	}
+}
+
 // NewValue creates a new Value instance from a runtime value, extracting its type information.
 func NewValue(v interface{}) *Value {
+	return newValueInternal(v, make(map[string]*Type))
+}
+
+func newValueInternal(v interface{}, typeCache map[string]*Type) *Value {
 	return &Value{
-		Type:  MakeTypeReference(FromRuntimeValue(v)),
+		Type:  MakeTypeReference(fromRuntimeTypeInternal(reflect.TypeOf(v), typeCache)),
 		Value: v,
 	}
 }
@@ -862,6 +878,14 @@ func TransformToValue(v interface{}) *Value {
 // to handle typedefs and aliases properly. If typInfo is provided and the type is a typedef/alias,
 // the value will be properly wrapped for code generators.
 func TransformToValueWithType(v interface{}, typInfo *Type) *Value {
+	typeCache := make(map[string]*Type)
+	return transformToValueWithTypeInternal(v, typInfo, typeCache)
+}
+
+// TransformToValueWithType is like TransformToValue but takes optional type information
+// to handle typedefs and aliases properly. If typInfo is provided and the type is a typedef/alias,
+// the value will be properly wrapped for code generators.
+func transformToValueWithTypeInternal(v interface{}, typInfo *Type, typeCache map[string]*Type) *Value {
 	t := reflect.TypeOf(v)
 	if t == reflect.TypeOf(new(Value)) {
 		// If it's already a Value, return it as is
@@ -869,7 +893,7 @@ func TransformToValueWithType(v interface{}, typInfo *Type) *Value {
 	}
 
 	if typInfo == nil {
-		return transformToValueInternal(v, t)
+		return transformToValueInternal(v, t, typeCache)
 	}
 
 	switch typInfo.Kind {
@@ -880,7 +904,7 @@ func TransformToValueWithType(v interface{}, typInfo *Type) *Value {
 		if typInfo.OriginalType != nil && typInfo.OriginalType.Type != nil {
 			underlyingType = typInfo.OriginalType.Type
 		}
-		underlyingValue := TransformToValueWithType(v, underlyingType)
+		underlyingValue := transformToValueWithTypeInternal(v, underlyingType, typeCache)
 		return &Value{
 			Type:  MakeTypeReference(typInfo),
 			Value: underlyingValue,
@@ -888,22 +912,22 @@ func TransformToValueWithType(v interface{}, typInfo *Type) *Value {
 	case TypeKindPointer:
 		// We need to dereference the pointer value and transform it using the element type
 		if reflect.ValueOf(v).IsNil() {
-			return NewValue(nil)
+			return newValueInternal(nil, typeCache)
 		}
 
 		pointed := reflect.ValueOf(v).Elem().Interface() // Dereference the pointer
 
-		pointedValue := TransformToValueWithType(pointed, typInfo.Elem.Type)
+		pointedValue := transformToValueWithTypeInternal(pointed, typInfo.Elem.Type, typeCache)
 		return &Value{
 			Type:  MakeTypeReference(typInfo),
 			Value: pointedValue,
 		}
 	default:
-		return transformToValueInternal(v, t)
+		return transformToValueInternal(v, t, typeCache)
 	}
 }
 
-func transformToValueInternal(v interface{}, t reflect.Type) *Value {
+func transformToValueInternal(v interface{}, t reflect.Type, typeCache map[string]*Type) *Value {
 	if t == reflect.TypeOf(new(Value)) {
 		// If it's already a Value, return it as is
 		return v.(*Value)
@@ -912,60 +936,60 @@ func transformToValueInternal(v interface{}, t reflect.Type) *Value {
 	case reflect.Bool, reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
 		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
 		reflect.Float32, reflect.Float64, reflect.String:
-		return NewValue(v)
+		return newValueInternal(v, typeCache)
 
 	case reflect.Struct:
 		fields := make(map[*Value]*Value)
 		for i := 0; i < t.NumField(); i++ {
 			field := t.Field(i)
-			fieldValue := TransformToValueWithType(reflect.ValueOf(v).Field(i).Interface(), FromRuntimeType(field.Type))
-			fields[NewValue(field.Name)] = fieldValue
+			fieldValue := transformToValueWithTypeInternal(reflect.ValueOf(v).Field(i).Interface(), fromRuntimeTypeInternal(field.Type, typeCache), typeCache)
+			fields[newValueInternal(field.Name, typeCache)] = fieldValue
 		}
 		// Wrap the field map as a Value with the proper struct type (not inferred as a map type)
 		// Use FromRuntimeType which may return a typedef, but that's OK - the code generator handles it
 		return &Value{
-			Type:  MakeTypeReference(FromRuntimeType(t)),
+			Type:  MakeTypeReference(fromRuntimeTypeInternal(t, typeCache)),
 			Value: fields,
 		}
 
 	case reflect.Slice, reflect.Array:
 		length := reflect.ValueOf(v).Len()
 		elements := make([]*Value, length)
-		elemType := FromRuntimeType(t.Elem())
+		elemType := fromRuntimeTypeInternal(t.Elem(), typeCache)
 		for i := 0; i < length; i++ {
-			element := TransformToValueWithType(reflect.ValueOf(v).Index(i).Interface(), elemType)
+			element := transformToValueWithTypeInternal(reflect.ValueOf(v).Index(i).Interface(), elemType, typeCache)
 			elements[i] = element
 		}
 		// Wrap with the proper slice/array type (not inferred as []*Value)
 		return &Value{
-			Type:  MakeTypeReference(FromRuntimeType(t)),
+			Type:  MakeTypeReference(fromRuntimeTypeInternal(t, typeCache)),
 			Value: elements,
 		}
 
 	case reflect.Map:
 		keys := reflect.ValueOf(v).MapKeys()
 		mapped := make(map[*Value]*Value)
-		keyType := FromRuntimeType(t.Key())
-		valueType := FromRuntimeType(t.Elem())
+		keyType := fromRuntimeTypeInternal(t.Key(), typeCache)
+		valueType := fromRuntimeTypeInternal(t.Elem(), typeCache)
 		for _, key := range keys {
-			value := TransformToValueWithType(reflect.ValueOf(v).MapIndex(key).Interface(), valueType)
-			k := TransformToValueWithType(key.Interface(), keyType)
+			value := transformToValueWithTypeInternal(reflect.ValueOf(v).MapIndex(key).Interface(), valueType, typeCache)
+			k := transformToValueWithTypeInternal(key.Interface(), keyType, typeCache)
 			mapped[k] = value
 		}
 		// Wrap the map with the proper map type (not inferred as map[*Value]*Value)
 		return &Value{
-			Type:  MakeTypeReference(FromRuntimeType(t)),
+			Type:  MakeTypeReference(fromRuntimeTypeInternal(t, typeCache)),
 			Value: mapped,
 		}
 
 	case reflect.Ptr:
 		if reflect.ValueOf(v).IsNil() {
-			return NewValue(nil)
+			return newValueInternal(nil, typeCache)
 		}
-		elemType := FromRuntimeType(t.Elem())
-		return TransformToValueWithType(reflect.ValueOf(v).Elem().Interface(), Pointer(elemType))
+		elemType := fromRuntimeTypeInternal(t.Elem(), typeCache)
+		return transformToValueWithTypeInternal(reflect.ValueOf(v).Elem().Interface(), elemType, typeCache).Pointer()
 	case reflect.Chan:
-		return NewValue(v)
+		return newValueInternal(v, typeCache)
 	default:
 		panic(fmt.Sprintf("cannot transform to Value: unsupported type: '%s' (kind: %s)", t.String(), t.Kind()))
 	}

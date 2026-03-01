@@ -1,23 +1,33 @@
 package debugger
 
-// Contains information about a register
+// Register represents a CPU register including its current value and binary encoding.
 type Register struct {
-	Name     string `json:"name"`     // Register name
-	Encoding uint32 `json:"encoding"` // Binary representation of the register
-	Value    uint32 `json:"value"`    // Current value of the register
+	// Name of the register (e.g., "r0", "sp", "ra").
+	Name string `json:"name"`
+	// Binary representation of the register's encoding/index in the CPU.
+	Encoding uint32 `json:"encoding"`
+	// Current numerical value stored in this register.
+	Value uint32 `json:"value"`
 }
 
-// FlagState contains the CPU flags
+// FlagState describes the CPU status flags that indicate the result of the last operation.
 type FlagState struct {
-	N bool `json:"n"` // Negative
-	Z bool `json:"z"` // Zero
-	C bool `json:"c"` // Carry
-	V bool `json:"v"` // Overflow
+	// Negative flag: set if the result of the last operation was negative.
+	N bool `json:"n"`
+	// Zero flag: set if the result of the last operation was zero.
+	Z bool `json:"z"`
+	// Carry flag: set if the last operation produced a carry/borrow.
+	C bool `json:"c"`
+	// Overflow flag: set if the last operation overflowed/underflowed.
+	V bool `json:"v"`
 }
 
-// Result of Registers command
+// RegistersResult contains all CPU register values and status flags.
 type RegistersResult struct {
-	Error     error                `json:"error"`     // Error, if any
-	Registers map[string]*Register `json:"registers"` // Register values keyed by name
-	Flags     *FlagState           `json:"flags"`     // CPU flags
+	// Error message if register retrieval failed (nil if successful).
+	Error error `json:"error"`
+	// All CPU registers keyed by register name. See [Register] for structure.
+	Registers map[string]*Register `json:"registers"`
+	// CPU status flags. See [FlagState] for structure.
+	Flags *FlagState `json:"flags"`
 }

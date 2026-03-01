@@ -5,64 +5,86 @@ import (
 	"fmt"
 )
 
-// Break command arguments
+// BreakArgs specifies where to set a breakpoint, either by source location or instruction address.
 type BreakArgs struct {
-	SourceLocation *SourceLocation `json:"sourceLocation"` // Location in source code where to set the breakpoint
-	Address        *string         `json:"address"`        // Instruction address as an eval expression where to set the breakpoint
+	// Location in source code where to set the breakpoint. If specified, the debugger will resolve this to an instruction address.
+	SourceLocation *SourceLocation `json:"sourceLocation"`
+	// Instruction address as an eval expression where to set the breakpoint (e.g., "0x1000", "_start", "sp+8").
+	// Used when source location is not available.
+	Address *string `json:"address"`
 }
 
-// Watch command arguments
+// WatchArgs specifies a memory range to monitor for reads, writes, or both.
 type WatchArgs struct {
-	StartAddress string          `json:"startAddress"` // Starting address of the memory range to watch
-	EndAddress   *string         `json:"endAddress"`   // Ending address of the memory range to watch (optional)
-	Size         *string         `json:"size"`         // Size of the memory range to watch as an eval expression (optional, used if endAddress is not provided)
-	Type         *WatchpointType `json:"type"`         // Type of access to watch (optional, defaults to WatchpointTypeReadWrite)
+	// Starting address of the memory range to watch. Can be an eval expression (e.g., "0x2000", "sp", "_data").
+	StartAddress string `json:"startAddress"`
+	// Ending address of the memory range to watch (optional). If omitted, Size must be specified.
+	// Can be an eval expression (e.g., "0x2100", "sp+256").
+	EndAddress *string `json:"endAddress"`
+	// Size of the memory range to watch (optional). Used if EndAddress is not provided.
+	// Can be an eval expression (e.g., "256", "4").
+	Size *string `json:"size"`
+	// Type of access to watch (read, write, or both). Optional; defaults to [WatchpointTypeReadWrite].
+	Type *WatchpointType `json:"type"`
 }
 
-// RemoveBreakpoint command arguments
+// RemoveBreakpointArgs specifies which [Breakpoint] to delete by ID.
 type RemoveBreakpointArgs struct {
-	ID int `json:"id"` // Breakpoint ID
+	// ID of the breakpoint to remove. Obtained from [Breakpoint] or [ListResult].
+	ID int `json:"id"`
 }
 
-// RemoveWatchpoint command arguments
+// RemoveWatchpointArgs specifies which [Watchpoint] to delete by ID.
 type RemoveWatchpointArgs struct {
-	ID int `json:"id"` // Watchpoint ID
+	// ID of the watchpoint to remove. Obtained from [Watchpoint] or [ListResult].
+	ID int `json:"id"`
 }
 
-// Disasm command arguments
+// DisasmArgs specifies parameters for disassembling instructions.
 type DisasmArgs struct {
-	Address    string  `json:"addressExpr"` // Address eval expression (e.g., "0x1000", "r0", "sp+8")
-	CountExpr  *string `json:"count"`       // Number of instructions to disassemble (optional) as an eval expression (e.g. "sp+8", "10")
-	ShowSource bool    `json:"showSource"`  // Whether to include source code in disassembly output
-	ShowCFG    bool    `json:"showCFG"`     // Whether to include control flow graph in disassembly output
+	// Starting address to disassemble from. Can be an eval expression (e.g., "0x1000", "r0", "sp+8", "_start").
+	Address string `json:"addressExpr"`
+	// Number of instructions to disassemble (optional). Can be an eval expression (e.g., "10", "100").
+	// If omitted, a default count will be used.
+	CountExpr *string `json:"count"`
+	// Whether to include source code lines in the disassembly output.
+	ShowSource bool `json:"showSource"`
+	// Whether to include control flow graph information in the disassembly output.
+	ShowCFG bool `json:"showCFG"`
 }
 
-// Step command arguments
+// StepArgs specifies how to execute a step operation.
 type StepArgs struct {
-	StepMode  StepMode      `json:"stepMode"`  // Determines the stepping behavior
-	CountMode StepCountMode `json:"countMode"` // Determines how the debugger interprets what is a single step, e.g., by instructions or source lines
+	// Determines the stepping behavior (into, over, out, or return). See [StepMode] for details.
+	StepMode StepMode `json:"stepMode"`
+	// Determines what counts as a single step: instructions or source lines. See [StepCountMode] for details.
+	CountMode StepCountMode `json:"countMode"`
 }
 
-// Print command arguments
+// PrintArgs specifies what value or expression to print.
 type PrintArgs struct {
-	Expression string `json:"expression"` // What to print (register name, memory address, complex expression)
+	// What to print: register name (e.g., "r0", "sp"), memory address (e.g., "0x2000"),
+	// or complex eval expression (e.g., "r0 + sp", "[0x2000]").
+	Expression string `json:"expression"`
 }
 
-// Set command arguments
+// SetArgs specifies a register and value to write to it.
 type SetArgs struct {
-	Target string `json:"target"` // Register name
-	Value  uint32 `json:"value"`  // Value to set
+	// Name of the register to modify (e.g., "r0", "sp", "pc").
+	Target string `json:"target"`
+	// Value to write to the register.
+	Value uint32 `json:"value"`
 }
 
-// Controls what lines around the target line of source commands are shown
+// SourceContextMode controls how lines around a source location are displayed.
 type SourceContextMode int
 
 const (
-	// Show N lines starting from the target line
+	// SourceContextTop shows N lines starting from the target line.
 	SourceContextTop SourceContextMode = iota
-	// Show N lines centered around the target line
+	// SourceContextCentered shows N lines centered around the target line.
 	SourceContextCentered
-	// Show N lines ending at the target line
+	// SourceContextBottom shows N lines ending at the target line.
 	SourceContextBottom
 )
 
@@ -109,27 +131,32 @@ func (s *SourceContextMode) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// Source command arguments
+// SourceArgs specifies parameters for displaying source code.
 type SourceArgs struct {
-	Location     *SourceLocation   `json:"location"`     // Location in source code to display
-	ContextLines int               `json:"contextLines"` // Number of lines to show
-	ContextMode  SourceContextMode `json:"contextMode"`  // How to display context lines
+	// Location in source code to display. If provided, the debugger will jump to this location.
+	Location *SourceLocation `json:"location"`
+	// Number of lines to display around the target location.
+	ContextLines int `json:"contextLines"`
+	// How to display the context lines relative to the target. See [SourceContextMode] for options.
+	ContextMode SourceContextMode `json:"contextMode"`
 }
 
-// Eval command arguments
+// EvalArgs specifies an expression to evaluate.
 type EvalArgs struct {
-	Expression string `json:"expression"` // Expression to evaluate
+	// Expression to evaluate. Can reference registers (e.g., "r0", "sp"),
+	// memory (e.g., "[0x2000]"), or be a mathematical expression (e.g., "sp + 8").
+	Expression string `json:"expression"`
 }
 
-// Info command type
+// InfoType specifies what category of debugger information to display.
 type InfoType int
 
 const (
-	// Show general debugger info (status, registers, flags)
+	// InfoTypeGeneral shows general debugger info (status, registers, flags).
 	InfoTypeGeneral InfoType = iota
-	// Show runtime info (system config, memory layout)
+	// InfoTypeRuntime shows runtime info (system config, memory layout).
 	InfoTypeRuntime
-	// Show program info (source file, entry point, code layout)
+	// InfoTypeProgram shows program info (source file, entry point, code layout).
 	InfoTypeProgram
 )
 
@@ -176,54 +203,75 @@ func (i *InfoType) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// Info command arguments
+// InfoArgs specifies what category of information to retrieve.
 type InfoArgs struct {
-	Type InfoType `json:"type"` // Type of info to display (general, runtime, or program)
+	// Category of information to display: general (status, registers, flags),
+	// runtime (system configuration, memory layout), or program (entry point, symbols).
+	// See [InfoType] for details.
+	Type InfoType `json:"type"`
 }
 
-// CurrentSource command arguments
+// CurrentSourceArgs specifies parameters for displaying source code at the current location.
 type CurrentSourceArgs struct {
-	ContextLines int               `json:"contextLines"` // Number of lines to show
-	ContextMode  SourceContextMode `json:"contextMode"`  // How to display context lines
+	// Number of lines to display around the current location.
+	ContextLines int `json:"contextLines"`
+	// How to display the context lines relative to the current location.
+	// See [SourceContextMode] for options.
+	ContextMode SourceContextMode `json:"contextMode"`
 }
 
-// LoadSystemFromFile command arguments
+// LoadSystemFromFileArgs specifies the path to a system configuration file.
 type LoadSystemFromFileArgs struct {
-	FilePath string `json:"filePath"` // Path to system configuration file
+	// Path to a YAML file containing system configuration.
+	FilePath string `json:"filePath"`
 }
 
-// LoadSystemArgs is used for the shorthand LoadSystem command - always uses embedded default
+// LoadSystemArgs specifies arguments for loading the embedded default system configuration.
+// This type has no fields; the embedded system is always used.
 type LoadSystemArgs struct {
-	// No arguments for embedded system loading
+	// No arguments - uses the embedded default system configuration
 }
 
-// LoadProgramFromFile command arguments
+// LoadProgramFromFileArgs specifies how to load a program from a file.
 type LoadProgramFromFileArgs struct {
-	FilePath          string `json:"filePath"`                    // Path to program file
-	AutoBuildClang    *bool  `json:"autoBuildClang,omitempty"`    // Enable automatic building of clang (defaults to true if not specified)
-	ForceRebuildClang *bool  `json:"forceRebuildClang,omitempty"` // Force rebuild of clang  (defaults to false if not specified)
+	// Path to the program file (object file or C source file).
+	FilePath string `json:"filePath"`
+	// Whether to automatically build the clang compiler if needed (defaults to true).
+	AutoBuildClang *bool `json:"autoBuildClang,omitempty"`
+	// Force a rebuild of the clang compiler even if it already exists (defaults to false).
+	ForceRebuildClang *bool `json:"forceRebuildClang,omitempty"`
 }
 
-// LoadProgramArgs is an alias for LoadProgramFromFileArgs used by the shorthand LoadProgram command
+// LoadProgramArgs specifies how to load a program. This is equivalent to [LoadProgramFromFileArgs].
+// Used by the shorthand LoadProgram command.
 type LoadProgramArgs struct {
-	FilePath          string `json:"filePath"`                    // Path to program file
-	AutoBuildClang    *bool  `json:"autoBuildClang,omitempty"`    // Enable automatic building of clang (defaults to true if not specified)
-	ForceRebuildClang *bool  `json:"forceRebuildClang,omitempty"` // Force rebuild of clang  (defaults to false if not specified)
+	// Path to the program file (object file or C source file).
+	FilePath string `json:"filePath"`
+	// Whether to automatically build clang if needed (defaults to true).
+	AutoBuildClang *bool `json:"autoBuildClang,omitempty"`
+	// Force rebuild of clang (defaults to false).
+	ForceRebuildClang *bool `json:"forceRebuildClang,omitempty"`
 }
 
-// Load command arguments
+// LoadArgs specifies parameters for loading program, system, and runtime in a single operation.
 type LoadArgs struct {
-	FullDescriptorPath *string      `json:"fullDescriptorPath,omitempty"` // Path to YAML file containing program, system, and runtime configuration
-	SystemConfigPath   *string      `json:"systemConfigPath,omitempty"`   // Path to YAML file containing system configuration (used if fullDescriptorPath is not provided)
-	ProgramPath        *string      `json:"programPath,omitempty"`        // Path to program file (used if fullDescriptorPath is not provided)
-	Runtime            *RuntimeType `json:"runtime,omitempty"`            // Runtime type (used if fullDescriptorPath is not provided)
+	// Path to a YAML file containing program, system, and runtime configuration (optional).
+	// If specified, other fields are ignored.
+	FullDescriptorPath *string `json:"fullDescriptorPath,omitempty"`
+	// Path to YAML file containing system configuration (optional).
+	// Used if FullDescriptorPath is not provided.
+	SystemConfigPath *string `json:"systemConfigPath,omitempty"`
+	// Path to program file (optional). Used if FullDescriptorPath is not provided.
+	ProgramPath *string `json:"programPath,omitempty"`
+	// [RuntimeType] to use (optional). Used if FullDescriptorPath is not provided.
+	Runtime *RuntimeType `json:"runtime,omitempty"`
 }
 
-// Runtime types
+// RuntimeType specifies the execution engine type.
 type RuntimeType uint
 
 const (
-	// Software interpreter runtime
+	// RuntimeTypeInterpreter uses the software interpreter runtime for program execution.
 	RuntimeTypeInterpreter RuntimeType = iota
 )
 
@@ -262,12 +310,15 @@ func (r *RuntimeType) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// LoadRuntime command arguments
+// LoadRuntimeArgs specifies which runtime to load and use for execution.
 type LoadRuntimeArgs struct {
-	Runtime RuntimeType `json:"runtimeType"` // Type of runtime to load (e.g., "interpreter")
+	// The type of runtime to load and use. See [RuntimeType] for available options.
+	Runtime RuntimeType `json:"runtimeType"`
 }
 
-// Symbols command arguments
+// SymbolsArgs specifies optional filtering for the Symbols command.
 type SymbolsArgs struct {
-	SymbolName *string `json:"symbolName"` // Optional symbol name pattern to filter symbols (nil shows all)
+	// Optional symbol name pattern to filter which symbols to display.
+	// If nil, all known symbols are returned. Supports wildcard patterns (e.g., "_*", "*_init").
+	SymbolName *string `json:"symbolName"`
 }

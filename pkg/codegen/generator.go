@@ -806,7 +806,7 @@ func (g *Generator) generateValueInternal(value *cucarachareflex.Value, indent i
 		case cucarachareflex.TypeKindAlias, cucarachareflex.TypeKindTypedef:
 			return g.generateAliasValue(value, indent, outputEnd)
 		default:
-			return fmt.Errorf("unsupported type kind: %s", value.Type.Type.Kind.String())
+			return fmt.Errorf("generate value error: unsupported type kind '%s' of type '%s'", value.Type.Type.Kind.String(), value.Type.Type.Name)
 		}
 	}
 }

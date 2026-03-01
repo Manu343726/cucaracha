@@ -1,11 +1,28 @@
-//go:generate go run generator.go -out commands.go -api api.go
+//go:generate go run generator.go -out commands.go -api api.go -docs-out docs.gob
 
 package debugger
 
 import (
+	"bytes"
+	_ "embed"
+	"encoding/gob"
 	"encoding/json"
 	"fmt"
+
+	"github.com/Manu343726/cucaracha/pkg/docs"
 )
+
+//go:embed docs.gob
+var documentationData []byte
+
+// CommandDocumentation holds the structured documentation for all debugger commands, generated from the source code
+var Documentation *docs.DocumentationIndex = func() *docs.DocumentationIndex {
+	var doc docs.DocumentationIndex
+	if err := gob.NewDecoder(bytes.NewReader(documentationData)).Decode(&doc); err != nil {
+		panic(fmt.Sprintf("failed to decode documentation: %v", err))
+	}
+	return &doc
+}()
 
 // Controls the behavior of the Step command
 type StepMode int

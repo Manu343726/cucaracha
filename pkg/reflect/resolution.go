@@ -291,7 +291,7 @@ func ParsePackageFromImportInDir(importPath string, startDir string) (*Package, 
 	}
 
 	// Parse the package using the existing ParsePackage function
-	pkg, err := ParsePackage(packagePath)
+	pkg, _, err := ParsePackage(packagePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse package at %q: %w", packagePath, err)
 	}

@@ -12,19 +12,21 @@ import (
 
 // ParsePackage parses all Go files in a package directory and extracts metadata
 // It uses default parsing options.
-func ParsePackage(packagePath string) (*Package, error) {
+func ParsePackage(packagePath string) (*Package, *Index, error) {
 	return ParsePackageWithOptions(packagePath, DefaultParsingOptions())
 }
 
-// ParsePackageWithOptions parses all Go files in a package directory with custom parsing options
-func ParsePackageWithOptions(packagePath string, opts ParsingOptions) (*Package, error) {
+// ParsePackageWithOptions parses all Go files in a package directory with custom parsing options.
+// If opts.Index is true, returns an Index with the parsed package and any recursively parsed packages
+// (from external type resolution). Otherwise, the returned index is nil.
+func ParsePackageWithOptions(packagePath string, opts ParsingOptions) (*Package, *Index, error) {
 	log().Info("Starting package parse", slog.String("path", packagePath))
 	fset := token.NewFileSet()
 
 	// Read all Go files in the directory
 	entries, err := os.ReadDir(packagePath)
 	if err != nil {
-		return nil, log().Errorf("failed to read package directory %s: %w", packagePath, err)
+		return nil, nil, log().Errorf("failed to read package directory %s: %w", packagePath, err)
 	}
 
 	var goFiles []string
@@ -36,7 +38,7 @@ func ParsePackageWithOptions(packagePath string, opts ParsingOptions) (*Package,
 	}
 
 	if len(goFiles) == 0 {
-		return nil, log().Errorf("no Go files found in package directory %s", packagePath)
+		return nil, nil, log().Errorf("no Go files found in package directory %s", packagePath)
 	}
 
 	log().Debug("Found Go files", slog.Int("count", len(goFiles)), slog.String("path", packagePath))
@@ -44,12 +46,12 @@ func ParsePackageWithOptions(packagePath string, opts ParsingOptions) (*Package,
 	// Parse all files
 	pkgs, err := parser.ParseDir(fset, packagePath, nil, parser.AllErrors|parser.ParseComments)
 	if err != nil {
-		return nil, log().Errorf("failed to parse package directory %s: %w", packagePath, err)
+		return nil, nil, log().Errorf("failed to parse package directory %s: %w", packagePath, err)
 	}
 
 	// Should have exactly one package
 	if len(pkgs) == 0 {
-		return nil, log().Errorf("no packages found in %s", packagePath)
+		return nil, nil, log().Errorf("no packages found in %s", packagePath)
 	}
 
 	var pkgName string
@@ -65,22 +67,32 @@ func ParsePackageWithOptions(packagePath string, opts ParsingOptions) (*Package,
 	}
 
 	if astPkg == nil {
-		return nil, log().Errorf("failed to find package in %s", packagePath)
+		return nil, nil, log().Errorf("failed to find package in %s", packagePath)
 	}
 
 	log().Debug("Found package", slog.String("name", pkgName), slog.String("path", packagePath))
 
+	// Resolve the import path from the package directory
+	importPath := resolveImportPath(packagePath)
+	if importPath == "" {
+		// Fallback to packagePath if we can't resolve it
+		importPath = packagePath
+		log().Warn("Could not resolve import path, using directory path", slog.String("path", packagePath))
+	}
+
 	// Create Package structure
 	pkg := &Package{
 		Name:      pkgName,
-		Path:      packagePath,
+		Path:      importPath,
 		Files:     []*File{},
 		Types:     make(map[string]*Type),
 		Functions: []*Function{},
 		Constants: []*Constant{},
 		Enums:     make(map[string]*Enum),
-		FileSet:   fset,
 	}
+
+	// Collect methods separately so they can be attached to types
+	var methods []*methodWithReceiver
 
 	// Parse each file
 	for filename, astFile := range astPkg.Files {
@@ -119,10 +131,27 @@ func ParsePackageWithOptions(packagePath string, opts ParsingOptions) (*Package,
 			case *ast.GenDecl:
 				parseGenDeclWithFileContext(file, pkg, decl)
 			case *ast.FuncDecl:
-				if fn := parseFuncDecl(decl, pkgName); fn != nil {
-					log().Debug("Found function", slog.String("name", fn.Name), slog.String("file", file.Name))
-					file.Functions = append(file.Functions, fn)
-					pkg.Functions = append(pkg.Functions, fn)
+				// Check if it's a method
+				if decl.Recv != nil && len(decl.Recv.List) > 0 {
+					if method := parseMethodDecl(decl); method != nil {
+						receiverType := typeToString(decl.Recv.List[0].Type)
+						// Remove leading * for pointer receivers to get the actual type name
+						if strings.HasPrefix(receiverType, "*") {
+							receiverType = receiverType[1:]
+						}
+
+						methods = append(methods, &methodWithReceiver{
+							typeName: receiverType,
+							method:   method,
+						})
+					}
+				} else {
+					// It's a regular function
+					if fn := parseFuncDecl(decl, pkgName); fn != nil {
+						log().Debug("Found function", slog.String("name", fn.Name), slog.String("file", file.Name))
+						file.Functions = append(file.Functions, fn)
+						pkg.Functions = append(pkg.Functions, fn)
+					}
 				}
 			}
 		}
@@ -138,6 +167,9 @@ func ParsePackageWithOptions(packagePath string, opts ParsingOptions) (*Package,
 		}
 	}
 
+	// Attach methods to their types
+	attachMethodsToTypesWithMethods(pkg, methods)
+
 	// Post-process to identify enums
 	log().Debug("Identifying enums in package")
 	identifyEnums(pkg)
@@ -148,7 +180,14 @@ func ParsePackageWithOptions(packagePath string, opts ParsingOptions) (*Package,
 	resolveTypeReferencesWithOptions(pkg, opts, 0)
 
 	log().Info("Package parse complete", slog.String("name", pkgName), slog.Int("types", len(pkg.Types)), slog.Int("functions", len(pkg.Functions)), slog.Int("enums", len(pkg.Enums)))
-	return pkg, nil
+
+	// Build index if requested
+	var idx *Index
+	if opts.Index {
+		idx = NewIndexFromPackage(pkg)
+	}
+
+	return pkg, idx, nil
 }
 
 // parseGenDeclWithFileContext handles const, type, and import declarations with package context
@@ -287,8 +326,7 @@ func resolveTypeReferences(pkg *Package) {
 		// Resolve typedef/alias original types
 		if typ.Kind == TypeKindTypedef || typ.Kind == TypeKindAlias {
 			if typ.Underlying != nil {
-				// Convert the AST expression to a type name and resolve it
-				underlyingTypeName := typeToString(typ.Underlying)
+				underlyingTypeName := *typ.Underlying
 				underlyingType := resolveType(underlyingTypeName, pkg)
 				if underlyingType != nil {
 					typ.OriginalType = &TypeReference{
@@ -589,6 +627,14 @@ func (p *Package) GetFileByName(fileName string) *File {
 	return nil
 }
 
+// BuildIndex creates an Index for this package that maintains parent/child relationships.
+// The returned index provides efficient typed queries to find parents and packages of entities
+// without requiring circular references in the entity types themselves.
+// This method can be called multiple times; each call creates a new index.
+func (p *Package) BuildIndex() *Index {
+	return NewIndexFromPackage(p)
+}
+
 // resolveTypeReferencesWithOptions resolves type references with support for external type resolution
 // It respects the MaxResolutionDepth limit to prevent infinite recursion
 func resolveTypeReferencesWithOptions(pkg *Package, opts ParsingOptions, depth int) {
@@ -735,4 +781,95 @@ func resolveImportToPackage(importName string, pkg *Package) (*Package, error) {
 
 	// Try to parse the external package from the import path
 	return ParsePackageFromImportInDir(importPath, pkg.Path)
+}
+
+// resolveImportPath converts a directory path to an import path by reading go.mod
+func resolveImportPath(packagePath string) string {
+	// Get absolute path for consistency
+	absPath, err := filepath.Abs(packagePath)
+	if err != nil {
+		return ""
+	}
+
+	// Search for go.mod file by traversing up the directory tree
+	currentDir := absPath
+	for {
+		goModPath := filepath.Join(currentDir, "go.mod")
+		modFileContent, err := os.ReadFile(goModPath)
+		if err == nil {
+			// Found go.mod, parse it to get the module name
+			moduleName := parseModFile(modFileContent)
+			if moduleName != "" {
+				// Calculate relative path from module root to package directory
+				relPath, err := filepath.Rel(currentDir, absPath)
+				if err != nil {
+					return ""
+				}
+				// Convert backslashes to forward slashes for import paths
+				relPath = filepath.ToSlash(relPath)
+				if relPath == "." {
+					return moduleName
+				}
+				return moduleName + "/" + relPath
+			}
+			break
+		}
+
+		// Move to parent directory
+		parentDir := filepath.Dir(currentDir)
+		if parentDir == currentDir {
+			// Reached root directory
+			break
+		}
+		currentDir = parentDir
+	}
+
+	return ""
+}
+
+// parseModFile extracts the module name from a go.mod file
+func parseModFile(content []byte) string {
+	lines := strings.Split(string(content), "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "module ") {
+			// Extract module name
+			moduleName := strings.TrimPrefix(line, "module ")
+			moduleName = strings.TrimSpace(moduleName)
+			// Remove any comment at the end (// or # at word boundary)
+			if idx := strings.Index(moduleName, " //"); idx != -1 {
+				moduleName = moduleName[:idx]
+			} else if idx := strings.Index(moduleName, " #"); idx != -1 {
+				moduleName = moduleName[:idx]
+			}
+			moduleName = strings.TrimSpace(moduleName)
+			return moduleName
+		}
+	}
+	return ""
+}
+
+// methodWithReceiver is a helper struct to track methods with their receiver type
+type methodWithReceiver struct {
+	typeName string
+	method   *Method
+}
+
+// attachMethodsToTypesWithMethods attaches collected methods to their receiver types
+func attachMethodsToTypesWithMethods(pkg *Package, methods []*methodWithReceiver) {
+	for _, mwr := range methods {
+		if typ, exists := pkg.Types[mwr.typeName]; exists {
+			if typ.Methods == nil {
+				typ.Methods = make([]*Method, 0)
+			}
+			typ.Methods = append(typ.Methods, mwr.method)
+			log().Debug("Attached method to type",
+				slog.String("type", mwr.typeName),
+				slog.String("method", mwr.method.Name))
+		} else {
+			log().Warn("Type for method not found",
+				slog.String("type", mwr.typeName),
+				slog.String("method", mwr.method.Name))
+		}
+	}
 }

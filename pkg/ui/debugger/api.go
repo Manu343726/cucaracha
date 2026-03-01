@@ -8,111 +8,132 @@ package debugger
 // =============================================================================
 
 // DebuggerCommands provides high-level command operations.
-// These methods take string arguments (as entered by user) and return
-// structured results for display. All parsing and validation is done here.
+// These methods take structured arguments and return structured results for display.
+// All parsing, validation, and error handling is performed by the implementation.
 type DebuggerCommands interface {
-	// Executes a single execution step
+	// Step executes a single instruction step. Returns execution state after the step completes.
+	// Args specify step mode and optional step count. See [StepArgs] and [ExecutionResult].
 	Step(args *StepArgs) *ExecutionResult
 
-	// Continues execution until the next breakpoint/watchpoint/termination
+	// Continue resumes execution until the next breakpoint, watchpoint, or program termination.
+	// Returns execution state when execution stops. See [ExecutionResult].
 	Continue() *ExecutionResult
 
-	// CmdRun executes run command
+	// Run starts program execution from the beginning. Equivalent to Reset followed by Continue.
+	// Returns execution state when execution stops. See [ExecutionResult].
 	Run() *ExecutionResult
 
-	// Interrupts execution
+	// Interrupt stops the currently running program and returns control to the debugger.
+	// Returns execution state after interruption. See [ExecutionResult].
 	Interrupt() *ExecutionResult
 
-	// Adds a breakpoint. Args: address or symbol
+	// Break adds a code breakpoint. Args specify the breakpoint location by source or address.
+	// See [BreakArgs] and [BreakResult] for details.
 	Break(args *BreakArgs) *BreakResult
 
-	// Adds a watchpoint. Args: address or symbol
+	// Watch adds a memory/data watchpoint. Args specify the memory location and access type.
+	// See [WatchArgs] and [WatchResult] for details.
 	Watch(args *WatchArgs) *WatchResult
 
-	// Deletes a breakpoint or watchpoint. Args: id
+	// RemoveBreakpoint removes a code breakpoint by ID. See [RemoveBreakpointArgs] and [RemoveBreakpointResult].
 	RemoveBreakpoint(args *RemoveBreakpointArgs) *RemoveBreakpointResult
 
-	// Deletes a watchpoint. Args: id
+	// RemoveWatchpoint removes a memory watchpoint by ID. See [RemoveWatchpointArgs] and [RemoveWatchpointResult].
 	RemoveWatchpoint(args *RemoveWatchpointArgs) *RemoveWatchpointResult
 
-	// Returns breakpoints and watchpoints
+	// List returns all active code breakpoints and memory watchpoints. See [ListResult].
 	List() *ListResult
-	// Disassembles instructions. Args: optional address, optional count
+
+	// Disasm disassembles instructions from a specified address. Args specify the address and optional count.
+	// See [DisasmArgs] and [DisasmResult] for details.
 	Disasm(args *DisasmArgs) *DisasmResult
 
-	// Returns the current instruction for display
+	// CurrentInstruction returns the instruction at the current program counter. See [CurrentInstructionResult].
 	CurrentInstruction() *CurrentInstructionResult
 
-	// Displays memory. Args: address expression, optional count
+	// Memory displays memory contents at a specified address. Args specify the address and optional byte count.
+	// See [MemoryArgs] and [MemoryResult] for details.
 	Memory(args *MemoryArgs) *MemoryResult
 
-	// Displays source code
+	// Source displays source code around a specified location. Args specify the location and context display mode.
+	// See [SourceArgs] and [SourceResult] for details.
 	Source(args *SourceArgs) *SourceResult
 
-	// Displays the current source
+	// CurrentSource displays source code around the current execution location. Args specify context display options.
+	// See [CurrentSourceArgs] and [SourceResult] for details.
 	CurrentSource(args *CurrentSourceArgs) *SourceResult
 
-	// Evaluates an expression
+	// Eval evaluates an expression in the current CPU context. Args specify the expression to evaluate.
+	// See [EvalArgs] and [EvalResult] for details.
 	Eval(args *EvalArgs) *EvalResult
-	// Returns current debugger state, system info, or program info
+
+	// Info returns debugger state, system configuration, program info, or runtime info based on args.
+	// See [InfoArgs] and [InfoResult] for details.
 	Info(args *InfoArgs) *InfoResult
 
-	// Returns all register values
+	// Registers returns all CPU register values and status flags. See [RegistersResult].
 	Registers() *RegistersResult
 
-	// Returns stack information
+	// Stack returns the call stack and stack memory contents. See [StackResult].
 	Stack() *StackResult
 
-	// Returns accessible variables
+	// Vars returns the values of accessible local variables and parameters. See [VarsResult].
 	Vars() *VarsResult
 
-	// Returns symbols from the loaded program
+	// Symbols returns function, global, and label symbols matching optional filter criteria.
+	// See [SymbolsArgs] and [SymbolsResult] for details.
 	Symbols(args *SymbolsArgs) *SymbolsResult
 
-	// Resets the program to its initial state
+	// Reset resets the debugged program to its initial state. Returns execution state. See [ExecutionResult].
 	Reset() *ExecutionResult
 
-	// Restarts the program (reset + continue)
+	// Restart resets and continues program execution (equivalent to Reset followed by Continue). See [ExecutionResult].
 	Restart() *ExecutionResult
 
-	// Load system configuration - uses embedded default
+	// LoadSystem loads the embedded default system configuration. See [LoadSystemArgs] and [LoadSystemFromEmbeddedResult].
 	LoadSystem(args *LoadSystemArgs) *LoadSystemFromEmbeddedResult
 
-	// Load a program into the debugged runtime from a file.
-	//
-	// Note that this may involve compiling the input file. Any error or warning during
-	// compilation or loading will be returned.
+	// LoadProgram loads a program from a file, optionally compiling it if needed.
+	// See [LoadProgramArgs] and [LoadProgramFromFileResult] for details.
 	LoadProgram(args *LoadProgramArgs) *LoadProgramFromFileResult
 
-	// Load system configuration from a YAML file
+	// LoadSystemFromFile loads system configuration from a YAML file.
+	// See [LoadSystemFromFileArgs] and [LoadSystemFromFileResult] for details.
 	LoadSystemFromFile(args *LoadSystemFromFileArgs) *LoadSystemFromFileResult
 
-	// Load the embedded default system configuration
+	// LoadSystemFromEmbedded loads the embedded default system configuration.
+	// Returns the loaded system information. See [LoadSystemFromEmbeddedResult].
 	LoadSystemFromEmbedded() *LoadSystemFromEmbeddedResult
 
-	// Load a program into the debugged runtime from a file (full method name).
-	//
-	// Note that this may involve compiling the input file. Any error or warning during
-	// compilation or loading will be returned.
+	// LoadProgramFromFile loads a program from a file, optionally compiling it if needed.
+	// This is the full-named version of LoadProgram().
+	// See [LoadProgramFromFileArgs] and [LoadProgramFromFileResult] for details.
 	LoadProgramFromFile(args *LoadProgramFromFileArgs) *LoadProgramFromFileResult
 
-	// Configure the execution runtime used to run the debugged program
+	// LoadRuntime configures the execution runtime (interpreter engine) used to run the debugged program.
+	// See [LoadRuntimeArgs] and [LoadRuntimeResult] for details.
 	LoadRuntime(args *LoadRuntimeArgs) *LoadRuntimeResult
 
-	// Loads program, system, and runtime from a single YAML file
+	// Load loads program, system, and runtime configuration from a single YAML descriptor file or individual components.
+	// See [LoadArgs] and [LoadResult] for details.
 	Load(args *LoadArgs) *LoadResult
 }
 
+// Runtime specifies the type of execution engine used to run the debugged program.
 type Runtime uint
 
 const (
-	// Software interpreter runtime
+	// RuntimeInterpreter uses the software interpreter to execute the debugged program.
 	RuntimeInterpreter Runtime = iota
 )
 
+// Debugger combines command operations with event notification and represents the complete debugger interface.
 type Debugger interface {
+	// High-level command operations. See [DebuggerCommands].
 	DebuggerCommands
 
-	// Set callback used to notify UI of debug events
+	// SetEventCallback registers a callback function to receive notifications of debugger events.
+	// Events include execution stops, program state changes, and errors.
+	// See [DebuggerEventCallback] and [DebuggerEvent] for details.
 	SetEventCallback(callback DebuggerEventCallback)
 }

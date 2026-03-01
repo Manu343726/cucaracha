@@ -5,13 +5,13 @@ import (
 	"fmt"
 )
 
-// Kind of an instruction operand
+// InstructionOperandKind specifies the type of an instruction operand.
 type InstructionOperandKind int
 
 const (
-	// The operand is a register
+	// OperandKindRegister indicates this operand is a CPU register.
 	OperandKindRegister InstructionOperandKind = iota
-	// The operand is an immediate value
+	// OperandKindImmediate indicates this operand is an immediate/literal value.
 	OperandKindImmediate
 )
 
@@ -54,87 +54,132 @@ func (k *InstructionOperandKind) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// Represents a code breakpoint
+// Breakpoint represents a code breakpoint at a specific instruction address.
 type Breakpoint struct {
-	ID       int             `json:"id"`       // Breakpoint ID
-	Address  uint32          `json:"address"`  // Instruction address of the breakpoint
-	Enabled  bool            `json:"enabled"`  // Whether the breakpoint is enabled
-	Location *SourceLocation `json:"location"` // Source location of the breakpoint (nil if unknown)
+	// Unique identifier for this breakpoint.
+	ID int `json:"id"`
+	// Instruction memory address where this breakpoint is set.
+	Address uint32 `json:"address"`
+	// Whether this breakpoint is currently active and will trigger execution stops.
+	Enabled bool `json:"enabled"`
+	// Source code location of the breakpoint (nil if the source location is unknown).
+	Location *SourceLocation `json:"location"`
 }
 
-// Represents an operand of an instruction
+// InstructionOperand represents a single operand in an instruction.
 type InstructionOperand struct {
-	Kind      InstructionOperandKind `json:"kind"`      // Operand kind
-	Register  *Register              `json:"register"`  // Present if Kind == OperandKindRegister
-	Immediate *uint32                `json:"immediate"` // Present if Kind == OperandKindImmediate
+	// Type of this operand. See [InstructionOperandKind] for options.
+	Kind InstructionOperandKind `json:"kind"`
+	// Register operand data (present when Kind == OperandKindRegister). See [Register].
+	Register *Register `json:"register"`
+	// Immediate value data (present when Kind == OperandKindImmediate).
+	Immediate *uint32 `json:"immediate"`
 }
 
-// Contains information about an instruction
+// Instruction represents a disassembled CPU instruction with its operands, metadata, and associated breakpoints/watchpoints.
 type Instruction struct {
-	Address         uint32                `json:"address"`         // Instruction address
-	Encoding        uint32                `json:"encoding"`        // Binary encoding of the instruction
-	Mnemonic        string                `json:"mnemonic"`        // Assembly mnemonic
-	Text            string                `json:"text"`            // Full assembly text
-	Operands        []*InstructionOperand `json:"operands"`        // Instruction operands
-	Breakpoints     []*Breakpoint         `json:"breakpoints"`     // Associated breakpoints
-	Watchpoints     []*Watchpoint         `json:"watchpoints"`     // Associated watchpoints
-	IsCurrentPC     bool                  `json:"isCurrentPc"`     // Whether this is the current PC
-	BranchTarget    *uint32               `json:"branchTarget"`    // Resolved branch target address (nil if not a branch or unknown)
-	BranchTargetSym *string               `json:"branchTargetSym"` // Symbol name of branch target (nil if none)
-	SourceLine      *SourceLine           `json:"sourceLine"`      // Source code line if available (nil if unknown)
+	// Memory address of this instruction.
+	Address uint32 `json:"address"`
+	// Binary encoding of the instruction.
+	Encoding uint32 `json:"encoding"`
+	// Assembly mnemonic (e.g., "add", "beq", "sw").
+	Mnemonic string `json:"mnemonic"`
+	// Complete assembly language representation of the instruction.
+	Text string `json:"text"`
+	// Instruction operands. See [InstructionOperand] for structure.
+	Operands []*InstructionOperand `json:"operands"`
+	// Code breakpoints set on this instruction.
+	Breakpoints []*Breakpoint `json:"breakpoints"`
+	// Memory watchpoints triggered by this instruction.
+	Watchpoints []*Watchpoint `json:"watchpoints"`
+	// Whether the program counter is currently at this instruction.
+	IsCurrentPC bool `json:"isCurrentPc"`
+	// Resolved branch target address if this is a branch instruction (nil if not a branch or target unknown).
+	BranchTarget *uint32 `json:"branchTarget"`
+	// Symbol name at the branch target if known (nil if unknown or not a branch).
+	BranchTargetSym *string `json:"branchTargetSym"`
+	// Source code line this instruction came from (nil if source location unknown). See [SourceLine].
+	SourceLine *SourceLine `json:"sourceLine"`
 }
 
-// Result of Disasm command
+// DisasmResult contains disassembled instructions and optionally their control flow graph.
 type DisasmResult struct {
-	Error            error             `json:"error"`            // Error, if any
-	Instructions     []*Instruction    `json:"instructions"`     // Disassembled instructions
-	ControlFlowGraph *ControlFlowGraph `json:"controlFlowGraph"` // Control flow graph of instructions (nil if not generated)
+	// Error message if disassembly failed (nil if successful).
+	Error error `json:"error"`
+	// Disassembled instructions in memory order. See [Instruction] for structure.
+	Instructions []*Instruction `json:"instructions"`
+	// Control flow graph showing branch relationships between instructions (nil if not generated). See [ControlFlowGraph].
+	ControlFlowGraph *ControlFlowGraph `json:"controlFlowGraph"`
 }
 
-// ControlFlowGraph represents the control flow graph of disassembled instructions
+// ControlFlowGraph represents the control flow of disassembled instructions showing branch relationships.
 type ControlFlowGraph struct {
-	Edges map[uint32]uint32 `json:"edges"` // Map from instruction address to target address
+	// Map from instruction address to target address for branch instructions.
+	Edges map[uint32]uint32 `json:"edges"`
 }
 
-// Result of CurrentInstruction command
+// CurrentInstructionResult contains the instruction at the current program counter.
 type CurrentInstructionResult struct {
-	Error       error        `json:"error"`       // Error, if any
-	Instruction *Instruction `json:"instruction"` // Current instruction
+	// Error message if retrieval failed (nil if successful).
+	Error error `json:"error"`
+	// Current instruction at the program counter. See [Instruction] for structure.
+	Instruction *Instruction `json:"instruction"`
 }
 
-// Represents a function symbol
+// FunctionSymbol describes a function defined in the loaded program.
 type FunctionSymbol struct {
-	Name              string   `json:"name"`              // Function name
-	Address           *uint32  `json:"address"`           // Function start address (nil if not resolved)
-	Size              *uint32  `json:"size"`              // Function size in bytes (nil if unknown)
-	SourceFile        string   `json:"sourceFile"`        // Original source file (if available)
-	StartLine         int      `json:"startLine"`         // Start line in source (if available)
-	EndLine           int      `json:"endLine"`           // End line in source (if available)
-	InstructionRanges []string `json:"instructionRanges"` // Ranges of instructions (e.g., ["0-10", "20-35"])
+	// Function name.
+	Name string `json:"name"`
+	// Memory address where this function starts (nil if not resolved).
+	Address *uint32 `json:"address"`
+	// Size in bytes of this function's code (nil if unknown).
+	Size *uint32 `json:"size"`
+	// Path to the source file containing this function (if available).
+	SourceFile string `json:"sourceFile"`
+	// Starting line number in source file where this function is defined.
+	StartLine int `json:"startLine"`
+	// Ending line number in source file where this function definition ends.
+	EndLine int `json:"endLine"`
+	// Ranges of instruction addresses for this function (e.g., ["0x1000-0x1020", "0x2000-0x2010"] for non-contiguous code).
+	InstructionRanges []string `json:"instructionRanges"`
 }
 
-// Represents a global variable/object symbol
+// GlobalSymbol describes a global variable or object defined in the loaded program.
 type GlobalSymbol struct {
-	Name        string  `json:"name"`        // Symbol name
-	Address     *uint32 `json:"address"`     // Symbol address (nil if not resolved)
-	Size        int     `json:"size"`        // Size in bytes
-	SymbolType  string  `json:"symbolType"`  // Type of global (function, object)
-	HasInitData bool    `json:"hasInitData"` // Whether symbol has initial data
-	InitDataLen int     `json:"initDataLen"` // Length of initial data if present
+	// Symbol name (as declared in source or debug info).
+	Name string `json:"name"`
+	// Memory address of this global (nil if not resolved/located).
+	Address *uint32 `json:"address"`
+	// Size in bytes of this global object.
+	Size int `json:"size"`
+	// Type/category of this symbol (e.g., "function", "object", "variable").
+	SymbolType string `json:"symbolType"`
+	// Whether this global has initial data (initialized with non-zero values).
+	HasInitData bool `json:"hasInitData"`
+	// Length in bytes of initial data if HasInitData is true.
+	InitDataLen int `json:"initDataLen"`
 }
 
-// Represents a label symbol
+// LabelSymbol describes a symbolic label in the program (typically branch targets).
 type LabelSymbol struct {
-	Name             string  `json:"name"`             // Label name
-	InstructionIndex int     `json:"instructionIndex"` // Index into instructions array (-1 if not pointing to instruction)
-	Address          *uint32 `json:"address"`          // Resolved instruction address (nil if not resolved)
+	// Label name (symbol identifier).
+	Name string `json:"name"`
+	// Index into the instructions array if this label points to an instruction (-1 if not pointing to an instruction).
+	InstructionIndex int `json:"instructionIndex"`
+	// Resolved memory address of this label (nil if not resolved/located).
+	Address *uint32 `json:"address"`
 }
 
-// Result of Symbols command
+// SymbolsResult contains function symbols, global symbols, and label symbols matching the request.
 type SymbolsResult struct {
-	Error      error             `json:"error"`      // Error, if any
-	TotalCount int               `json:"totalCount"` // Total number of matching symbols
-	Functions  []*FunctionSymbol `json:"functions"`  // Matching function symbols
-	Globals    []*GlobalSymbol   `json:"globals"`    // Matching global symbols
-	Labels     []*LabelSymbol    `json:"labels"`     // Matching label symbols
+	// Error message if symbol lookup failed (nil if successful).
+	Error error `json:"error"`
+	// Total number of symbols matching the search criteria.
+	TotalCount int `json:"totalCount"`
+	// Matching function symbols. See [FunctionSymbol] for structure.
+	Functions []*FunctionSymbol `json:"functions"`
+	// Matching global variable/object symbols. See [GlobalSymbol] for structure.
+	Globals []*GlobalSymbol `json:"globals"`
+	// Matching label symbols. See [LabelSymbol] for structure.
+	Labels []*LabelSymbol `json:"labels"`
 }

@@ -8,6 +8,8 @@ import (
 	"log/slog"
 	"path/filepath"
 	"strings"
+
+	"github.com/Manu343726/cucaracha/pkg/utils"
 )
 
 // ParseFile parses a single Go file and extracts all types, functions, and constants
@@ -156,7 +158,7 @@ func parseTypeSpec(typeSpec *ast.TypeSpec, decl *ast.GenDecl) *Type {
 	typ := &Type{
 		Name:       typeSpec.Name.Name,
 		Doc:        decl.Doc.Text(),
-		Underlying: typeSpec.Type,
+		Underlying: utils.Ptr(typeToString(typeSpec.Type)),
 		SourcePos:  typeSpec.Pos(),
 	}
 
@@ -267,20 +269,23 @@ func parseInterfaceMethods(iface *ast.InterfaceType) []*Method {
 	return methods
 }
 
-// parseFuncDecl extracts information from a function declaration
+// parseFuncDecl extracts information from a function declaration or method
+// Methods are functions with a receiver - they return a *Method instead of *Function
 func parseFuncDecl(decl *ast.FuncDecl, pkgName string) *Function {
+	// Check if it's a method (has receiver)
+	if decl.Recv != nil && len(decl.Recv.List) > 0 {
+		// Parse as a method instead - it will be attached to its type later
+		// For now we create a Function with a marker, but we'll return nil so it doesn't go into pkg.Functions
+		// Methods will be parsed separately via parseMethodDecl
+		return nil
+	}
+
 	fn := &Function{
 		Name:      decl.Name.Name,
 		Package:   pkgName,
 		Doc:       decl.Doc.Text(),
 		Signature: typeToString(decl.Type),
 		SourcePos: decl.Pos(),
-	}
-
-	// Check if it's a method (has receiver)
-	if decl.Recv != nil && len(decl.Recv.List) > 0 {
-		// Skip methods when parsing functions - they should be handled separately
-		return nil
 	}
 
 	// Parse parameters and results
@@ -292,6 +297,42 @@ func parseFuncDecl(decl *ast.FuncDecl, pkgName string) *Function {
 	}
 
 	return fn
+}
+
+// parseMethodDecl extracts information from a function declaration with a receiver (method)
+func parseMethodDecl(decl *ast.FuncDecl) *Method {
+	if decl.Recv == nil || len(decl.Recv.List) == 0 {
+		return nil
+	}
+
+	method := &Method{
+		Name:      decl.Name.Name,
+		Doc:       decl.Doc.Text(),
+		Signature: typeToString(decl.Type),
+		SourcePos: decl.Pos(),
+	}
+
+	// Parse receiver
+	recvField := decl.Recv.List[0]
+	receiverType := typeToString(recvField.Type)
+	// Remove leading * for pointer receivers
+	if strings.HasPrefix(receiverType, "*") {
+		receiverType = receiverType[1:]
+	}
+	method.Receiver = &Parameter{
+		Name: receiverType,
+		Type: &TypeReference{Name: receiverType},
+	}
+
+	// Parse parameters and results
+	if decl.Type.Params != nil {
+		method.Args = parseParameters(decl.Type.Params)
+	}
+	if decl.Type.Results != nil {
+		method.Results = parseParameters(decl.Type.Results)
+	}
+
+	return method
 }
 
 // parseParameters extracts parameters from a parameter list, creating proper Type structures for composite types
