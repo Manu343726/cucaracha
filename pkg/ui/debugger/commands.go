@@ -341,21 +341,26 @@ type DebuggerCommandId int
 
 const (
 	// Step executes a single instruction step. Returns execution state after the step completes.
+	//
 	// Args specify step mode and optional step count. See [StepArgs] and [ExecutionResult].
 	DebuggerCommandStep DebuggerCommandId = DebuggerCommandId(0)
 	// Continue resumes execution until the next breakpoint, watchpoint, or program termination.
+	//
 	// Returns execution state when execution stops. See [ExecutionResult].
 	DebuggerCommandContinue DebuggerCommandId = DebuggerCommandId(1)
 	// Run starts program execution from the beginning. Equivalent to Reset followed by Continue.
+	//
 	// Returns execution state when execution stops. See [ExecutionResult].
 	DebuggerCommandRun DebuggerCommandId = DebuggerCommandId(2)
 	// Interrupt stops the currently running program and returns control to the debugger.
 	// Returns execution state after interruption. See [ExecutionResult].
 	DebuggerCommandInterrupt DebuggerCommandId = DebuggerCommandId(3)
 	// Break adds a code breakpoint. Args specify the breakpoint location by source or address.
+	//
 	// See [BreakArgs] and [BreakResult] for details.
 	DebuggerCommandBreak DebuggerCommandId = DebuggerCommandId(4)
 	// Watch adds a memory/data watchpoint. Args specify the memory location and access type.
+	//
 	// See [WatchArgs] and [WatchResult] for details.
 	DebuggerCommandWatch DebuggerCommandId = DebuggerCommandId(5)
 	// RemoveBreakpoint removes a code breakpoint by ID. See [RemoveBreakpointArgs] and [RemoveBreakpointResult].
@@ -370,18 +375,23 @@ const (
 	// CurrentInstruction returns the instruction at the current program counter. See [CurrentInstructionResult].
 	DebuggerCommandCurrentInstruction DebuggerCommandId = DebuggerCommandId(10)
 	// Memory displays memory contents at a specified address. Args specify the address and optional byte count.
+	//
 	// See [MemoryArgs] and [MemoryResult] for details.
 	DebuggerCommandMemory DebuggerCommandId = DebuggerCommandId(11)
 	// Source displays source code around a specified location. Args specify the location and context display mode.
+	//
 	// See [SourceArgs] and [SourceResult] for details.
 	DebuggerCommandSource DebuggerCommandId = DebuggerCommandId(12)
 	// CurrentSource displays source code around the current execution location. Args specify context display options.
+	//
 	// See [CurrentSourceArgs] and [SourceResult] for details.
 	DebuggerCommandCurrentSource DebuggerCommandId = DebuggerCommandId(13)
 	// Eval evaluates an expression in the current CPU context. Args specify the expression to evaluate.
+	//
 	// See [EvalArgs] and [EvalResult] for details.
 	DebuggerCommandEval DebuggerCommandId = DebuggerCommandId(14)
 	// Info returns debugger state, system configuration, program info, or runtime info based on args.
+	//
 	// See [InfoArgs] and [InfoResult] for details.
 	DebuggerCommandInfo DebuggerCommandId = DebuggerCommandId(15)
 	// Registers returns all CPU register values and status flags. See [RegistersResult].
@@ -391,6 +401,7 @@ const (
 	// Vars returns the values of accessible local variables and parameters. See [VarsResult].
 	DebuggerCommandVars DebuggerCommandId = DebuggerCommandId(18)
 	// Symbols returns function, global, and label symbols matching optional filter criteria.
+	//
 	// See [SymbolsArgs] and [SymbolsResult] for details.
 	DebuggerCommandSymbols DebuggerCommandId = DebuggerCommandId(19)
 	// Reset resets the debugged program to its initial state. Returns execution state. See [ExecutionResult].
@@ -400,22 +411,29 @@ const (
 	// LoadSystem loads the embedded default system configuration. See [LoadSystemArgs] and [LoadSystemFromEmbeddedResult].
 	DebuggerCommandLoadSystem DebuggerCommandId = DebuggerCommandId(22)
 	// LoadProgram loads a program from a file, optionally compiling it if needed.
+	//
 	// See [LoadProgramArgs] and [LoadProgramFromFileResult] for details.
 	DebuggerCommandLoadProgram DebuggerCommandId = DebuggerCommandId(23)
 	// LoadSystemFromFile loads system configuration from a YAML file.
+	//
 	// See [LoadSystemFromFileArgs] and [LoadSystemFromFileResult] for details.
 	DebuggerCommandLoadSystemFromFile DebuggerCommandId = DebuggerCommandId(24)
 	// LoadSystemFromEmbedded loads the embedded default system configuration.
+	//
 	// Returns the loaded system information. See [LoadSystemFromEmbeddedResult].
 	DebuggerCommandLoadSystemFromEmbedded DebuggerCommandId = DebuggerCommandId(25)
 	// LoadProgramFromFile loads a program from a file, optionally compiling it if needed.
+	//
 	// This is the full-named version of LoadProgram().
+	//
 	// See [LoadProgramFromFileArgs] and [LoadProgramFromFileResult] for details.
 	DebuggerCommandLoadProgramFromFile DebuggerCommandId = DebuggerCommandId(26)
 	// LoadRuntime configures the execution runtime (interpreter engine) used to run the debugged program.
+	//
 	// See [LoadRuntimeArgs] and [LoadRuntimeResult] for details.
 	DebuggerCommandLoadRuntime DebuggerCommandId = DebuggerCommandId(27)
 	// Load loads program, system, and runtime configuration from a single YAML descriptor file or individual components.
+	//
 	// See [LoadArgs] and [LoadResult] for details.
 	DebuggerCommandLoad DebuggerCommandId = DebuggerCommandId(28)
 )

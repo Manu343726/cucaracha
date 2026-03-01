@@ -12,14 +12,17 @@ package debugger
 // All parsing, validation, and error handling is performed by the implementation.
 type DebuggerCommands interface {
 	// Step executes a single instruction step. Returns execution state after the step completes.
+	//
 	// Args specify step mode and optional step count. See [StepArgs] and [ExecutionResult].
 	Step(args *StepArgs) *ExecutionResult
 
 	// Continue resumes execution until the next breakpoint, watchpoint, or program termination.
+	//
 	// Returns execution state when execution stops. See [ExecutionResult].
 	Continue() *ExecutionResult
 
 	// Run starts program execution from the beginning. Equivalent to Reset followed by Continue.
+	//
 	// Returns execution state when execution stops. See [ExecutionResult].
 	Run() *ExecutionResult
 
@@ -28,10 +31,12 @@ type DebuggerCommands interface {
 	Interrupt() *ExecutionResult
 
 	// Break adds a code breakpoint. Args specify the breakpoint location by source or address.
+	//
 	// See [BreakArgs] and [BreakResult] for details.
 	Break(args *BreakArgs) *BreakResult
 
 	// Watch adds a memory/data watchpoint. Args specify the memory location and access type.
+	//
 	// See [WatchArgs] and [WatchResult] for details.
 	Watch(args *WatchArgs) *WatchResult
 
@@ -52,22 +57,27 @@ type DebuggerCommands interface {
 	CurrentInstruction() *CurrentInstructionResult
 
 	// Memory displays memory contents at a specified address. Args specify the address and optional byte count.
+	//
 	// See [MemoryArgs] and [MemoryResult] for details.
 	Memory(args *MemoryArgs) *MemoryResult
 
 	// Source displays source code around a specified location. Args specify the location and context display mode.
+	//
 	// See [SourceArgs] and [SourceResult] for details.
 	Source(args *SourceArgs) *SourceResult
 
 	// CurrentSource displays source code around the current execution location. Args specify context display options.
+	//
 	// See [CurrentSourceArgs] and [SourceResult] for details.
 	CurrentSource(args *CurrentSourceArgs) *SourceResult
 
 	// Eval evaluates an expression in the current CPU context. Args specify the expression to evaluate.
+	//
 	// See [EvalArgs] and [EvalResult] for details.
 	Eval(args *EvalArgs) *EvalResult
 
 	// Info returns debugger state, system configuration, program info, or runtime info based on args.
+	//
 	// See [InfoArgs] and [InfoResult] for details.
 	Info(args *InfoArgs) *InfoResult
 
@@ -81,6 +91,7 @@ type DebuggerCommands interface {
 	Vars() *VarsResult
 
 	// Symbols returns function, global, and label symbols matching optional filter criteria.
+	//
 	// See [SymbolsArgs] and [SymbolsResult] for details.
 	Symbols(args *SymbolsArgs) *SymbolsResult
 
@@ -94,27 +105,34 @@ type DebuggerCommands interface {
 	LoadSystem(args *LoadSystemArgs) *LoadSystemFromEmbeddedResult
 
 	// LoadProgram loads a program from a file, optionally compiling it if needed.
+	//
 	// See [LoadProgramArgs] and [LoadProgramFromFileResult] for details.
 	LoadProgram(args *LoadProgramArgs) *LoadProgramFromFileResult
 
 	// LoadSystemFromFile loads system configuration from a YAML file.
+	//
 	// See [LoadSystemFromFileArgs] and [LoadSystemFromFileResult] for details.
 	LoadSystemFromFile(args *LoadSystemFromFileArgs) *LoadSystemFromFileResult
 
 	// LoadSystemFromEmbedded loads the embedded default system configuration.
+	//
 	// Returns the loaded system information. See [LoadSystemFromEmbeddedResult].
 	LoadSystemFromEmbedded() *LoadSystemFromEmbeddedResult
 
 	// LoadProgramFromFile loads a program from a file, optionally compiling it if needed.
+	//
 	// This is the full-named version of LoadProgram().
+	//
 	// See [LoadProgramFromFileArgs] and [LoadProgramFromFileResult] for details.
 	LoadProgramFromFile(args *LoadProgramFromFileArgs) *LoadProgramFromFileResult
 
 	// LoadRuntime configures the execution runtime (interpreter engine) used to run the debugged program.
+	//
 	// See [LoadRuntimeArgs] and [LoadRuntimeResult] for details.
 	LoadRuntime(args *LoadRuntimeArgs) *LoadRuntimeResult
 
 	// Load loads program, system, and runtime configuration from a single YAML descriptor file or individual components.
+	//
 	// See [LoadArgs] and [LoadResult] for details.
 	Load(args *LoadArgs) *LoadResult
 }

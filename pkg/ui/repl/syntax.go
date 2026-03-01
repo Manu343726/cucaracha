@@ -30,7 +30,7 @@ func (r REPLSyntax) FormatCommandName(command debugger.DebuggerCommandId) string
 
 func (r REPLSyntax) FormatArgumentName(name string, isRequired bool) string {
 	// REPL uses simple name syntax
-	return name
+	return utils.KebabCase(name)
 }
 
 func (r REPLSyntax) FormatArgumentValue(value interface{}) string {

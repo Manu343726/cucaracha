@@ -419,12 +419,12 @@ func (lr *linkReplacer) processText(text string) string {
 	return result.String()
 }
 
-// extractSummaryBlocks extracts text from first 1-2 paragraphs for summary
+// extractSummaryBlocks extracts text from first paragraph for summary
 func extractSummaryBlocks(doc *comment.Doc) string {
 	var summary strings.Builder
 	parCount := 0
 	for _, block := range doc.Content {
-		if parCount >= 2 {
+		if parCount >= 1 {
 			break
 		}
 		if para, ok := block.(*comment.Paragraph); ok {
@@ -438,11 +438,24 @@ func extractSummaryBlocks(doc *comment.Doc) string {
 	return strings.TrimSpace(summary.String())
 }
 
-// extractDetailsBlocks extracts all content as detailed documentation
+
+// extractDetailsBlocks extracts content beyond the summary for detailed documentation
+// It skips the first paragraph that is already included in the summary
 func extractDetailsBlocks(doc *comment.Doc) string {
 	var details strings.Builder
-	for i, block := range doc.Content {
-		if i > 0 {
+	parCount := 0
+
+	for _, block := range doc.Content {
+		// Skip the first paragraph block (it's in the summary)
+		if _, ok := block.(*comment.Paragraph); ok {
+			if parCount < 1 {
+				parCount++
+				continue
+			}
+		}
+
+		// Add remaining blocks as details
+		if details.Len() > 0 {
 			details.WriteString("\n\n")
 		}
 		details.WriteString(blockString(block))

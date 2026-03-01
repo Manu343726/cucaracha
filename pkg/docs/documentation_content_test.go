@@ -26,7 +26,7 @@ func TestDocumentationContentParsing(t *testing.T) {
 			&DocumentationExpectation{
 				Kind:     KindType,
 				Summary:  "User represents a system user account.\nA user has an identifier, name, email, and profile information.\nUser accounts can be active or inactive.\nThe user identifier is globally unique and immutable.",
-				Details:  "User represents a system user account.\nA user has an identifier, name, email, and profile information.\nUser accounts can be active or inactive.\nThe user identifier is globally unique and immutable.",
+				Details:  "",
 				Examples: []Example{},
 				Links:    []Link{},
 			},
@@ -40,7 +40,7 @@ func TestDocumentationContentParsing(t *testing.T) {
 			&DocumentationExpectation{
 				Kind:     KindField,
 				Summary:  "Name is the user's full name.",
-				Details:  "Name is the user's full name.",
+				Details:  "",
 				Examples: []Example{},
 				Links:    []Link{},
 			},
@@ -53,8 +53,8 @@ func TestDocumentationContentParsing(t *testing.T) {
 			"github.com/example/testpkg.Logger",
 			&DocumentationExpectation{
 				Kind:     KindType,
-				Summary:  "Logger provides structured logging functionality.\nIt defines methods for logging at various severity levels.\nImplementations may write to files, syslog, or other backends. The Log method is the main interface for recording structured data.\nThe Debug method is for verbose debugging information.",
-				Details:  "Logger provides structured logging functionality.\nIt defines methods for logging at various severity levels.\nImplementations may write to files, syslog, or other backends.\n\nThe Log method is the main interface for recording structured data.\nThe Debug method is for verbose debugging information.",
+				Summary:  "Logger provides structured logging functionality.\nIt defines methods for logging at various severity levels.\nImplementations may write to files, syslog, or other backends.",
+				Details:  "The Log method is the main interface for recording structured data.\nThe Debug method is for verbose debugging information.",
 				Examples: []Example{},
 				Links:    []Link{},
 			},
@@ -68,7 +68,7 @@ func TestDocumentationContentParsing(t *testing.T) {
 			&DocumentationExpectation{
 				Kind:     KindInterfaceMethod,
 				Summary:  "Log records a message at the given level.\nThe level parameter specifies the severity (info, warning, error, etc.).\nStructured data is passed as key-value pairs.\nThis method is safe to call from multiple goroutines.",
-				Details:  "Log records a message at the given level.\nThe level parameter specifies the severity (info, warning, error, etc.).\nStructured data is passed as key-value pairs.\nThis method is safe to call from multiple goroutines.",
+				Details:  "",
 				Examples: []Example{},
 				Links:    []Link{},
 			},
@@ -81,8 +81,8 @@ func TestDocumentationContentParsing(t *testing.T) {
 			"github.com/example/testpkg.NewUser",
 			&DocumentationExpectation{
 				Kind:     KindFunction,
-				Summary:  "NewUser creates a new user with the given name and email.\nThe name parameter should be a non-empty string.\nThe email parameter must be a valid email address.\nThis function returns a pointer to a newly allocated User struct. The returned user will have a generated ID and will be in an active state",
-				Details:  "NewUser creates a new user with the given name and email.\nThe name parameter should be a non-empty string.\nThe email parameter must be a valid email address.\nThis function returns a pointer to a newly allocated User struct.\n\nThe returned user will have a generated ID and will be in an active state",
+				Summary:  "NewUser creates a new user with the given name and email.\nThe name parameter should be a non-empty string.\nThe email parameter must be a valid email address.\nThis function returns a pointer to a newly allocated User struct.",
+				Details:  "The returned user will have a generated ID and will be in an active state",
 				Examples: []Example{},
 				Links:    []Link{},
 			},
@@ -96,7 +96,7 @@ func TestDocumentationContentParsing(t *testing.T) {
 			&DocumentationExpectation{
 				Kind:     KindConstant,
 				Summary:  "DefaultTimeout is the default timeout duration in seconds.",
-				Details:  "DefaultTimeout is the default timeout duration in seconds.",
+				Details:  "",
 				Examples: []Example{},
 				Links:    []Link{},
 			},
@@ -110,7 +110,7 @@ func TestDocumentationContentParsing(t *testing.T) {
 			&DocumentationExpectation{
 				Kind:     KindMethod,
 				Summary:  "Email returns the user's email address.",
-				Details:  "Email returns the user's email address.",
+				Details:  "",
 				Examples: []Example{},
 				Links:    []Link{},
 			},
@@ -358,12 +358,12 @@ Matrices are used extensively in graphics and linear algebra.`,
 	require.NotNil(t, pointEntry)
 	assert.NotEmpty(t, pointEntry.Summary)
 
-	// Multi-line doc: should have both summary and details
+	// Multi-line doc without blank lines: treated as single paragraph (summary only)
 	matrixEntry := index.Entries["github.com/example/testpkg.Matrix"]
 	require.NotNil(t, matrixEntry)
 	expectedMatrixSummary := "Matrix represents a mathematical matrix.\nA matrix has rows and columns with numeric elements.\nMatrix operations include addition, multiplication, and transposition.\nMatrices are used extensively in graphics and linear algebra."
 	assert.Equal(t, expectedMatrixSummary, matrixEntry.Summary, "Matrix summary should match exactly")
-	assert.Equal(t, expectedMatrixSummary, matrixEntry.Details, "Matrix details should match summary (no blank line separator)")
+	assert.Empty(t, matrixEntry.Details, "Matrix details should be empty (single paragraph doc)")
 
 	t.Log("✓ Summary and Details properly distinguished")
 }
@@ -395,10 +395,10 @@ Supported formats include JSON, YAML, and TOML.`,
 	entry := index.Entries["github.com/example/testpkg.ParseConfig"]
 	require.NotNil(t, entry)
 
-	// No blank line separator, so entire doc is one paragraph
+	// No blank line separator, so entire doc is one paragraph (summary only)
 	expectedParseConfigContent := "ParseConfig reads and parses a configuration file.\nThe file path is passed as the first argument.\nReturns the parsed configuration or an error.\nSupported formats include JSON, YAML, and TOML."
 	assert.Equal(t, expectedParseConfigContent, entry.Summary, "ParseConfig summary should match exactly")
-	assert.Equal(t, expectedParseConfigContent, entry.Details, "ParseConfig details should match summary")
+	assert.Empty(t, entry.Details, "ParseConfig details should be empty (single paragraph doc)")
 
 	t.Logf("✓ First paragraph extraction: %q", entry.Summary)
 }
@@ -446,23 +446,23 @@ func TestDocumentationForComplexTypes(t *testing.T) {
 	typeEntry := index.Entries["github.com/example/testpkg.Container"]
 	require.NotNil(t, typeEntry)
 	assert.Equal(t, "Container holds various data structures.", typeEntry.Summary, "Container summary must match exactly")
-	assert.Equal(t, "Container holds various data structures.", typeEntry.Details, "Container details must match exactly")
+	assert.Empty(t, typeEntry.Details, "Container details must be empty (single paragraph)")
 
 	// Verify field entries with complex types
 	itemsEntry := index.Entries["github.com/example/testpkg.Container.Items"]
 	require.NotNil(t, itemsEntry)
 	assert.Equal(t, "Items is a slice of strings.", itemsEntry.Summary, "Items summary must match exactly")
-	assert.Equal(t, "Items is a slice of strings.", itemsEntry.Details, "Items details must match exactly")
+	assert.Empty(t, itemsEntry.Details, "Items details must be empty (single paragraph)")
 
 	mappingEntry := index.Entries["github.com/example/testpkg.Container.Mapping"]
 	require.NotNil(t, mappingEntry)
 	assert.Equal(t, "Mapping stores string to integer associations.", mappingEntry.Summary, "Mapping summary must match exactly")
-	assert.Equal(t, "Mapping stores string to integer associations.", mappingEntry.Details, "Mapping details must match exactly")
+	assert.Empty(t, mappingEntry.Details, "Mapping details must be empty (single paragraph)")
 
 	refEntry := index.Entries["github.com/example/testpkg.Container.Reference"]
 	require.NotNil(t, refEntry)
 	assert.Equal(t, "Reference points to another Container.", refEntry.Summary, "Reference summary must match exactly")
-	assert.Equal(t, "Reference points to another Container.", refEntry.Details, "Reference details must match exactly")
+	assert.Empty(t, refEntry.Details, "Reference details must be empty (single paragraph)")
 
 	t.Log("✓ Complex types documented correctly")
 }
@@ -555,7 +555,7 @@ It must be greater than 1024 for non-privileged access.`,
 		entry := index.Entries["github.com/example/variants.SimpleFunc"]
 		require.NotNil(t, entry)
 		assert.Equal(t, "SimpleFunc does something simple.", entry.Summary)
-		assert.Equal(t, entry.Summary, entry.Details, "Single-line doc: Summary and Details should be identical")
+		assert.Empty(t, entry.Details, "Single-line doc: Details should be empty")
 		assert.Empty(t, entry.Examples)
 		assert.Empty(t, entry.Links)
 		t.Logf("✓ Summary only: %q", entry.Summary)
@@ -567,7 +567,7 @@ It must be greater than 1024 for non-privileged access.`,
 		require.NotNil(t, entry)
 		expectedComplexFuncContent := "ComplexFunc performs complex operations.\nThis function handles error cases gracefully."
 		assert.Equal(t, expectedComplexFuncContent, entry.Summary, "ComplexFunc summary should match exactly")
-		assert.Equal(t, expectedComplexFuncContent, entry.Details, "ComplexFunc details should match summary (no blank line)")
+		assert.Empty(t, entry.Details, "ComplexFunc details should be empty (single paragraph, no blank line)")
 		t.Logf("✓ Summary+Details single: Summary=%q", entry.Summary)
 	})
 
@@ -601,7 +601,7 @@ It must be greater than 1024 for non-privileged access.`,
 		require.NotNil(t, entry)
 		assert.Equal(t, KindConstant, entry.Kind)
 		assert.Equal(t, "MaxRetries is the maximum number of retry attempts.", entry.Summary)
-		assert.Equal(t, entry.Summary, entry.Details)
+		assert.Empty(t, entry.Details, "Single-line doc should have empty Details")
 		t.Logf("✓ Constant single-line: %q", entry.Summary)
 	})
 
@@ -686,9 +686,10 @@ It shows how documentation entries work.`,
 	})
 
 	t.Run("Details Field", func(t *testing.T) {
-		assert.NotEmpty(t, entry.Details)
-		// Details should be same as or extend Summary
-		assert.True(t, len(entry.Details) >= len(entry.Summary))
+		// Details may be empty for single-paragraph documentation
+		// Details should only contain content from second and subsequent paragraphs
+		// Details can be shorter than or equal to Summary (even empty for single-paragraph docs)
+		assert.IsType(t, "", entry.Details)
 	})
 
 	t.Run("Examples Field", func(t *testing.T) {
@@ -781,17 +782,19 @@ It integrates with the Logger and Handler types for comprehensive functionality.
 		// Verify PackagePath
 		assert.Equal(t, "github.com/example/complete", entry.PackagePath)
 
-		// Verify Summary contains the first line
+		// Verify Summary contains the first paragraph
 		assert.NotEmpty(t, entry.Summary, "Summary should not be empty")
 		assert.Contains(t, entry.Summary, "CompleteFunc demonstrates complete documentation",
 			"Summary should contain the main description")
+		assert.Contains(t, entry.Summary, "all possible documentation features",
+			"Summary should contain feature descriptions from first paragraph")
 
-		// Verify Details contains full documentation
+		// Verify Details contains second paragraph
 		assert.NotEmpty(t, entry.Details, "Details should not be empty")
-		assert.Contains(t, entry.Details, "all possible documentation features",
-			"Details should contain feature descriptions")
 		assert.Contains(t, entry.Details, "error conditions",
-			"Details should contain error handling notes")
+			"Details should contain error handling notes from second paragraph")
+		assert.Contains(t, entry.Details, "Logger and Handler types",
+			"Details should contain integration notes from second paragraph")
 
 		t.Logf("✓ Function documentation complete: Summary=%q", entry.Summary[0:50])
 	})
@@ -808,9 +811,9 @@ It integrates with the Logger and Handler types for comprehensive functionality.
 		assert.Equal(t, "MyType is a test type used by CompleteFunc.", entry.Summary,
 			"Type summary should match exactly")
 
-		// Verify Details
-		assert.Equal(t, entry.Summary, entry.Details,
-			"Type details should match summary for single-paragraph doc")
+		// Verify Details - should be empty for single-paragraph documentation
+		assert.Empty(t, entry.Details,
+			"Type details should be empty for single-paragraph doc")
 
 		// Verify field entry exists
 		fieldEntry := index.Entries["github.com/example/complete.MyType.Value"]
@@ -1091,9 +1094,9 @@ Final paragraph.`,
 		assert.Equal(t, expectedDoc, entry.Summary,
 			"Long documentation should be preserved exactly")
 
-		// For single paragraph, Summary and Details should match
-		assert.Equal(t, entry.Summary, entry.Details,
-			"Single-paragraph doc should have identical Summary and Details")
+		// For single paragraph, Details should be empty
+		assert.Empty(t, entry.Details,
+			"Single-paragraph doc should have empty Details")
 
 		// Verify it's long enough
 		assert.Greater(t, len(entry.Summary), 100,
@@ -1112,18 +1115,15 @@ Final paragraph.`,
 
 		// Verify Summary contains the first paragraph (before first blank line)
 		assert.Contains(t, entry.Summary, "ComplexDoc has mixed formatting",
-			"Summary should contain first line")
+			"Summary should contain first paragraph")
 
-		// Verify Details contains content from multiple paragraphs
-		fullContent := entry.Summary + " " + entry.Details
-		assert.Contains(t, fullContent, "ComplexDoc has mixed formatting",
-			"Full content should contain first paragraph")
-		assert.Contains(t, fullContent, "Multiple blank lines above",
-			"Full content should contain second line")
-		assert.Contains(t, fullContent, "And various line breaks",
-			"Full content should contain text from middle paragraph")
-		assert.Contains(t, fullContent, "Final paragraph",
-			"Full content should contain final paragraph")
+		// Verify Details contains content from subsequent paragraphs
+		assert.Contains(t, entry.Details, "Multiple blank lines above",
+			"Details should contain second paragraph")
+		assert.Contains(t, entry.Details, "And various line breaks",
+			"Details should contain content from middle paragraph")
+		assert.Contains(t, entry.Details, "Final paragraph",
+			"Details should contain final paragraph")
 
 		// Verify structure fields are populated
 		assert.Equal(t, KindFunction, entry.Kind)
@@ -1131,7 +1131,12 @@ Final paragraph.`,
 		assert.NotEmpty(t, entry.QualifiedName)
 		assert.NotEmpty(t, entry.PackagePath)
 
-		t.Logf("✓ Complex formatting preserved: Summary=%q...", entry.Summary[0:40])
+		// Log with safe slice indexing
+		summaryPreview := entry.Summary
+		if len(summaryPreview) > 40 {
+			summaryPreview = summaryPreview[0:40]
+		}
+		t.Logf("✓ Complex formatting preserved: Summary=%q...", summaryPreview)
 	})
 
 	t.Run("Documentation with Special Formatting Preserved", func(t *testing.T) {

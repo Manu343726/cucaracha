@@ -34,6 +34,13 @@ func (r *REPL) handleDebuggerCommand(args []string) error {
 // ============================================================================
 
 func (r *REPL) handleHelp(args []string) error {
+	// If a command name is provided, show detailed help for that command
+	if len(args) > 0 {
+		commandName := strings.Join(args, " ")
+		return r.printCommandDetails(commandName)
+	}
+
+	// Otherwise, show general help for all commands
 	r.printHelp()
 	return nil
 }

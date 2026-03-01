@@ -153,6 +153,53 @@ func (r *REPL) printHelp() {
 	}
 }
 
+// printCommandDetails prints detailed help for a specific command
+func (r *REPL) printCommandDetails(cmdName string) error {
+	cmd := GetCommandByName(cmdName)
+	if cmd == nil {
+		r.write("Command not found: %s\n", cmdName)
+		return nil
+	}
+
+	// Use structured help rendering if documentation entries are available
+	if cmd.MethodDoc != nil {
+		// Create renderer with access to documentation index for field lookup
+		packagePath := "github.com/Manu343726/cucaracha/pkg/ui/debugger"
+		renderer := NewREPLDocumentationRendererWithIndex(80, "", debuggerUI.Documentation, packagePath)
+		helpText := renderer.RenderCommandHelp(cmd.Name, cmd.MethodDoc, cmd.ArgsDoc, cmd.ResultDoc)
+		r.write("\n%s\n", helpText)
+
+		// Print aliases if any
+		if len(cmd.Aliases) > 0 {
+			r.write("\nAliases: %s\n", strings.Join(cmd.Aliases, ", "))
+		}
+		return nil
+	}
+
+	// Fallback to simple format if no structured documentation is available
+	r.write("\nCommand: %s\n", cmd.Name)
+	r.write("Description: %s\n", cmd.Description)
+
+	if cmd.Usage != "" {
+		r.write("Usage: %s\n", cmd.Usage)
+	}
+
+	// Print detailed documentation with proper formatting
+	if cmd.Details != "" {
+		r.write("\nDetails:\n")
+		// Use 80 character line width with 2-space indentation
+		details := FormatCommandDetails(cmd, "  ", 80)
+		r.write("%s\n", details)
+	}
+
+	// Print aliases if any
+	if len(cmd.Aliases) > 0 {
+		r.write("Aliases: %s\n", strings.Join(cmd.Aliases, ", "))
+	}
+
+	return nil
+}
+
 func (r *REPL) printError(err error) error {
 	r.write("Error: %s\n", err.Error())
 	return err

@@ -4,6 +4,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/Manu343726/cucaracha/pkg/docs"
 	debuggerUI "github.com/Manu343726/cucaracha/pkg/ui/debugger"
 )
 
@@ -15,12 +16,15 @@ type CommandGroup struct {
 
 // Command represents a debugger or REPL command with its metadata
 type Command struct {
-	Name        string   // Primary command name
-	Aliases     []string // Alternative names for this command
-	Description string   // Short description
-	Usage       string   // Usage pattern (e.g., "step [count]")
-	Details     string   // Longer explanation (optional)
-	IsDebugger  bool     // True if this is a debugger command, false if REPL-specific
+	Name        string                   // Primary command name
+	Aliases     []string                 // Alternative names for this command
+	Description string                   // Short description
+	Usage       string                   // Usage pattern (e.g., "step [count]")
+	Details     string                   // Longer explanation (optional)
+	IsDebugger  bool                     // True if this is a debugger command, false if REPL-specific
+	MethodDoc   *docs.DocumentationEntry // Documentation for the command method
+	ArgsDoc     *docs.DocumentationEntry // Documentation for the arguments type
+	ResultDoc   *docs.DocumentationEntry // Documentation for the result type
 }
 
 // GetAllNames returns all names (primary name + aliases) for this command
@@ -166,6 +170,7 @@ func buildDebuggerCommandGroups() []CommandGroup {
 // 1. The method itself (DebuggerCommands.MethodName)
 // 2. The args type if it exists
 // 3. The result type if it exists
+// The documentation is rendered for REPL output with proper formatting and link resolution.
 func buildCommandFromDebuggerID(syntaxFormatter REPLSyntax, cmdID debuggerUI.DebuggerCommandId) *Command {
 	// Get the command name using the syntax formatter (converts to kebab-case)
 	cmdNameFormatted := syntaxFormatter.FormatCommandName(cmdID)
@@ -175,6 +180,7 @@ func buildCommandFromDebuggerID(syntaxFormatter REPLSyntax, cmdID debuggerUI.Deb
 	methodName := strings.TrimPrefix(cmdID.String(), "DebuggerCommand")
 
 	var description, details string
+	var methodDoc, argsDoc, resultDoc *docs.DocumentationEntry
 
 	// Look up documentation from the debugger documentation system if available
 	if debuggerUI.Documentation != nil && debuggerUI.Documentation.Entries != nil {
@@ -184,9 +190,14 @@ func buildCommandFromDebuggerID(syntaxFormatter REPLSyntax, cmdID debuggerUI.Deb
 		methodQualName := packagePath + "." + interfaceName + "." + methodName
 
 		if entry, exists := debuggerUI.Documentation.Entries[methodQualName]; exists {
+			methodDoc = entry
 			description = entry.Summary
+			// Resolve links in the summary for display in help list
+			if len(entry.Links) > 0 {
+				description = renderDocumentationWithLinks(description, entry)
+			}
 			if entry.Details != "" {
-				details = entry.Details
+				details = renderDocumentationWithLinks(entry.Details, entry)
 			}
 		}
 
@@ -194,15 +205,18 @@ func buildCommandFromDebuggerID(syntaxFormatter REPLSyntax, cmdID debuggerUI.Deb
 		argsTypeName := methodName + "Args"
 		argsQualName := packagePath + "." + argsTypeName
 		if entry, exists := debuggerUI.Documentation.Entries[argsQualName]; exists {
-			argsDoc := entry.Details
-			if argsDoc == "" {
-				argsDoc = entry.Summary
+			argsDoc = entry
+			argsDocText := entry.Details
+			if argsDocText == "" {
+				argsDocText = entry.Summary
 			}
-			if argsDoc != "" {
+			if argsDocText != "" {
+				argsDocText = renderDocumentationWithLinks(argsDocText, entry)
 				if details != "" {
-					details += " "
+					details += "\n\nArguments: " + argsDocText
+				} else {
+					details = "Arguments: " + argsDocText
 				}
-				details += "Arguments: " + argsDoc
 			}
 		}
 
@@ -210,15 +224,18 @@ func buildCommandFromDebuggerID(syntaxFormatter REPLSyntax, cmdID debuggerUI.Deb
 		resultTypeName := methodName + "Result"
 		resultQualName := packagePath + "." + resultTypeName
 		if entry, exists := debuggerUI.Documentation.Entries[resultQualName]; exists {
-			resultDoc := entry.Details
-			if resultDoc == "" {
-				resultDoc = entry.Summary
+			resultDoc = entry
+			resultDocText := entry.Details
+			if resultDocText == "" {
+				resultDocText = entry.Summary
 			}
-			if resultDoc != "" {
+			if resultDocText != "" {
+				resultDocText = renderDocumentationWithLinks(resultDocText, entry)
 				if details != "" {
-					details += " "
+					details += "\n\nResult: " + resultDocText
+				} else {
+					details = "Result: " + resultDocText
 				}
-				details += "Result: " + resultDoc
 			}
 		}
 	}
@@ -235,7 +252,22 @@ func buildCommandFromDebuggerID(syntaxFormatter REPLSyntax, cmdID debuggerUI.Deb
 		Usage:       cmdNameFormatted,
 		Details:     details,
 		IsDebugger:  true,
+		MethodDoc:   methodDoc,
+		ArgsDoc:     argsDoc,
+		ResultDoc:   resultDoc,
 	}
+}
+
+// renderDocumentationWithLinks renders documentation text with resolved links and proper formatting
+func renderDocumentationWithLinks(text string, entry *docs.DocumentationEntry) string {
+	if entry == nil || len(entry.Links) == 0 {
+		// No links, just return the text as-is
+		return text
+	}
+
+	// Create a renderer to format links
+	renderer := NewREPLDocumentationRenderer(0, "")
+	return renderer.FormatCommandLinks(text, entry)
 }
 
 // buildAllCommandGroups builds command groups combining debugger commands (from documentation system)
@@ -320,7 +352,8 @@ func GetCommandGroups() []CommandGroup {
 	return GetREPLCommandsMetadata()
 }
 
-// FormatCommandHelp formats help text for display
+// FormatCommandHelp formats help text for display with proper wrapping.
+// It respects the specified maximum width and indentation for the help output.
 func FormatCommandHelp(cmd *Command, maxNameLen int) string {
 	// Format: name, aliases - description
 	names := []string{cmd.Name}
@@ -337,6 +370,18 @@ func FormatCommandHelp(cmd *Command, maxNameLen int) string {
 	}
 
 	return strings.ToLower(nameStr) + " - " + cmd.Description
+}
+
+// FormatCommandDetails formats the detailed documentation for a command with proper wrapping.
+// The indent parameter specifies the indentation prefix for all lines.
+// The maxWidth parameter specifies the maximum line width (0 = no wrapping).
+func FormatCommandDetails(cmd *Command, indent string, maxWidth int) string {
+	if cmd == nil || cmd.Details == "" {
+		return ""
+	}
+
+	renderer := NewREPLDocumentationRenderer(maxWidth, indent)
+	return renderer.wrapAndIndent(cmd.Details, indent)
 }
 
 // GetMaxCommandNameLength returns the maximum length of command names for formatting

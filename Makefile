@@ -1,4 +1,4 @@
-.PHONY: help test test-quick test-verbose test-coverage test-docker test-workflows generate build build-fast build-docker build-docker-full lint format format-fix vet run clean push act-install act-test act-test-quick act-test-docker status log docker-clean clean-all dev dev-quick
+.PHONY: help test test-quick test-verbose test-coverage test-docker test-workflows generate build build-fast build-docker build-docker-full lint format format-fix vet run repl clean push act-install act-test act-test-quick act-test-docker status log docker-clean clean-all dev dev-quick
 
 # Colors for output
 BLUE=\033[0;34m
@@ -18,6 +18,7 @@ help: ## Show this help message
 	@echo "  make format            - Check code formatting (gofmt)"
 	@echo "  make vet               - Run go vet analysis"
 	@echo "  make run               - Run cucaracha with go run"
+	@echo "  make repl              - Start Cucaracha in interactive REPL mode"
 	@echo ""
 	@echo "$(GREEN)Docker Testing:$(NC)"
 	@echo "  make build-docker      - Build Docker image (cucaracha:latest)"
@@ -99,6 +100,14 @@ vet: ## Run go vet
 
 build: generate ## Run code generation (depends on generate)
 	@echo "$(BLUE)Build complete (code generation done)$(NC)"
+
+run: build ## Run cucaracha with go run
+	@echo "$(BLUE)Running cucaracha...$(NC)"
+	go run ./main.go
+
+repl: build ## Run cucaracha in interactive REPL mode
+	@echo "$(BLUE)Starting Cucaracha REPL (type 'help' for commands, 'exit' to quit)...$(NC)"
+	@go run ./main.go
 
 # ============================================================================
 # Docker
