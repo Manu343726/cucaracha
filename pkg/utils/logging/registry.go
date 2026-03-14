@@ -82,6 +82,34 @@ func (r *Registry) RegisterLogger(logger *RegisteredLogger) error {
 	return nil
 }
 
+// ReplaceLogger replaces an existing registered logger with a new one.
+// Returns an error if a logger with the same name does not already exist.
+func (r *Registry) ReplaceLogger(logger *RegisteredLogger) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if _, exists := r.registeredLoggers[logger.Name()]; !exists {
+		return fmt.Errorf("logger %q not found", logger.Name())
+	}
+
+	r.registeredLoggers[logger.Name()] = logger
+	return nil
+}
+
+// RemoveLogger removes a registered logger from the registry.
+// This is primarily used for registry cleanup and testing.
+func (r *Registry) RemoveLogger(name string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if _, exists := r.registeredLoggers[name]; !exists {
+		return fmt.Errorf("logger %q not found", name)
+	}
+
+	delete(r.registeredLoggers, name)
+	return nil
+}
+
 // GetRegisteredLogger retrieves a registered logger by exact name.
 func (r *Registry) GetRegisteredLogger(name string) (*RegisteredLogger, error) {
 	r.mu.RLock()

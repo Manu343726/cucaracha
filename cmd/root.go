@@ -37,7 +37,7 @@ func Execute() {
 }
 
 func init() {
-	RootCmd.AddCommand(tools.ToolsCmd, cpu.CpuCmd)
+	RootCmd.AddCommand(tools.ToolsCmd, cpu.CpuCmd, DisasmCmd)
 	cobra.OnInitialize(initConfig)
 }
 

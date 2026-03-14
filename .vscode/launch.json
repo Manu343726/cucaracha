@@ -76,6 +76,22 @@
             "showLog": true,
             "logOutput": "rpc",
             "trace": "verbose"
+        },
+        {
+            "name": "Debug Interactive Disassembler",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "${workspaceFolder}/main.go",
+            "args": [
+                "disasm",
+                "programs/program.c"
+            ],
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal",
+            "showLog": false,
+            "logOutput": "rpc",
+            "preLaunchTask": "make build"
         }
     ]
 }
